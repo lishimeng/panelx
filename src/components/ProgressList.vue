@@ -32,7 +32,7 @@ defineProps<{
 
 <style scoped>
 .panelx-progress-list-content {
-  padding: 0 6px;
+  padding: 0 0.375rem;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
@@ -41,35 +41,35 @@ defineProps<{
 .panelx-progress-list-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
+  gap: 0.625rem;
+  margin-bottom: 0.625rem;
   font-size: 0.8125rem;
   color: rgba(255, 255, 255, 0.9);
 }
 .panelx-progress-list-row .label {
-  min-width: 64px;
+  min-width: 4rem;
   color: rgba(255, 255, 255, 0.8);
 }
 .panelx-progress-list-row .bar-wrap {
   flex: 1;
-  height: 8px;
+  height: 0.5rem;
   background: rgba(0, 212, 255, 0.15);
-  border-radius: 4px;
+  border-radius: 0.25rem;
   overflow: hidden;
 }
 .panelx-progress-list-row .bar-fill {
   height: 100%;
   background: linear-gradient(90deg, rgba(0, 212, 255, 0.6), rgba(0, 212, 255, 0.9));
-  border-radius: 4px;
+  border-radius: 0.25rem;
   transition: width 0.3s ease;
 }
 .panelx-progress-list-row .value {
-  min-width: 52px;
+  min-width: 3.25rem;
   text-align: right;
   color: rgba(0, 212, 255, 0.95);
 }
 .panelx-progress-list-row .percent {
-  min-width: 44px;
+  min-width: 2.75rem;
   color: rgba(255, 255, 255, 0.8);
 }
 </style>

@@ -53,7 +53,7 @@ onUnmounted(() => {
 .panelx-scene3d {
   width: 100%;
   height: 100%;
-  min-height: 200px;
+  min-height: 12.5rem;
 }
 .panelx-scene3d canvas {
   display: block;

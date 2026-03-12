@@ -22,14 +22,14 @@ defineProps<{
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 28px;
-  padding: 14px 0;
+  gap: 1.75rem;
+  padding: 0.875rem 0;
   width: 100%;
 }
 .panelx-screen-title-line {
   flex: 1;
-  max-width: 240px;
-  height: 2px;
+  max-width: 15rem;
+  height: 0.125rem;
   background: linear-gradient(
     90deg,
     transparent,
@@ -49,14 +49,14 @@ defineProps<{
 }
 .panelx-screen-title-wrap {
   position: relative;
-  padding: 0 20px;
+  padding: 0 1.25rem;
 }
 .panelx-screen-title-bg {
   position: absolute;
-  inset: -6px -12px;
+  inset: -0.375rem -0.75rem;
   background: linear-gradient(135deg, rgba(0, 212, 255, 0.08) 0%, transparent 50%, rgba(0, 212, 255, 0.05) 100%);
-  border: 1px solid rgba(0, 212, 255, 0.35);
-  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+  border: 0.0625rem solid rgba(0, 212, 255, 0.35);
+  clip-path: polygon(0 0, calc(100% - 0.75rem) 0, 100% 0.75rem, 100% 100%, 0.75rem 100%, 0 calc(100% - 0.75rem));
 }
 .panelx-screen-title-text {
   position: relative;
@@ -64,7 +64,7 @@ defineProps<{
   font-size: clamp(1.35rem, 2.4vw, 2.1rem);
   font-weight: 600;
   color: rgba(255, 255, 255, 0.98);
-  text-shadow: 0 0 24px rgba(0, 212, 255, 0.6), 0 0 48px rgba(0, 212, 255, 0.35);
+  text-shadow: 0 0 1.5rem rgba(0, 212, 255, 0.6), 0 0 3rem rgba(0, 212, 255, 0.35);
   letter-spacing: 0.12em;
   white-space: nowrap;
 }

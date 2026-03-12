@@ -17,7 +17,7 @@ const chartRef = ref<HTMLElement | null>(null)
 let chartInstance: echarts.ECharts | null = null
 
 const width = props.width || '100%'
-const height = props.height || '400px'
+const height = props.height || '25rem'
 
 function getOptionsToSet(): import('echarts').EChartsOption {
   return mergeMacaronRoundOptions(props.options)

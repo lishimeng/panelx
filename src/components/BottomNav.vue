@@ -24,33 +24,33 @@ defineProps<{
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 16px;
-  padding: 12px 0;
+  gap: 1rem;
+  padding: 0.75rem 0;
   width: 100%;
 }
 .panelx-bottom-nav-btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 10px 24px;
+  gap: 0.5rem;
+  padding: 0.625rem 1.5rem;
   font-size: 0.875rem;
   color: rgba(255, 255, 255, 0.85);
   background: rgba(10, 25, 47, 0.6);
-  border: 1px solid rgba(0, 212, 255, 0.4);
-  border-radius: 4px;
+  border: 0.0625rem solid rgba(0, 212, 255, 0.4);
+  border-radius: 0.25rem;
   cursor: pointer;
   transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 .panelx-bottom-nav-btn:hover {
   background: rgba(0, 212, 255, 0.15);
   border-color: rgba(0, 212, 255, 0.6);
-  box-shadow: 0 0 12px rgba(0, 212, 255, 0.2);
+  box-shadow: 0 0 0.75rem rgba(0, 212, 255, 0.2);
 }
 .panelx-bottom-nav-btn.active {
   background: rgba(0, 212, 255, 0.2);
   border-color: rgba(0, 212, 255, 0.7);
   color: #fff;
-  box-shadow: 0 0 16px rgba(0, 212, 255, 0.25);
+  box-shadow: 0 0 1rem rgba(0, 212, 255, 0.25);
 }
 .btn-icon {
   opacity: 0.9;

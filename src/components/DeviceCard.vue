@@ -27,24 +27,24 @@ defineProps<{
   position: relative;
   width: 100%;
   height: 100%;
-  padding: 14px 16px;
+  padding: 0.875rem 1rem;
   background: rgba(10, 25, 47, 0.85);
-  border: 1px solid rgba(0, 212, 255, 0.5);
-  box-shadow: 0 0 20px rgba(0, 212, 255, 0.2), inset 0 0 40px rgba(0, 212, 255, 0.05);
+  border: 0.0625rem solid rgba(0, 212, 255, 0.5);
+  box-shadow: 0 0 1.25rem rgba(0, 212, 255, 0.2), inset 0 0 2.5rem rgba(0, 212, 255, 0.05);
 }
 .panelx-device-card-title {
   font-size: 1rem;
   font-weight: 600;
   color: rgba(0, 212, 255, 0.95);
-  margin-bottom: 10px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid rgba(0, 212, 255, 0.3);
+  margin-bottom: 0.625rem;
+  padding-bottom: 0.375rem;
+  border-bottom: 0.0625rem solid rgba(0, 212, 255, 0.3);
 }
 .panelx-device-card-border {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  box-shadow: 0 0 1px rgba(0, 212, 255, 0.3);
+  box-shadow: 0 0 0.0625rem rgba(0, 212, 255, 0.3);
 }
 .panelx-device-card-list {
   list-style: none;
@@ -54,8 +54,8 @@ defineProps<{
 .panelx-device-card-row {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 0;
+  gap: 0.5rem;
+  padding: 0.375rem 0;
   font-size: 0.8125rem;
   color: rgba(255, 255, 255, 0.9);
 }
@@ -65,7 +65,7 @@ defineProps<{
 }
 .panelx-device-card-row .label {
   color: rgba(255, 255, 255, 0.7);
-  min-width: 90px;
+  min-width: 5.625rem;
 }
 .panelx-device-card-row .value {
   color: rgba(255, 255, 255, 0.95);

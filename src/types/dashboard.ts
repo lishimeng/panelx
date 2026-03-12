@@ -27,7 +27,7 @@ export interface WidgetConfig2D {
   /**
    * 在设计稿中的位置与尺寸（DesignRect）。
    * 与 config.design 同坐标系，如 design 为 1920×1080 时，layout.height=56 表示「设计稿里 56 单位」，
-   * 实际渲染会按 scale = actualWidth/1920 缩放，所以最终像素 ≈ 56×scale，小屏下会小于 56px。
+   * 实际渲染会按 scale 缩放，小屏下会按比例缩小。配置文件内为设计稿数值（仅配置以 px 为单位）。
    */
   layout: DesignRect
   /** 通用外观 */
@@ -82,7 +82,7 @@ export type BackgroundLayerConfig = BackgroundLayerImage | BackgroundLayerScene3
 
 /** Dashboard 完整配置 */
 export interface DashboardConfig {
-  /** 设计稿尺寸，如 1920x1080 */
+  /** 设计稿尺寸，如 1920x1080（仅配置文件为 px，加载后用于换算） */
   design: DesignScreen
   /** 第 1 层：背景层（图片或 3D 场景），不填则无背景 */
   backgroundLayer?: BackgroundLayerConfig
@@ -92,6 +92,8 @@ export interface DashboardConfig {
   widgets3D?: WidgetConfig3D[]
   /** 主题/全局外观（可选） */
   theme?: Record<string, unknown>
+  /** layout 单位：px=设计稿像素（来自配置），percent=加载后转换的 0-100，渲染时不再使用 px */
+  layoutUnit?: 'px' | 'percent'
 }
 
 /** 3D 模型文件格式 */

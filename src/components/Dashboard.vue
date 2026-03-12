@@ -40,7 +40,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
-import { SizeManager2D, computeDashboardActualSize } from '../core/size'
+import { SizeManager2D, computeDashboardActualSize, pxToVw, pxToVh, pxToRem } from '../core/size'
 import type {
   DashboardConfig,
   WidgetConfig2D,
@@ -72,6 +72,8 @@ const containerRef = ref<HTMLElement | null>(null)
 const sizeManager = ref<SizeManager2D | null>(null)
 const sizeVersion = ref(0)
 const actualWidthUsed = ref<number | null>(null)
+/** 视口尺寸，用于 px → vw/vh 换算 */
+const viewportSize = ref<{ width: number; height: number }>({ width: 0, height: 0 })
 
 const design = computed(() => config.value.design)
 const visibleWidgets = computed(() =>
@@ -96,14 +98,17 @@ function getDesignSize() {
 const containerStyle = computed((): Record<string, string> => {
   sizeVersion.value
   const sm = sizeManager.value
+  const vp = viewportSize.value
   if (!sm) {
-    return { width: '100%', maxWidth: '100%', minHeight: '400px', position: 'relative', boxSizing: 'border-box' }
+    return { width: '100%', maxWidth: '100%', minHeight: '25rem', position: 'relative', boxSizing: 'border-box' }
   }
   const w = actualWidthUsed.value ?? (containerRef.value?.offsetWidth ?? 0)
+  const h = sm.actualHeight
+  const useVwVh = vp.width > 0 && vp.height > 0
   return {
-    width: w > 0 ? `${w}px` : '100%',
+    width: w > 0 ? (useVwVh ? pxToVw(w, vp.width) : pxToRem(w)) : '100%',
     maxWidth: '100%',
-    height: `${sm.actualHeight}px`,
+    height: useVwVh ? pxToVh(h, vp.height) : pxToRem(h),
     maxHeight: '100%',
     position: 'relative',
     boxSizing: 'border-box',
@@ -141,25 +146,40 @@ function ensureSizeManager() {
     sizeManager.value.setActualWidth(actualW)
   }
   actualWidthUsed.value = actualW
+  viewportSize.value = { width: screenW, height: screenH }
   sizeVersion.value++
 }
 
-/** widget 展示 v1：与迁移 JSON 时一致，用 sizeManager.designToActual */
+/** widget 展示：layoutUnit=percent 时用配置转换后的 0-100；否则用 sizeManager（px 换算为 vw/vh/rem） */
 function getActualRect(w: WidgetConfig2D): { x: number; y: number; width: number; height: number } | null {
+  if (!w.layout) return null
+  if (config.value.layoutUnit === 'percent') return w.layout as DesignRect
   const sm = sizeManager.value
-  if (!sm || !w.layout) return null
+  if (!sm) return null
   return sm.designToActual(w.layout as DesignRect)
 }
 
 function getWidgetStyle(w: WidgetConfig2D): Record<string, string> {
   const rect = getActualRect(w)
   if (!rect) return {}
+  if (config.value.layoutUnit === 'percent') {
+    return {
+      position: 'absolute',
+      left: `${rect.x}%`,
+      top: `${rect.y}%`,
+      width: `${rect.width}%`,
+      height: `${rect.height}%`,
+      boxSizing: 'border-box'
+    }
+  }
+  const vp = viewportSize.value
+  const useVwVh = vp.width > 0 && vp.height > 0
   return {
     position: 'absolute',
-    left: `${rect.x}px`,
-    top: `${rect.y}px`,
-    width: `${rect.width}px`,
-    height: `${rect.height}px`,
+    left: useVwVh ? pxToVw(rect.x, vp.width) : pxToRem(rect.x),
+    top: useVwVh ? pxToVh(rect.y, vp.height) : pxToRem(rect.y),
+    width: useVwVh ? pxToVw(rect.width, vp.width) : pxToRem(rect.width),
+    height: useVwVh ? pxToVh(rect.height, vp.height) : pxToRem(rect.height),
     boxSizing: 'border-box'
   }
 }

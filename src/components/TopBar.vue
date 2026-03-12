@@ -59,9 +59,9 @@ const humidity = computed(() => props.humidity ?? '50%rh')
   justify-content: space-between;
   width: 100%;
   height: 100%;
-  padding: 0.15cqh 24px;
+  padding: 0.15cqh 1.5rem;
   color: rgba(255, 255, 255, 0.85);
-  font-size: clamp(10px, 58.33cqh, 28px);
+  font-size: clamp(0.625rem, 58.33cqh, 1.75rem);
   line-height: 1.2;
   box-sizing: border-box;
 }

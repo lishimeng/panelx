@@ -40,7 +40,7 @@
       <Editor v-if="view === 'editor'" />
       <div v-else-if="view === 'screen'" class="panelx-demo-screen">
         <div class="panelx-dashboard-wrap">
-          <Dashboard :config="demoConfig" />
+          <Dashboard :config="demoConfigRuntime" />
         </div>
       </div>
       <div v-else-if="view === 'workshop'" class="panelx-demo-screen panelx-demo-workshop">
@@ -62,6 +62,7 @@ import { Editor } from './editor'
 import { Dashboard, Scene3DFramework } from './components'
 import { VerifyDemo } from './demo'
 import { LayerDef } from './framework'
+import { convertDashboardConfigPxToPercent } from './core/size'
 import type { DashboardConfig, Scene3DConfig } from './types/dashboard'
 
 const view = ref<'editor' | 'screen' | 'scene3d' | 'workshop' | 'verify'>('editor')
@@ -79,11 +80,11 @@ const workshopBaseConfig = ref<DashboardConfig>({
   widgets2D: []
 })
 
-/** 模拟 API：异步加载车间大屏 JSON 配置 */
+/** 模拟 API：异步加载车间大屏 JSON 配置；加载后立刻将 layout 从 px 转为 percent，系统内不再使用 px */
 async function loadWorkshopConfig() {
   const mod = await import('./demo/dashboard_config.json')
   const base = mod.default as unknown as DashboardConfig
-  workshopBaseConfig.value = { ...base }
+  workshopBaseConfig.value = convertDashboardConfigPxToPercent({ ...base } as DashboardConfig)
 }
 
 /** TopBar 业务数据：时间、温湿度 */
@@ -260,7 +261,7 @@ const demoConfig: DashboardConfig = {
       props: {
         title: '图表样式测试',
         subTitle: 'MACARON + ROUND',
-        chartHeight: '240px',
+        chartHeight: '15rem',
         theme: 'macaron',
         options: {
           tooltip: { trigger: 'axis' },
@@ -283,6 +284,9 @@ const demoConfig: DashboardConfig = {
     }
   ]
 }
+
+/** 大屏预览用配置：加载后立刻转为 percent，不再使用 px */
+const demoConfigRuntime = computed(() => convertDashboardConfigPxToPercent({ ...demoConfig }))
 
 /** 车间大屏展示用配置：在 base 上注入 TopBar 时间/温湿度 */
 const workshopDemoConfig = computed<DashboardConfig>(() => {
@@ -313,7 +317,7 @@ const workshopDemoConfig = computed<DashboardConfig>(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 24px;
+  padding: 0.75rem 1.5rem;
   background: #1a1a2e;
   color: #eee;
   min-width: 0;
@@ -328,13 +332,13 @@ const workshopDemoConfig = computed<DashboardConfig>(() => {
 }
 .panelx-demo-header nav {
   display: flex;
-  gap: 8px;
+  gap: 0.5rem;
   flex-shrink: 0;
 }
 .panelx-demo-header button {
-  padding: 8px 16px;
-  border: 1px solid rgba(255,255,255,0.3);
-  border-radius: 6px;
+  padding: 0.5rem 1rem;
+  border: 0.0625rem solid rgba(255,255,255,0.3);
+  border-radius: 0.375rem;
   background: transparent;
   color: #eee;
   cursor: pointer;
@@ -358,7 +362,7 @@ const workshopDemoConfig = computed<DashboardConfig>(() => {
   min-width: 0;
   max-width: 100%;
   background: #1a1a2e;
-  padding: 24px;
+  padding: 1.5rem;
   display: flex;
   flex-direction: column;
   align-items: center;

@@ -4,6 +4,8 @@
  * - 设计宽高比 >= 1 则宽度占满，否则高度占满
  */
 
+import type { DashboardConfig } from '../../types/dashboard'
+
 export interface DashboardSizeInput {
   /** 屏幕（容器）宽度 */
   screenWidth: number
@@ -59,4 +61,70 @@ export function computeDashboardActualSize(input: DashboardSizeInput): Dashboard
     actualHeight,
     scale
   }
+}
+
+/** 视口尺寸，用于 px → vw/vh 换算 */
+export interface ViewportSize {
+  width: number
+  height: number
+}
+
+const REM_BASE = 16
+
+/** px → vw 字符串；视口为 0 时回退为 rem，系统内不输出 px */
+export function pxToVw(px: number, viewportWidth: number): string {
+  if (!viewportWidth) return pxToRem(px)
+  return `${(px / viewportWidth) * 100}vw`
+}
+
+/** px → vh 字符串；视口为 0 时回退为 rem */
+export function pxToVh(px: number, viewportHeight: number): string {
+  if (!viewportHeight) return pxToRem(px)
+  return `${(px / viewportHeight) * 100}vh`
+}
+
+/** px → rem 字符串，base 默认 16 */
+export function pxToRem(px: number, base: number = REM_BASE): string {
+  return `${px / base}rem`
+}
+
+/** 将字符串中的 'Npx' 转为 'Nrem'（base=16），非 px 字符串原样返回 */
+function stringPxToRem(s: string, base: number = REM_BASE): string {
+  const m = /^(\d+(?:\.\d+)?)px$/.exec(String(s))
+  return m ? `${Number(m[1]) / base}rem` : s
+}
+
+/** 递归将对象中值为 'Npx' 的字符串转为 rem */
+function propsPxToRem(obj: unknown): unknown {
+  if (obj == null) return obj
+  if (typeof obj === 'string') return stringPxToRem(obj)
+  if (Array.isArray(obj)) return obj.map(propsPxToRem)
+  if (typeof obj === 'object') {
+    const out: Record<string, unknown> = {}
+    for (const [k, v] of Object.entries(obj)) out[k] = propsPxToRem(v)
+    return out
+  }
+  return obj
+}
+
+/** 配置中 layout 为设计稿 px，加载后立刻转为 percent(0-100)，渲染阶段不再使用 px */
+export function convertDashboardConfigPxToPercent(config: DashboardConfig): DashboardConfig {
+  const design = config.design
+  const dw = design?.width || 1920
+  const dh = design?.height || 1080
+  const widgets2D = config.widgets2D.map((w) => {
+    const layout = w.layout
+    const next = { ...w }
+    if (layout) {
+      next.layout = {
+        x: (layout.x / dw) * 100,
+        y: (layout.y / dh) * 100,
+        width: (layout.width / dw) * 100,
+        height: (layout.height / dh) * 100
+      }
+    }
+    if (w.props) next.props = propsPxToRem(w.props) as Record<string, unknown>
+    return next
+  })
+  return { ...config, widgets2D, layoutUnit: 'percent' as const }
 }

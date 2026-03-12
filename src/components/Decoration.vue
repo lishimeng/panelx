@@ -29,8 +29,8 @@ withDefaults(defineProps<DecorationProps>(), { variant: 'corner' })
 }
 .corner {
   position: absolute;
-  width: 20px;
-  height: 20px;
+  width: 1.25rem;
+  height: 1.25rem;
   border-color: var(--color-primary, #1890ff);
   border-style: solid;
   border-width: 0;
@@ -38,26 +38,26 @@ withDefaults(defineProps<DecorationProps>(), { variant: 'corner' })
 .corner-tl {
   top: 0;
   left: 0;
-  border-top-width: 2px;
-  border-left-width: 2px;
+  border-top-width: 0.125rem;
+  border-left-width: 0.125rem;
 }
 .corner-tr {
   top: 0;
   right: 0;
-  border-top-width: 2px;
-  border-right-width: 2px;
+  border-top-width: 0.125rem;
+  border-right-width: 0.125rem;
 }
 .corner-bl {
   bottom: 0;
   left: 0;
-  border-bottom-width: 2px;
-  border-left-width: 2px;
+  border-bottom-width: 0.125rem;
+  border-left-width: 0.125rem;
 }
 .corner-br {
   bottom: 0;
   right: 0;
-  border-bottom-width: 2px;
-  border-right-width: 2px;
+  border-bottom-width: 0.125rem;
+  border-right-width: 0.125rem;
 }
 .border-edge {
   position: absolute;
@@ -68,26 +68,26 @@ withDefaults(defineProps<DecorationProps>(), { variant: 'corner' })
   top: 0;
   left: 0;
   right: 0;
-  height: 1px;
+  height: 0.0625rem;
 }
 .edge-b {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 1px;
+  height: 0.0625rem;
 }
 .edge-l {
   left: 0;
   top: 0;
   bottom: 0;
-  width: 1px;
+  width: 0.0625rem;
   background: linear-gradient(180deg, transparent, var(--color-primary, #1890ff), transparent);
 }
 .edge-r {
   right: 0;
   top: 0;
   bottom: 0;
-  width: 1px;
+  width: 0.0625rem;
   background: linear-gradient(180deg, transparent, var(--color-primary, #1890ff), transparent);
 }
 </style>
