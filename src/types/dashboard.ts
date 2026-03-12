@@ -111,8 +111,60 @@ export interface Model3DItemConfig {
   layer?: number | number[]
   /** 位置 [x, y, z] */
   position?: [number, number, number]
+  /** 旋转欧拉角 [x, y, z] 弧度，不设则为 [0, 0, 0] */
+  rotation?: [number, number, number]
   /** 统一缩放 */
   scale?: number
+}
+
+/** 3D 场景内信息框状态类型（影响样式：红=故障、黄=预警、绿=正常），已推荐用 colorPreset */
+export type Scene3DInfoBoxStatusType = 'normal' | 'warning' | 'fault'
+
+/** 信息框预制颜色：info=蓝/青、success=绿、warning=黄、error=红 */
+export type Scene3DInfoBoxColorPreset = 'info' | 'success' | 'warning' | 'error'
+
+/** 信息框自定义颜色（可选覆盖预制中的某一项或多项） */
+export interface Scene3DInfoBoxColorOverride {
+  /** 背景，如 rgba(20, 60, 100, 0.88) */
+  bg?: string
+  /** 边框与角线，如 rgba(0, 212, 255, 0.8) */
+  border?: string
+  /** 外发光 box-shadow，如 0 0 20px rgba(0,212,255,0.5) */
+  glow?: string
+  /** 状态/高亮文字颜色，如 rgb(120, 200, 255) */
+  statusColor?: string
+}
+
+/** 3D 场景内悬浮信息框配置（绑定到模型或指定坐标，科技感红/黄/蓝框） */
+export interface Scene3DInfoBoxConfig {
+  /** 唯一 id */
+  id: string
+  /** 绑定的模型 id，与 position 二选一；有 modelId 时框显示在模型上方 */
+  modelId?: string
+  /** 固定世界坐标 [x,y,z]，与 modelId 二选一 */
+  position?: [number, number, number]
+  /** 相对模型或 position 的偏移，默认 [0, 1.2, 0] 表示模型上方 */
+  offset?: [number, number, number]
+  /** 旋转欧拉角 [x, y, z] 弧度，不设则为 [0, 0, 0] */
+  rotation?: [number, number, number]
+  /** 设备类型/标题，如「光刻机」 */
+  title: string
+  /** 设备编号，如 GKJ015 */
+  equipmentId: string
+  /** 状态文案，如「正常」「故障」「预警」 */
+  status: string
+  /** 状态类型（兼容旧配置，与 colorPreset 映射：fault→error, normal→success 绿, warning→warning） */
+  statusType?: Scene3DInfoBoxStatusType
+  /** 预制颜色：info / success / warning / error，优先于 statusType */
+  colorPreset?: Scene3DInfoBoxColorPreset
+  /** 自定义颜色，覆盖预制中的对应项 */
+  color?: Scene3DInfoBoxColorOverride
+  /** 运行时长，如 3.5 h */
+  runningTime?: string
+  /** 异常信息（故障时显示） */
+  message?: string
+  /** 是否显示 */
+  visible?: boolean
 }
 
 /** 3D 场景灯光强度配置（不填则使用内置默认值） */
@@ -150,6 +202,8 @@ export interface Scene3DCameraConfig {
 export interface Scene3DConfig {
   /** 要加载并加入场景的模型列表 */
   models?: Model3DItemConfig[]
+  /** 场景内悬浮信息框（绑定模型或指定坐标，红/黄科技感框） */
+  infoBoxes?: Scene3DInfoBoxConfig[]
   /** Stats 显示：0 隐藏 1 仅 FPS 2 全部 */
   statsStyle?: 0 | 1 | 2
   /** 场景背景：不填或 null 为透明，填十六进制颜色如 0x000000 为纯色 */

@@ -116,8 +116,8 @@ const scene3DConfig: Scene3DConfig = {
   /** 仅 ambient 时很多 GLB（PBR 材质）会发黑，需配合 hemisphere/point 才有明暗 */
   lights: {
     ambient: 100.5,
-    hemisphere: 50,
-    point: 100
+    hemisphere: 100,
+    point: 300
   },
   camera: {
     type: 'orthographic',
@@ -247,7 +247,34 @@ const demoConfig: DashboardConfig = {
 const workshopSceneConfig: Scene3DConfig = {
   ...scene3DConfig,
   statsStyle: 0,
-  background: 0x0d1b2a
+  background: 0x0d1b2a,
+  /** 3D 场景内悬浮信息框（绑定到某台设备，红色故障框） */
+  infoBoxes: [
+    {
+      id: 'infobox-srm005',
+      modelId: 'ProductLine-5',
+      offset: [0, 1.4, 0],
+      title: '#5机',
+      equipmentId: 'SRM005',
+      status: '故障',
+      statusType: 'fault',
+      runningTime: '3.5 h',
+      message: '当前设备故障,正在抢修中',
+      rotation: [0, Math.PI/4, 0]
+    },
+    {
+      id: 'infobox-srm004',
+      modelId: 'ProductLine-4',
+      offset: [-4.0, 1.4, 0],
+      title: '#4机',
+      equipmentId: 'SRM004',
+      status: '故障',
+      statusType: 'normal',
+      runningTime: '12.0 h',
+      message: '当前设备完成工作',
+      rotation: [0, Math.PI/4, 0]
+    }
+  ]
 }
 
 const left = 1

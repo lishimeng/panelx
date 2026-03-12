@@ -40,7 +40,7 @@ withDefaults(
 }
 .panelx-glass-panel-head {
   flex-shrink: 0;
-  padding: 4px 14px 4px;
+  padding: 8px 18px 8px;
   border-bottom: 1px solid rgba(0, 212, 255, 0.25);
 }
 .panelx-glass-panel-titles {

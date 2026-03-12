@@ -12,6 +12,7 @@ import { OrthographicCamera, PerspectiveCamera } from 'three'
 import { setup3D, ControlsStoryBoard, LayerDef, ModelLoadable } from '../framework'
 import type { World } from '../framework'
 import type { Model } from '../framework'
+import { createScene3DInfoBox } from '../framework/Scene3DInfoBox'
 import type { Scene3DConfig, Model3DItemConfig } from '../types/dashboard'
 
 const props = defineProps<{
@@ -82,18 +83,56 @@ onMounted(() => {
         const stored = store.getModels().get(item.id)
         if (stored) stored.layer = toLayerArray(item.layer)
       }
+      const modelPositions = new Map<string, [number, number, number]>()
       for (const item of modelsConfig) {
         if (item.visible === false) continue
         const model = store.getModel(item.id)
         if (model?.scene) {
           if (item.position) {
             model.scene.position.set(item.position[0], item.position[1], item.position[2])
+            modelPositions.set(item.id, [...item.position])
+          }
+          if (item.rotation) {
+            model.scene.rotation.set(item.rotation[0], item.rotation[1], item.rotation[2])
+          } else {
+            model.scene.rotation.set(0, 0, 0)
           }
           if (item.scale != null) {
             model.scene.scale.setScalar(item.scale)
           }
           storyBoard.addModel(model)
         }
+      }
+      const infoBoxes = props.config?.infoBoxes ?? []
+      const defaultOffset: [number, number, number] = [0, 1.2, 0]
+      for (const boxConfig of infoBoxes) {
+        if (boxConfig.visible === false) continue
+        let x: number, y: number, z: number
+        if (boxConfig.modelId != null) {
+          const pos = modelPositions.get(boxConfig.modelId)
+          if (!pos) continue
+          const [ox, oy, oz] = boxConfig.offset ?? defaultOffset
+          x = pos[0] + ox
+          y = pos[1] + oy
+          z = pos[2] + oz
+        } else if (boxConfig.position) {
+          const [px, py, pz] = boxConfig.position
+          const [ox, oy, oz] = boxConfig.offset ?? defaultOffset
+          x = px + ox
+          y = py + oy
+          z = pz + oz
+        } else {
+          continue
+        }
+        const css3d = createScene3DInfoBox(boxConfig)
+        css3d.position.set(x, y, z)
+        if (boxConfig.rotation) {
+          css3d.rotation.set(boxConfig.rotation[0], boxConfig.rotation[1], boxConfig.rotation[2])
+        } else {
+          css3d.rotation.set(0, 0, 0)
+        }
+        css3d.layers.set(LayerDef.default)
+        storyBoard.scene.add(css3d)
       }
       storyBoard.enableControls(world.getRendererDom())
       world.sceneTo(storyBoard)
