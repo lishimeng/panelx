@@ -135,14 +135,25 @@ export abstract class BaseStoryBoard implements StoryBoard {
 
         const lights = this._sceneOptions?.lights
         if (lights) {
-            if (lights.ambient != null) this.lightMap.get('ambientLight')!.intensity = lights.ambient
-            if (lights.hemisphere != null) this.lightMap.get('hesLight')!.intensity = lights.hemisphere
-            if (lights.directional != null) this.lightMap.get('dirLight')!.intensity = lights.directional
+            console.log('lights', lights)
+            if (lights.ambient != null) {
+                this.lightMap.get('ambientLight')!.intensity = lights.ambient
+                console.log('ambientLight', this.lightMap.get('ambientLight')!.intensity)
+            }
+            if (lights.hemisphere != null) {
+                this.lightMap.get('hesLight')!.intensity = lights.hemisphere
+                console.log('hesLight', this.lightMap.get('hesLight')!.intensity)
+            }
+            if (lights.directional != null) {
+                this.lightMap.get('dirLight')!.intensity = lights.directional
+                console.log('dirLight', this.lightMap.get('dirLight')!.intensity)
+            }
         }
     }
 
     changeLight(lightName: string, intensity: number): void {
         this.lightMap.get(lightName)!.intensity = intensity
+        console.log('changeLight', lightName, intensity)
     }
     getInnerStoryBoards(): StoryBoard[] {
         return this.innerStoryboards
