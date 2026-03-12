@@ -4,7 +4,7 @@
       <Chart
         :options="chartOptions"
         width="100%"
-        :height="chartHeight || '100%'"
+        height="100%"
         :theme="chartTheme"
       />
     </div>
@@ -33,7 +33,6 @@ const props = withDefaults(
 )
 
 const chartOptions = computed(() => props.options)
-const chartHeight = computed(() => props.chartHeight ?? '100%')
 const chartTheme = computed(() =>
   props.theme === 'macaron' ? 'macaron' : props.theme === 'dark' ? 'dark' : undefined
 )
@@ -44,10 +43,12 @@ const chartTheme = computed(() =>
   display: flex;
   flex-direction: column;
   min-height: 0;
+  overflow: hidden;
 }
 .panelx-glass-chart-body :deep(div) {
   width: 100% !important;
   flex: 1 !important;
   min-height: 0 !important;
+  overflow: hidden !important;
 }
 </style>

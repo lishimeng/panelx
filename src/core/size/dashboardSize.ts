@@ -107,6 +107,22 @@ function propsPxToRem(obj: unknown): unknown {
   return obj
 }
 
+/** 将 ECharts options.grid 的像素值转为百分比，随图表尺寸缩放 */
+function convertGridPxToPercent(
+  options: Record<string, unknown> | undefined,
+  chartWidth: number,
+  chartHeight: number
+): void {
+  const grid = options?.grid as { left?: number; right?: number; top?: number; bottom?: number } | undefined
+  if (!grid || chartWidth <= 0 || chartHeight <= 0) return
+  const out: Record<string, string> = {}
+  if (typeof grid.left === 'number') out.left = `${(grid.left / chartWidth) * 100}%`
+  if (typeof grid.right === 'number') out.right = `${(grid.right / chartWidth) * 100}%`
+  if (typeof grid.top === 'number') out.top = `${(grid.top / chartHeight) * 100}%`
+  if (typeof grid.bottom === 'number') out.bottom = `${(grid.bottom / chartHeight) * 100}%`
+  Object.assign(grid, out)
+}
+
 /** 配置中 layout 为设计稿 px，加载后立刻转为 percent(0-100)，渲染阶段不再使用 px */
 export function convertDashboardConfigPxToPercent(config: DashboardConfig): DashboardConfig {
   const design = config.design
@@ -115,6 +131,11 @@ export function convertDashboardConfigPxToPercent(config: DashboardConfig): Dash
   const widgets2D = config.widgets2D.map((w) => {
     const layout = w.layout
     const next = { ...w }
+    if (w.props) {
+      next.props = propsPxToRem(w.props) as Record<string, unknown>
+      const options = (next.props as Record<string, unknown>).options as Record<string, unknown> | undefined
+      if (layout && options) convertGridPxToPercent(options, layout.width, layout.height)
+    }
     if (layout) {
       next.layout = {
         x: (layout.x / dw) * 100,
@@ -123,7 +144,6 @@ export function convertDashboardConfigPxToPercent(config: DashboardConfig): Dash
         height: (layout.height / dh) * 100
       }
     }
-    if (w.props) next.props = propsPxToRem(w.props) as Record<string, unknown>
     return next
   })
   return { ...config, widgets2D, layoutUnit: 'percent' as const }
