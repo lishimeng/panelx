@@ -1,28 +1,28 @@
 <template>
-  <div class="panelx-progress-list">
-    <div v-if="title || subTitle" class="panelx-progress-list-head">
-      <span v-if="title" class="panelx-progress-list-title">{{ title }}</span>
-      <span v-if="subTitle" class="panelx-progress-list-subtitle">{{ subTitle }}</span>
-    </div>
-    <div
-      v-for="(item, i) in items"
-      :key="i"
-      class="panelx-progress-list-row"
-    >
-      <span class="label">{{ item.label }}</span>
-      <div class="bar-wrap">
-        <div
-          class="bar-fill"
-          :style="{ width: `${Math.min(100, Math.max(0, item.percent))}%` }"
-        />
+  <GlassPanel :title="title" :sub-title="subTitle">
+    <div class="panelx-progress-list-content">
+      <div
+        v-for="(item, i) in items"
+        :key="i"
+        class="panelx-progress-list-row"
+      >
+        <span class="label">{{ item.label }}</span>
+        <div class="bar-wrap">
+          <div
+            class="bar-fill"
+            :style="{ width: `${Math.min(100, Math.max(0, item.percent))}%` }"
+          />
+        </div>
+        <span class="value">{{ item.value }}</span>
+        <span class="percent">{{ item.percent }}%</span>
       </div>
-      <span class="value">{{ item.value }}</span>
-      <span class="percent">{{ item.percent }}%</span>
     </div>
-  </div>
+  </GlassPanel>
 </template>
 
 <script setup lang="ts">
+import GlassPanel from './GlassPanel.vue'
+
 defineProps<{
   title?: string
   subTitle?: string
@@ -31,32 +31,12 @@ defineProps<{
 </script>
 
 <style scoped>
-.panelx-progress-list {
-  width: 100%;
-  height: 100%;
-  padding: 12px 14px;
-  background: rgba(10, 25, 47, 0.75);
-  border: 1px solid rgba(0, 212, 255, 0.4);
-  box-shadow: 0 0 12px rgba(0, 212, 255, 0.1);
-}
-.panelx-progress-list-head {
-  margin-bottom: 12px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid rgba(0, 212, 255, 0.25);
-}
-.panelx-progress-list-title {
-  display: block;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
-}
-.panelx-progress-list-subtitle {
-  display: block;
-  font-size: 0.6875rem;
-  font-weight: 500;
-  color: rgba(0, 212, 255, 0.75);
-  letter-spacing: 0.06em;
-  margin-top: 2px;
+.panelx-progress-list-content {
+  padding: 0 6px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 .panelx-progress-list-row {
   display: flex;

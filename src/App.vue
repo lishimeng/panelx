@@ -57,7 +57,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Editor } from './editor'
 import { Dashboard, Scene3DFramework } from './components'
 import { VerifyDemo } from './demo'
@@ -74,6 +74,21 @@ function openWorkshopTab() {
   window.open(u.toString(), '_blank', 'noopener,noreferrer')
 }
 
+/** TopBar 业务数据：时间每 2.3 秒刷新，温湿度由外部传入 */
+const topBarDateTime = ref('')
+const topBarTemperature = ref('25℃')
+const topBarHumidity = ref('50%rh')
+
+const WEEK_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+function formatTopBarTime(): string {
+  const d = new Date()
+  const pad = (n: number) => String(n).padStart(2, '0')
+  const week = WEEK_NAMES[d.getDay()]
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${week} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
+
+let topBarRefreshTimer: ReturnType<typeof setInterval> | null = null
+
 onMounted(() => {
   const u = new URL(window.location.href)
   if (u.searchParams.get('workshop') === '1') {
@@ -81,17 +96,28 @@ onMounted(() => {
     view.value = 'workshop'
     if (typeof document !== 'undefined') document.title = '晶圆加工车间可视化大屏'
   }
+  topBarDateTime.value = formatTopBarTime()
+  topBarRefreshTimer = setInterval(() => {
+    topBarDateTime.value = formatTopBarTime()
+  }, 2300)
+})
+
+onUnmounted(() => {
+  if (topBarRefreshTimer) {
+    clearInterval(topBarRefreshTimer)
+    topBarRefreshTimer = null
+  }
 })
 
 /** 3D 场景配置：模型列表等（参考 widgets2D 的配置方式） */
 const scene3DConfig: Scene3DConfig = {
   statsStyle: 2,
   // background: 0xeeeeee,
-  /** 仅 ambient 时很多 GLB（PBR 材质）会发黑，需配合 hemisphere/directional 才有明暗 */
+  /** 仅 ambient 时很多 GLB（PBR 材质）会发黑，需配合 hemisphere/point 才有明暗 */
   lights: {
-    ambient: 12.5,
-    hemisphere: 0,
-    directional: 0
+    ambient: 100.5,
+    hemisphere: 50,
+    point: 100
   },
   camera: {
     type: 'orthographic',
@@ -103,11 +129,67 @@ const scene3DConfig: Scene3DConfig = {
   },
   models: [
     {
-      id: 'ProductLine',
+      id: 'ProductLine-1',
       source: '/product-line.glb',
       format: 'gltf',
       visible: true,
-      position: [0, 0.5, 0],
+      position: [-0.75-1.5, 0.5, 0],
+      scale: 5,
+    },
+    {
+      id: 'ProductLine-2',
+      source: '/product-line.glb',
+      format: 'gltf',
+      visible: true,
+      position: [-0.75-1.5*2, 0.5, 0],
+      scale: 5,
+    },
+    {
+      id: 'ProductLine-3',
+      source: '/product-line.glb',
+      format: 'gltf',
+      visible: true,
+      position: [-0.75-1.5*3, 0.5, 0],
+      scale: 5,
+    },
+    {
+      id: 'ProductLine-4',
+      source: '/product-line.glb',
+      format: 'gltf',
+      visible: true,
+      position: [-0.75, 0.5, 0],
+      scale: 5,
+    },
+    {
+      id: 'ProductLine-5',
+      source: '/product-line.glb',
+      format: 'gltf',
+      visible: true,
+      position: [0.75, 0.5, 0],
+      scale: 5,
+    },
+    {
+      id: 'ProductLine-6',
+      source: '/product-line.glb',
+      format: 'gltf',
+      visible: true,
+      position: [0.75+1.5, 0.5, 0],
+      scale: 5,
+    },
+    {
+      id: 'ProductLine-7',
+      source: '/product-line.glb',
+      format: 'gltf',
+      visible: true,
+      position: [0.75+1.5*2, 0.5, 0],
+      scale: 5,
+    },
+    {
+      id: 'ProductLine-8',
+      source: '/product-line.glb',
+      format: 'gltf',
+      visible: true,
+      position: [0.75+1.5*3, 0.5, 0],
       scale: 5,
     }
   ]
@@ -173,13 +255,10 @@ const right = 1500
 const widgetWidth = 400
 const widgetHeight = 260
 
-// 车间大屏 layout：设计稿 1920×1080，适当加大标题/顶栏/底栏高度，缩放后仍 ≥50px（scale≈0.65 时 80→52px）
-const workshopDemoConfig: DashboardConfig = {
-  design: { width: 1920, height: 1080 },
-  backgroundLayer: { type: 'scene3d', config: workshopSceneConfig },
-  widgets2D: [
+// 车间大屏 layout：设计稿 1920×1080；TopBar 时间/温湿度由上方 ref 注入，时间每 2.3s 刷新
+const workshopWidgetsBase: DashboardConfig['widgets2D'] = [
     { id: 'ws-title', type: 'screenTitle', layout: { x: 0, y: 0, width: 1920, height: 120 }, visible: true, props: { text: '水溶膜加工车间数字化大屏' } },
-    { id: 'ws-topbar', type: 'topBar', layout: { x: 0, y: 20, width: 1920, height: 40 }, visible: true, props: { datetime: '2023-02-01 Wednesday 10:44:57', temperature: '25℃', humidity: '50%rh' } },
+    { id: 'ws-topbar', type: 'topBar', layout: { x: 0, y: 20, width: 1920, height: 40 }, visible: true, props: { datetime: '', temperature: '25℃', humidity: '50%rh' } },
     // left side
     { id: 'ws-order', type: 'glassChart', layout: { x: left, y: 120, width: widgetWidth, height: widgetHeight }, visible: true, props: { title: '订单总览', subTitle: 'ORDER REVIEW', chartHeight: '175px', options: { tooltip: { trigger: 'item' }, graphic: [{ type: 'text', left: 'center', top: '48%', style: { text: '17.05%', fill: '#00d4ff', fontSize: 18, fontWeight: 'bold' } }, { type: 'text', left: 'center', top: '58%', style: { text: '已完成 10000 订单', fill: 'rgba(255,255,255,0.85)', fontSize: 11 } }], series: [{ type: 'pie', radius: ['52%', '74%'], center: ['50%', '50%'], data: [{ value: 17.05, name: '已完成', itemStyle: { color: '#00d4ff' } }, { value: 82.95, name: '进行中', itemStyle: { color: 'rgba(0,212,255,0.2)' } }], label: { show: false } }] } } },
     { id: 'ws-staff', type: 'glassChart', layout: { x: left, y: 390, width: widgetWidth, height: widgetHeight }, visible: true, props: { title: '在岗人员设备情况', subTitle: 'PERSONNEL EQUIPMENT', chartHeight: '198px', options: { grid: { left: 44, right: 24, top: 28, bottom: 36 }, xAxis: { type: 'category', data: ['FTN', 'CVD', 'FGQ', 'FVD', 'AQI'], axisLine: { lineStyle: { color: 'rgba(0,212,255,0.4)' } }, axisLabel: { color: '#fff', fontSize: 11 } }, yAxis: { type: 'value', axisLine: { show: false }, splitLine: { lineStyle: { color: 'rgba(0,212,255,0.15)' } }, axisLabel: { color: 'rgba(255,255,255,0.8)' } }, legend: { bottom: 0, textStyle: { color: '#fff', fontSize: 10 }, data: ['A班次', 'B班次'] }, series: [{ name: 'A班次', data: [92, 88, 95, 78, 85], type: 'bar', itemStyle: { color: '#00d4ff' } }, { name: 'B班次', data: [85, 90, 88, 82, 88], type: 'bar', itemStyle: { color: 'rgba(0,212,255,0.5)' } }] } } },
@@ -194,7 +273,16 @@ const workshopDemoConfig: DashboardConfig = {
     // bottom nav
     { id: 'ws-nav', type: 'bottomNav', layout: { x: 0, y: 952, width: 1920, height: 88 }, visible: true, props: { items: [{ label: '全屏总览', active: true }, { label: '设备监控' }, { label: '故障监控' }] } }
   ]
-}
+
+const workshopDemoConfig = computed<DashboardConfig>(() => ({
+  design: { width: 1920, height: 1080 },
+  backgroundLayer: { type: 'scene3d', config: workshopSceneConfig },
+  widgets2D: workshopWidgetsBase.map((w) =>
+    w.id === 'ws-topbar'
+      ? { ...w, props: { ...w.props, datetime: topBarDateTime.value, temperature: topBarTemperature.value, humidity: topBarHumidity.value } }
+      : w
+  )
+}))
 </script>
 
 <style>

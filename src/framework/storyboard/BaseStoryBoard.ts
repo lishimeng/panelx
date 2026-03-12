@@ -3,7 +3,7 @@ import {
     AxesHelper,
     Camera,
     Color,
-    DirectionalLight,
+    PointLight,
     GridHelper,
     HemisphereLight,
     Light,
@@ -21,7 +21,7 @@ export interface Scene3DSceneOptions {
     /** 背景：undefined/null 透明，number 为十六进制颜色 */
     background?: number | null
     /** 灯光强度，不填用默认 */
-    lights?: { ambient?: number; hemisphere?: number; directional?: number }
+    lights?: { ambient?: number; hemisphere?: number; point?: number }
     /** 正交相机时可见高度的一半（世界单位），用于 resize 时更新投影 */
     orthographicSize?: number
 }
@@ -127,26 +127,31 @@ export abstract class BaseStoryBoard implements StoryBoard {
         this._scene.add(hesLight)
         this.lightMap.set('hesLight', hesLight)
 
-        const dirLight = new DirectionalLight(0xffffff, 2.5 * this._lightIntensity)
-        dirLight.position.set(5, 5, 5)
-        dirLight.layers.enableAll()
-        this._scene.add(dirLight)
-        this.lightMap.set('dirLight', dirLight)
+        const pointIntensity = 8 * this._lightIntensity
+        const pointLight = new PointLight(0xffffff, pointIntensity, 0, 2)
+        pointLight.position.set(8, 8, 8)
+        pointLight.layers.enableAll()
+        this._scene.add(pointLight)
+        this.lightMap.set('pointLight', pointLight)
+
+        const pointLightFill = new PointLight(0xffffff, pointIntensity, 0, 2)
+        pointLightFill.position.set(-6, 6, 2)
+        pointLightFill.layers.enableAll()
+        this._scene.add(pointLightFill)
+        this.lightMap.set('pointLightFill', pointLightFill)
 
         const lights = this._sceneOptions?.lights
         if (lights) {
-            console.log('lights', lights)
             if (lights.ambient != null) {
                 this.lightMap.get('ambientLight')!.intensity = lights.ambient
-                console.log('ambientLight', this.lightMap.get('ambientLight')!.intensity)
             }
             if (lights.hemisphere != null) {
                 this.lightMap.get('hesLight')!.intensity = lights.hemisphere
-                console.log('hesLight', this.lightMap.get('hesLight')!.intensity)
             }
-            if (lights.directional != null) {
-                this.lightMap.get('dirLight')!.intensity = lights.directional
-                console.log('dirLight', this.lightMap.get('dirLight')!.intensity)
+            if (lights.point != null) {
+                const intensity = lights.point
+                this.lightMap.get('pointLight')!.intensity = intensity
+                this.lightMap.get('pointLightFill')!.intensity = intensity
             }
         }
     }

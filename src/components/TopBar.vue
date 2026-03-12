@@ -19,10 +19,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 
+/** 时间、温湿度均由外部传入，无内部自动刷新 */
 const props = withDefaults(
   defineProps<{
+    /** 日期时间字符串，由父组件按业务间隔刷新传入 */
     datetime?: string
+    /** 温度，如 25℃ */
     temperature?: string
+    /** 湿度，如 50%rh */
     humidity?: string
     /** 背景，支持 CSS 颜色或渐变，默认透明 */
     background?: string
@@ -39,13 +43,9 @@ const rootStyle = computed(() => ({
   background: props.background
 }))
 
-const datetime = computed(() => {
-  if (props.datetime) return props.datetime
-  const d = new Date()
-  const week = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][d.getDay()]
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${week} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
-})
+const datetime = computed(() => props.datetime)
+const temperature = computed(() => props.temperature ?? '25℃')
+const humidity = computed(() => props.humidity ?? '50%rh')
 </script>
 
 <style scoped>

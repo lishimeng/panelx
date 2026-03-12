@@ -121,8 +121,8 @@ export interface Scene3DLightConfig {
   ambient?: number
   /** 半球光强度 */
   hemisphere?: number
-  /** 平行光强度 */
-  directional?: number
+  /** 点光源强度 */
+  point?: number
 }
 
 /** 3D 相机类型 */
