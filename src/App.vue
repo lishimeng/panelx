@@ -1,6 +1,6 @@
 <template>
-  <div class="panelx-demo" :class="{ 'panelx-demo-standalone-workshop': isStandaloneWorkshop }">
-    <header v-if="!isStandaloneWorkshop" class="panelx-demo-header">
+  <div class="panelx-demo" :class="{ 'panelx-demo-standalone-workshop': isStandaloneWorkshop, 'panelx-demo-standalone-configurable': isStandaloneConfigurable }">
+    <header v-if="!isStandaloneWorkshop && !isStandaloneConfigurable" class="panelx-demo-header">
       <h1>PanelX 数字化大屏</h1>
       <nav>
         <button
@@ -35,8 +35,9 @@
           演示验证
         </button>
         <button
-          :class="{ active: view === 'configurable' }"
-          @click="view = 'configurable'"
+          class="panelx-demo-header-open"
+          @click="openConfigurableTab()"
+          title="新标签页打开（无顶部导航）"
         >
           配置加载大屏
         </button>
@@ -83,10 +84,17 @@ import type { DashboardConfig, Scene3DConfig } from './types/dashboard'
 
 const view = ref<'editor' | 'screen' | 'scene3d' | 'workshop' | 'verify' | 'configurable'>('editor')
 const isStandaloneWorkshop = ref(false)
+const isStandaloneConfigurable = ref(false)
 
 function openWorkshopTab() {
   const u = new URL(window.location.href)
   u.searchParams.set('workshop', '1')
+  window.open(u.toString(), '_blank', 'noopener,noreferrer')
+}
+
+function openConfigurableTab() {
+  const u = new URL(window.location.href)
+  u.searchParams.set('configurable', '1')
   window.open(u.toString(), '_blank', 'noopener,noreferrer')
 }
 
@@ -131,6 +139,10 @@ onMounted(() => {
     view.value = 'workshop'
     if (typeof document !== 'undefined') document.title = '水溶膜工车间数字化大屏'
     loadWorkshopConfig()
+  } else if (u.searchParams.get('configurable') === '1') {
+    isStandaloneConfigurable.value = true
+    view.value = 'configurable'
+    if (typeof document !== 'undefined') document.title = '配置加载大屏'
   }
   refreshTopBar()
   topBarRefreshTimer = setInterval(refreshTopBar, 2300)
@@ -442,6 +454,25 @@ body {
   align-items: center;
   justify-content: center;
   overflow: hidden;
+}
+/* 独立 Tab 配置加载大屏：整页占满视口，无 header */
+.panelx-demo-standalone-configurable {
+  height: 100vh;
+  overflow: hidden;
+}
+.panelx-demo-standalone-configurable .panelx-demo-main {
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
+}
+.panelx-demo-standalone-configurable .panelx-demo-screen.panelx-demo-configurable {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+.panelx-demo-standalone-configurable .panelx-dashboard-with-loader {
+  width: 100%;
+  height: 100%;
 }
 .panelx-demo-scene3d {
   flex: 1;

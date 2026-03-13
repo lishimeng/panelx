@@ -2,24 +2,21 @@
   <div class="panelx-editor">
     <aside class="panelx-editor-sidebar">
       <h3>尺寸</h3>
-      <div class="panelx-editor-field">
-        <label>宽度 (px)</label>
-        <input
-          v-model.number="config.design.width"
-          type="number"
-          min="1"
-          step="1"
-        />
+      <div class="panelx-editor-size-display">
+        <label class="panelx-editor-size-display-label">当前尺寸 ({{ designSizeUnit }})</label>
+        <span class="panelx-editor-size-display-value">{{ designSize.width }} × {{ designSize.height }}</span>
       </div>
-      <div class="panelx-editor-field">
-        <label>高度 (px)</label>
-        <input
-          v-model.number="config.design.height"
-          type="number"
-          min="1"
-          step="1"
-        />
-      </div>
+      <button type="button" class="panelx-editor-btn" @click="showSizeDialog = true">
+        尺寸设置
+      </button>
+      <SizeSettingsDialog
+        :visible="showSizeDialog"
+        :width-px="designSize.width"
+        :height-px="designSize.height"
+        v-model:unit="designSizeUnit"
+        @confirm="onSizeConfirm"
+        @close="showSizeDialog = false"
+      />
       <h3>组件</h3>
       <div
         v-for="item in widgetList"
@@ -46,8 +43,9 @@
       </button>
     </aside>
     <main class="panelx-editor-main" ref="dropRef" @dragover.prevent @drop="onDrop">
-      <div class="panelx-editor-ruler-wrap">
-        <div class="panelx-editor-ruler-top" ref="rulerTopRef">
+      <div class="panelx-editor-ruler-outer" :style="rulerOuterStyle">
+        <div class="panelx-editor-ruler-wrap">
+          <div class="panelx-editor-ruler-top" ref="rulerTopRef">
           <span
             v-for="t in rulerTicksX"
             :key="'x-' + t"
@@ -71,7 +69,6 @@
           <div
             class="panelx-editor-canvas-wrap"
             ref="canvasWrapRef"
-            :style="{ aspectRatio: designSize.width + '/' + designSize.height }"
           >
             <div
               class="panelx-editor-canvas-inner"
@@ -117,11 +114,12 @@
             </div>
           </div>
         </div>
+        </div>
       </div>
     </main>
-    <div v-if="config.widgets2D.length" class="panelx-editor-props">
+    <aside class="panelx-editor-props">
       <h3>属性</h3>
-      <div class="panelx-editor-widget-list">
+      <div v-if="config.widgets2D.length" class="panelx-editor-widget-list">
         <button
           v-for="w in config.widgets2D"
           :key="w.id"
@@ -178,7 +176,8 @@
           <pre class="panelx-editor-pre">{{ selectedConfig }}</pre>
         </details>
       </template>
-    </div>
+      <p v-else class="panelx-editor-props-empty">暂无组件，从左侧拖入</p>
+    </aside>
   </div>
 </template>
 
@@ -187,6 +186,7 @@ import { ref, reactive, computed, watch, onMounted } from 'vue'
 import type { DashboardConfig, WidgetConfig2D, WidgetType2D } from '../types/dashboard'
 import type { EditorConfig, RegisteredWidgetDef } from '../types/editor'
 import { getWidgetSampleImageUrl } from '../assets/editor-samples'
+import SizeSettingsDialog from './SizeSettingsDialog.vue'
 
 const DESIGN = { width: 1920, height: 1080 }
 
@@ -208,6 +208,14 @@ const config = reactive<DashboardConfig>({
   widgets2D: []
 })
 
+const showSizeDialog = ref(false)
+/** 尺寸展示单位（仅展示，与对话框同步） */
+const designSizeUnit = ref<'px' | 'cm' | 'm' | 'km'>('px')
+function onSizeConfirm(payload: { width: number; height: number }) {
+  config.design.width = payload.width
+  config.design.height = payload.height
+}
+
 const dropRef = ref<HTMLElement | null>(null)
 const selectedId = ref<string | null>(null)
 const canvasWrapRef = ref<HTMLElement | null>(null)
@@ -219,16 +227,30 @@ let dragItem: RegisteredWidgetDef | null = null
 
 let isDebug = false
 
-/** 设计稿尺寸 */
-const designSize = computed(() => ({
-  width: config.design?.width ?? DESIGN.width,
-  height: config.design?.height ?? DESIGN.height
-}))
+/** 设计稿尺寸（保证为有效整数，避免标尺除零或 NaN） */
+const designSize = computed(() => {
+  const w = Math.max(1, Math.floor(Number(config.design?.width) || DESIGN.width))
+  const h = Math.max(1, Math.floor(Number(config.design?.height) || DESIGN.height))
+  return { width: Number.isFinite(w) ? w : DESIGN.width, height: Number.isFinite(h) ? h : DESIGN.height }
+})
 
-/** 标尺刻度：水平 0, 200, 400, ... */
+/** 主区域外壳：按设计尺寸宽高比等比例显示，并适应主区域不溢出 */
+const rulerOuterStyle = computed(() => {
+  const { width: dw, height: dh } = designSize.value
+  return {
+    aspectRatio: `${dw} / ${dh}`,
+    maxWidth: '100%',
+    maxHeight: '100%'
+  }
+})
+
+/** 标尺最大刻度数量，避免尺寸过大时标尺挤成乱码 */
+const RULER_MAX_TICKS = 30
+/** 标尺刻度：水平 */
 const rulerTicksX = computed(() => {
   const w = designSize.value.width
-  const step = w > 2000 ? 400 : w > 1000 ? 200 : 100
+  if (w <= 0) return [0]
+  const step = Math.max(1, Math.ceil(w / RULER_MAX_TICKS))
   const ticks: number[] = []
   for (let i = 0; i <= w; i += step) ticks.push(i)
   if (ticks[ticks.length - 1] !== w) ticks.push(w)
@@ -237,7 +259,8 @@ const rulerTicksX = computed(() => {
 /** 标尺刻度：垂直 */
 const rulerTicksY = computed(() => {
   const h = designSize.value.height
-  const step = h > 1000 ? 200 : 100
+  if (h <= 0) return [0]
+  const step = Math.max(1, Math.ceil(h / RULER_MAX_TICKS))
   const ticks: number[] = []
   for (let i = 0; i <= h; i += step) ticks.push(i)
   if (ticks[ticks.length - 1] !== h) ticks.push(h)
@@ -257,11 +280,16 @@ function widgetSampleImage(w: WidgetConfig2D): string {
 function widgetFrameStyle(w: WidgetConfig2D): Record<string, string> {
   const dw = designSize.value.width
   const dh = designSize.value.height
+  if (!w.layout || !dw || !dh) return { visibility: 'hidden' }
+  const x = Number(w.layout.x)
+  const y = Number(w.layout.y)
+  const ww = Number(w.layout.width)
+  const wh = Number(w.layout.height)
   return {
-    left: (w.layout.x / dw) * 100 + '%',
-    top: (w.layout.y / dh) * 100 + '%',
-    width: (w.layout.width / dw) * 100 + '%',
-    height: (w.layout.height / dh) * 100 + '%'
+    left: (x / dw) * 100 + '%',
+    top: (y / dh) * 100 + '%',
+    width: (ww / dw) * 100 + '%',
+    height: (wh / dh) * 100 + '%'
   }
 }
 
@@ -600,13 +628,12 @@ async function loadWorkshopConfig() {
 
 <style scoped>
 .panelx-editor {
-  display: flex;
+  display: grid;
+  grid-template-columns: 20% 60% 20%;
   height: 100vh;
   font-size: 0.875rem;
 }
 .panelx-editor-sidebar {
-  width: 12.5rem;
-  flex-shrink: 0;
   height: 100%;
   max-height: 100vh;
   padding: 1rem;
@@ -616,6 +643,7 @@ async function loadWorkshopConfig() {
   overflow-y: auto;
   overflow-x: hidden;
   min-height: 0;
+  min-width: 0;
 }
 .panelx-editor-sidebar h3 {
   margin: 0 0 0.5rem;
@@ -661,6 +689,24 @@ async function loadWorkshopConfig() {
 .mt-4 {
   margin-top: 1rem;
 }
+.panelx-editor-size-display {
+  margin-bottom: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border: 0.0625rem solid var(--color-border);
+  border-radius: 0.25rem;
+  background: #f8f8f8;
+}
+.panelx-editor-size-display-label {
+  display: block;
+  font-size: 0.75rem;
+  color: #666;
+  margin-bottom: 0.25rem;
+}
+.panelx-editor-size-display-value {
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  color: #333;
+}
 .panelx-editor-btn {
   display: block;
   width: 100%;
@@ -677,18 +723,33 @@ async function loadWorkshopConfig() {
   border-color: var(--color-primary);
 }
 .panelx-editor-main {
-  flex: 1;
+  min-width: 0;
+  min-height: 0;
   overflow: auto;
-  padding: 1.5rem;
+  padding: 1rem;
   background: #1a1a2e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.panelx-editor-ruler-outer {
+  width: 100%;
+  /* 不设 height，由 :style 的 aspectRatio 决定高度，避免与 height:100% 冲突导致比例失效（如 1920x1080 被拉成正方形） */
+  position: relative;
+  margin: 0 auto;
+  flex-shrink: 0;
 }
 .panelx-editor-ruler-wrap {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   flex-direction: column;
-  width: 100%;
-  max-width: 100%;
-  min-width: 25rem;
-  margin: 0 auto;
+  min-width: 0;
+  min-height: 0;
+  margin: 0;
   box-shadow: 0 0 0 0.0625rem rgba(255, 255, 255, 0.1);
   border-radius: 0.5rem;
   overflow: hidden;
@@ -728,21 +789,29 @@ async function loadWorkshopConfig() {
 .panelx-editor-canvas-wrap {
   flex: 1;
   min-width: 0;
-  min-height: 25rem;
+  min-height: 0;
   position: relative;
   background: #1e1e2e;
+  width: 100%;
 }
 .panelx-editor-canvas-inner {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
+  box-sizing: border-box;
 }
 .panelx-editor-widgets-layer {
   position: absolute;
-  inset: 0;
+  left: 0;
+  top: 0;
   width: 100%;
   height: 100%;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+.panelx-editor-widgets-layer > .panelx-editor-widget-placeholder {
+  pointer-events: auto;
 }
 .panelx-editor-widget-placeholder {
   position: absolute;
@@ -755,6 +824,10 @@ async function loadWorkshopConfig() {
   align-items: center;
   justify-content: center;
   background: rgba(255, 255, 255, 0.06);
+  left: 0;
+  top: 0;
+  right: auto;
+  bottom: auto;
 }
 .panelx-editor-widget-placeholder:hover {
   border-color: rgba(24, 144, 255, 0.5);
@@ -818,11 +891,19 @@ async function loadWorkshopConfig() {
   border-radius: 0;
 }
 .panelx-editor-props {
-  width: 17.5rem;
+  min-width: 0;
+  min-height: 0;
+  max-height: 100vh;
   padding: 1rem;
   border-left: 0.0625rem solid var(--color-border);
   background: #fafafa;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.panelx-editor-props-empty {
+  margin: 0.5rem 0 0;
+  font-size: 0.75rem;
+  color: #999;
 }
 .panelx-editor-props h3 {
   margin: 0 0 0.75rem;
@@ -867,13 +948,18 @@ async function loadWorkshopConfig() {
   font-size: 0.75rem;
   color: #666;
 }
-.panelx-editor-field input {
+.panelx-editor-field input,
+.panelx-editor-field .panelx-editor-select {
   width: 100%;
   padding: 0.375rem 0.5rem;
   border: 0.0625rem solid #ddd;
   border-radius: 0.25rem;
   font-size: 0.8125rem;
   box-sizing: border-box;
+}
+.panelx-editor-field .panelx-editor-select {
+  cursor: pointer;
+  background: white;
 }
 .panelx-editor-json-detail {
   margin-top: 0.75rem;
