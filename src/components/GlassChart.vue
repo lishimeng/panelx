@@ -12,8 +12,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, inject } from 'vue'
 import type { EChartsOption } from 'echarts'
+import type { DashboardTheme } from '../types/dashboard'
 import GlassPanel from './GlassPanel.vue'
 import Chart from './Chart.vue'
 
@@ -24,18 +25,23 @@ const props = withDefaults(
     subTitle?: string
     options: EChartsOption
     chartHeight?: string
+    /** 单独配置本 widget 主题，覆盖 dashboard 级 theme */
     theme?: 'dark' | 'light' | 'macaron'
   }>(),
   {
     chartHeight: '100%',
-    theme: 'macaron'
+    theme: undefined
   }
 )
 
+const dashboardTheme = inject<{ value?: DashboardTheme }>('dashboardTheme')
+
 const chartOptions = computed(() => props.options)
-const chartTheme = computed(() =>
-  props.theme === 'macaron' ? 'macaron' : props.theme === 'dark' ? 'dark' : undefined
-)
+/** 优先级：本 widget props.theme > dashboard theme.chartTheme > 默认 macaron */
+const chartTheme = computed(() => {
+  const t = props.theme ?? dashboardTheme?.value?.chartTheme ?? 'macaron'
+  return t === 'macaron' ? 'macaron' : t === 'dark' ? 'dark' : t === 'light' ? 'light' : undefined
+})
 </script>
 
 <style scoped>

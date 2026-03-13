@@ -39,7 +39,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick, provide } from 'vue'
 import { SizeManager2D, computeDashboardActualSize, pxToVw, pxToVh, pxToRem } from '../core/size'
 import type {
   DashboardConfig,
@@ -67,6 +67,9 @@ const props = defineProps<{
 }>()
 
 const config = computed(() => props.config)
+
+/** 向子组件提供 dashboard 级主题（整屏默认），widget 内 props.theme 可单独覆盖 */
+provide('dashboardTheme', computed(() => config.value.theme))
 
 const containerRef = ref<HTMLElement | null>(null)
 const sizeManager = ref<SizeManager2D | null>(null)
@@ -99,19 +102,28 @@ const containerStyle = computed((): Record<string, string> => {
   sizeVersion.value
   const sm = sizeManager.value
   const vp = viewportSize.value
+  const base = {
+    background: config.value.background ?? 'transparent',
+    position: 'relative' as const,
+    boxSizing: 'border-box' as const
+  }
   if (!sm) {
-    return { width: '100%', maxWidth: '100%', minHeight: '25rem', position: 'relative', boxSizing: 'border-box' }
+    return {
+      ...base,
+      width: '100%',
+      maxWidth: '100%',
+      minHeight: '25rem'
+    }
   }
   const w = actualWidthUsed.value ?? (containerRef.value?.offsetWidth ?? 0)
   const h = sm.actualHeight
   const useVwVh = vp.width > 0 && vp.height > 0
   return {
+    ...base,
     width: w > 0 ? (useVwVh ? pxToVw(w, vp.width) : pxToRem(w)) : '100%',
     maxWidth: '100%',
     height: useVwVh ? pxToVh(h, vp.height) : pxToRem(h),
     maxHeight: '100%',
-    position: 'relative',
-    boxSizing: 'border-box',
     marginLeft: 'auto',
     marginRight: 'auto'
   }

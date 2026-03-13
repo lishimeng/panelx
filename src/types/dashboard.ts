@@ -80,18 +80,31 @@ export interface BackgroundLayerScene3D {
 /** 第 1 层：背景层配置，不填则无背景（透明或由外层容器决定） */
 export type BackgroundLayerConfig = BackgroundLayerImage | BackgroundLayerScene3D
 
+/**
+ * Dashboard 级主题：作为整屏默认，并作为所有 widget 的默认主题；
+ * 单个 widget 的 props.theme 可覆盖。
+ */
+export interface DashboardTheme {
+  /** 图表主题（ECharts），如 macaron / dark / light，对所有 glassChart/chart 生效 */
+  chartTheme?: 'dark' | 'light' | 'macaron'
+  /** 可扩展：如 primaryColor, fontSize 等 */
+  [key: string]: unknown
+}
+
 /** Dashboard 完整配置 */
 export interface DashboardConfig {
   /** 设计稿尺寸，如 1920x1080（仅配置文件为 px，加载后用于换算） */
   design: DesignScreen
+  /** 根容器背景，CSS background 值，如 "transparent"、"#0a1929"、"linear-gradient(...)"；不填默认透明 */
+  background?: string
   /** 第 1 层：背景层（图片或 3D 场景），不填则无背景 */
   backgroundLayer?: BackgroundLayerConfig
   /** 第 2 层：2D 组件列表（图表、统计、装饰等），透明背景 */
   widgets2D: WidgetConfig2D[]
   /** 3D 组件列表（可选，可后续扩展） */
   widgets3D?: WidgetConfig3D[]
-  /** 主题/全局外观（可选） */
-  theme?: Record<string, unknown>
+  /** 整屏主题，统一作为所有 widget 的默认主题；单个 widget 的 props.theme 可覆盖 */
+  theme?: DashboardTheme
   /** layout 单位：px=设计稿像素（来自配置），percent=加载后转换的 0-100，渲染时不再使用 px */
   layoutUnit?: 'px' | 'percent'
 }
@@ -208,8 +221,8 @@ export interface Scene3DConfig {
   infoBoxes?: Scene3DInfoBoxConfig[]
   /** Stats 显示：0 隐藏 1 仅 FPS 2 全部 */
   statsStyle?: 0 | 1 | 2
-  /** 场景背景：不填或 null 为透明，填十六进制颜色如 0x000000 为纯色 */
-  background?: number | null
+  /** 场景背景：十六进制颜色如 "#0d1b2a"，"transparent" 或不填为透明 */
+  background?: string | null
   /** 灯光强度，不填则使用内置默认 */
   lights?: Scene3DLightConfig
   /** 相机配置：类型（透视/正交）及正交时的 size */

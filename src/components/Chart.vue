@@ -23,12 +23,23 @@ function getOptionsToSet(): import('echarts').EChartsOption {
   return mergeMacaronRoundOptions(props.options)
 }
 
-onMounted(() => {
+function initChart() {
+  if (!chartRef.value) return
   registerEchartsMacaronTheme()
-  if (chartRef.value) {
-    chartInstance = echarts.init(chartRef.value, props.theme)
-    chartInstance.setOption(getOptionsToSet())
+  if (chartInstance) {
+    chartInstance.dispose()
+    chartInstance = null
   }
+  chartInstance = echarts.init(chartRef.value, props.theme)
+  chartInstance.setOption(getOptionsToSet())
+}
+
+onMounted(() => {
+  initChart()
+})
+
+watch(() => props.theme, () => {
+  initChart()
 })
 
 watch(() => props.options, () => {

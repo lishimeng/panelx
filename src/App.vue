@@ -43,7 +43,11 @@
           <Dashboard :config="demoConfigRuntime" />
         </div>
       </div>
-      <div v-else-if="view === 'workshop'" class="panelx-demo-screen panelx-demo-workshop">
+      <div
+        v-else-if="view === 'workshop'"
+        class="panelx-demo-screen panelx-demo-workshop"
+        :style="{ background: workshopDemoConfig?.background ?? 'transparent' }"
+      >
         <div class="panelx-dashboard-wrap">
           <Dashboard :config="workshopDemoConfig" />
         </div>
@@ -303,6 +307,9 @@ const workshopDemoConfig = computed<DashboardConfig>(() => {
 </script>
 
 <style>
+body {
+  background: #1a1a2e;
+}
 .panelx-demo {
   min-height: 100vh;
   max-height: 100vh;
@@ -371,7 +378,7 @@ const workshopDemoConfig = computed<DashboardConfig>(() => {
   box-sizing: border-box;
 }
 .panelx-demo-workshop {
-  background: #0a1628;
+  /* 背景由 config.background 控制，默认透明，见模板 :style */
   padding: 0;
   align-items: stretch;
   justify-content: stretch;

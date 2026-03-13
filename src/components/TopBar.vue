@@ -6,11 +6,11 @@
     <div class="panelx-topbar-right">
       <span class="panelx-topbar-item">
         <span class="icon">🌡</span>
-        <span>室内温度 {{ temperature }}</span>
+        <span>温度 {{ temperature }}</span>
       </span>
       <span class="panelx-topbar-item">
         <span class="icon">💧</span>
-        <span>室内湿度 {{ humidity }}</span>
+        <span>湿度 {{ humidity }}</span>
       </span>
     </div>
   </div>
@@ -33,8 +33,8 @@ const props = withDefaults(
   }>(),
   {
     datetime: '',
-    temperature: '25℃',
-    humidity: '50%rh',
+    temperature: '--℃',
+    humidity: '--%rh',
     background: 'transparent'
   }
 )

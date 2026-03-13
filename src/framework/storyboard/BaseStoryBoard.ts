@@ -18,8 +18,8 @@ import type {Model} from "../model/Model.ts";
 
 /** 可选场景配置：背景、灯光、相机（与 Scene3DConfig 对应字段一致） */
 export interface Scene3DSceneOptions {
-    /** 背景：undefined/null 透明，number 为十六进制颜色 */
-    background?: number | null
+    /** 背景：undefined/null/"transparent" 透明，string 为十六进制颜色如 "#0d1b2a" */
+    background?: string | null
     /** 灯光强度，不填用默认 */
     lights?: { ambient?: number; hemisphere?: number; point?: number }
     /** 正交相机时可见高度的一半（世界单位），用于 resize 时更新投影 */
@@ -103,7 +103,8 @@ export abstract class BaseStoryBoard implements StoryBoard {
     private initScene(): void {
         this._scene = new Scene()
         const bg = this._sceneOptions?.background
-        this._scene.background = (bg !== undefined && bg !== null) ? new Color(bg) : null
+        const isTransparent = bg === undefined || bg === null || bg === 'transparent' || bg === ''
+        this._scene.background = isTransparent ? null : new Color(bg as string)
         const gridHelper = new GridHelper(300, 300, 0x2c2c2c, 0x888888)
 
         gridHelper.layers.set(LayerDef.helper)
