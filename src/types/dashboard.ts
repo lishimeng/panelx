@@ -17,6 +17,7 @@ export type WidgetType2D =
   | 'deviceCard'
   | 'bottomNav'
   | 'progressList'
+  | 'scaleRuler'
 export type WidgetType3D = 'scene3d' | 'model3d'
 export type WidgetType = WidgetType2D | WidgetType3D
 

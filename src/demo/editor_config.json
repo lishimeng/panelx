@@ -12,6 +12,7 @@
     { "type": "decoration", "label": "装饰", "defaultSize": { "width": 120, "height": 120 }, "sampleImage": "", "defaultProps": { "variant": "corner" } },
     { "type": "deviceCard", "label": "设备卡片", "defaultSize": { "width": 320, "height": 280 }, "sampleImage": "", "defaultProps": { "items": [{ "label": "设备", "value": "-", "icon": "▸" }] } },
     { "type": "progressList", "label": "进度列表", "defaultSize": { "width": 340, "height": 200 }, "sampleImage": "", "defaultProps": { "title": "进度", "subTitle": "PROGRESS", "items": [{ "label": "项1", "value": "100", "percent": 60 }, { "label": "项2", "value": "200", "percent": 80 }] } },
-    { "type": "bottomNav", "label": "底栏", "defaultSize": { "width": 1920, "height": 56 }, "sampleImage": "" }
+    { "type": "bottomNav", "label": "底栏", "defaultSize": { "width": 1920, "height": 56 }, "sampleImage": "" },
+    { "type": "scaleRuler", "label": "比例尺", "defaultSize": { "width": 120, "height": 48 }, "sampleImage": "" }
   ]
 }

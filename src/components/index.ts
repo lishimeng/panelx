@@ -23,6 +23,7 @@ export {
   Scene3D,
   Scene3DFramework
 }
+export { widgetComponentMap, getWidgetComponent } from './widgetRegistry'
 
 export default {
   Chart,

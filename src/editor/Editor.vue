@@ -25,6 +25,7 @@
         v-for="item in widgetList"
         :key="item.type"
         class="panelx-editor-widget-item"
+        :title="`${item.label}(${item.type})`"
         draggable="true"
         @dragstart="onDragStart($event, item)"
       >
@@ -509,6 +510,8 @@ function builtinDefaultProps(type: WidgetType2D): Record<string, unknown> {
       return { items: [{ label: '设备', value: '-', icon: '▸' }] }
     case 'progressList':
       return { title: '进度', subTitle: 'PROGRESS', items: [{ label: '项1', value: '100', percent: 60 }] }
+    case 'scaleRuler':
+      return {}
     default:
       return {}
   }
@@ -599,39 +602,46 @@ async function loadWorkshopConfig() {
 .panelx-editor {
   display: flex;
   height: 100vh;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 .panelx-editor-sidebar {
-  width: 200px;
-  padding: 16px;
-  border-right: 1px solid var(--color-border, #e8e8e8);
+  width: 12.5rem;
+  flex-shrink: 0;
+  height: 100%;
+  max-height: 100vh;
+  padding: 1rem;
+  padding-bottom: 2rem;
+  border-right: 0.0625rem solid var(--color-border, #e8e8e8);
   background: var(--color-background, #f5f5f5);
+  overflow-y: auto;
+  overflow-x: hidden;
+  min-height: 0;
 }
 .panelx-editor-sidebar h3 {
-  margin: 0 0 8px;
-  font-size: 12px;
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
   color: var(--color-secondary);
   text-transform: uppercase;
 }
 .panelx-editor-widget-item {
-  padding: 8px;
-  margin-bottom: 8px;
+  padding: 0.5rem;
+  margin-bottom: 0.5rem;
   background: white;
-  border-radius: 6px;
+  border-radius: 0.375rem;
   cursor: grab;
-  border: 1px solid transparent;
+  border: 0.0625rem solid transparent;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 0.375rem;
 }
 .panelx-editor-widget-item:hover {
   border-color: var(--color-primary, #1890ff);
 }
 .panelx-editor-widget-preview {
-  width: 64px;
-  height: 48px;
-  border-radius: 4px;
+  width: 4rem;
+  height: 3rem;
+  border-radius: 0.25rem;
   overflow: hidden;
   background: var(--color-background, #f5f5f5);
   display: flex;
@@ -644,20 +654,20 @@ async function loadWorkshopConfig() {
   object-fit: contain;
 }
 .panelx-editor-widget-label {
-  font-size: 12px;
+  font-size: 0.75rem;
   color: #333;
   text-align: center;
 }
 .mt-4 {
-  margin-top: 16px;
+  margin-top: 1rem;
 }
 .panelx-editor-btn {
   display: block;
   width: 100%;
-  padding: 8px 12px;
-  margin-bottom: 8px;
-  border: 1px solid var(--color-border);
-  border-radius: 4px;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.5rem;
+  border: 0.0625rem solid var(--color-border);
+  border-radius: 0.25rem;
   background: white;
   cursor: pointer;
 }
@@ -669,7 +679,7 @@ async function loadWorkshopConfig() {
 .panelx-editor-main {
   flex: 1;
   overflow: auto;
-  padding: 24px;
+  padding: 1.5rem;
   background: #1a1a2e;
 }
 .panelx-editor-ruler-wrap {
@@ -677,30 +687,30 @@ async function loadWorkshopConfig() {
   flex-direction: column;
   width: 100%;
   max-width: 100%;
-  min-width: 400px;
+  min-width: 25rem;
   margin: 0 auto;
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
-  border-radius: 8px;
+  box-shadow: 0 0 0 0.0625rem rgba(255, 255, 255, 0.1);
+  border-radius: 0.5rem;
   overflow: hidden;
   background: #252535;
 }
 .panelx-editor-ruler-top {
-  height: 24px;
+  height: 1.5rem;
   background: #2a2a3c;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 0.0625rem solid rgba(255, 255, 255, 0.1);
   position: relative;
   flex-shrink: 0;
 }
 .panelx-editor-ruler-tick {
   position: absolute;
-  font-size: 10px;
+  font-size: 0.625rem;
   color: rgba(255, 255, 255, 0.6);
   transform: translate(-50%, 0);
-  top: 2px;
+  top: 0.125rem;
 }
 .panelx-editor-ruler-tick-v {
   transform: translate(0, -50%);
-  left: 4px;
+  left: 0.25rem;
   top: 0;
 }
 .panelx-editor-ruler-body {
@@ -709,16 +719,16 @@ async function loadWorkshopConfig() {
   min-height: 0;
 }
 .panelx-editor-ruler-left {
-  width: 28px;
+  width: 1.75rem;
   flex-shrink: 0;
   background: #2a2a3c;
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  border-right: 0.0625rem solid rgba(255, 255, 255, 0.1);
   position: relative;
 }
 .panelx-editor-canvas-wrap {
   flex: 1;
   min-width: 0;
-  min-height: 400px;
+  min-height: 25rem;
   position: relative;
   background: #1e1e2e;
 }
@@ -738,7 +748,7 @@ async function loadWorkshopConfig() {
   position: absolute;
   box-sizing: border-box;
   cursor: move;
-  border: 2px solid transparent;
+  border: 0.125rem solid transparent;
   transition: border-color 0.15s;
   overflow: visible;
   display: flex;
@@ -764,14 +774,14 @@ async function loadWorkshopConfig() {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 8px;
+  gap: 0.25rem;
+  padding: 0.5rem;
   pointer-events: none;
   color: rgba(255, 255, 255, 0.6);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 .panelx-editor-placeholder-icon {
-  font-size: 24px;
+  font-size: 1.5rem;
   line-height: 1;
 }
 .panelx-editor-placeholder-label {
@@ -780,11 +790,11 @@ async function loadWorkshopConfig() {
 }
 .panelx-editor-resize-handle {
   position: absolute;
-  width: 10px;
-  height: 10px;
+  width: 0.625rem;
+  height: 0.625rem;
   background: #1890ff;
-  border: 1px solid #fff;
-  border-radius: 2px;
+  border: 0.0625rem solid #fff;
+  border-radius: 0.125rem;
   pointer-events: auto;
   z-index: 10;
   flex-shrink: 0;
@@ -804,34 +814,34 @@ async function loadWorkshopConfig() {
   align-items: center;
   justify-content: center;
   color: rgba(255, 255, 255, 0.5);
-  border: 2px dashed rgba(255, 255, 255, 0.2);
+  border: 0.125rem dashed rgba(255, 255, 255, 0.2);
   border-radius: 0;
 }
 .panelx-editor-props {
-  width: 280px;
-  padding: 16px;
-  border-left: 1px solid var(--color-border);
+  width: 17.5rem;
+  padding: 1rem;
+  border-left: 0.0625rem solid var(--color-border);
   background: #fafafa;
   overflow: auto;
 }
 .panelx-editor-props h3 {
-  margin: 0 0 12px;
-  font-size: 12px;
+  margin: 0 0 0.75rem;
+  font-size: 0.75rem;
   text-transform: uppercase;
   color: #666;
 }
 .panelx-editor-widget-list {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 12px;
+  gap: 0.375rem;
+  margin-bottom: 0.75rem;
 }
 .panelx-editor-widget-tab {
-  padding: 4px 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+  padding: 0.25rem 0.625rem;
+  border: 0.0625rem solid #ddd;
+  border-radius: 0.25rem;
   background: #fff;
-  font-size: 12px;
+  font-size: 0.75rem;
   cursor: pointer;
 }
 .panelx-editor-widget-tab.active {
@@ -840,48 +850,48 @@ async function loadWorkshopConfig() {
   color: #1890ff;
 }
 .panelx-editor-prop-group {
-  margin-bottom: 16px;
+  margin-bottom: 1rem;
 }
 .panelx-editor-prop-group h4 {
-  margin: 0 0 8px;
-  font-size: 12px;
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
   font-weight: 600;
   color: #333;
 }
 .panelx-editor-field {
-  margin-bottom: 8px;
+  margin-bottom: 0.5rem;
 }
 .panelx-editor-field label {
   display: block;
-  margin-bottom: 4px;
-  font-size: 12px;
+  margin-bottom: 0.25rem;
+  font-size: 0.75rem;
   color: #666;
 }
 .panelx-editor-field input {
   width: 100%;
-  padding: 6px 8px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 13px;
+  padding: 0.375rem 0.5rem;
+  border: 0.0625rem solid #ddd;
+  border-radius: 0.25rem;
+  font-size: 0.8125rem;
   box-sizing: border-box;
 }
 .panelx-editor-json-detail {
-  margin-top: 12px;
-  font-size: 12px;
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
 }
 .panelx-editor-json-detail summary {
   cursor: pointer;
   color: #666;
 }
 .panelx-editor-pre {
-  margin: 8px 0 0;
-  padding: 8px;
-  font-size: 11px;
+  margin: 0.5rem 0 0;
+  padding: 0.5rem;
+  font-size: 0.6875rem;
   white-space: pre-wrap;
   word-break: break-all;
   background: #f0f0f0;
-  border-radius: 4px;
-  max-height: 200px;
+  border-radius: 0.25rem;
+  max-height: 12.5rem;
   overflow: auto;
 }
 </style>

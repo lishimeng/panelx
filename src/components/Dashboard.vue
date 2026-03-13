@@ -40,7 +40,8 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick, provide } from 'vue'
-import { SizeManager2D, computeDashboardActualSize, pxToVw, pxToVh, pxToRem } from '../core/size'
+import { SizeManager2D } from '../core/size'
+import { getViewportAndScale, pxToVw, pxToVh, pxToRem } from '../utils/viewport'
 import type {
   DashboardConfig,
   WidgetConfig2D,
@@ -48,19 +49,8 @@ import type {
   BackgroundLayerImage
 } from '../types/dashboard'
 import type { DesignRect } from '../types/size'
-import Chart from './Chart.vue'
-import Table from './Table.vue'
-import Decoration from './Decoration.vue'
-import Stat from './Stat.vue'
-import Card from './Card.vue'
-import Panel from './Panel.vue'
 import Scene3DFramework from './Scene3DFramework.vue'
-import ScreenTitle from './ScreenTitle.vue'
-import TopBar from './TopBar.vue'
-import GlassChart from './GlassChart.vue'
-import DeviceCard from './DeviceCard.vue'
-import BottomNav from './BottomNav.vue'
-import ProgressList from './ProgressList.vue'
+import { getWidgetComponent } from './widgetRegistry'
 
 const props = defineProps<{
   config: DashboardConfig
@@ -70,6 +60,16 @@ const config = computed(() => props.config)
 
 /** 向子组件提供 dashboard 级主题（整屏默认），widget 内 props.theme 可单独覆盖 */
 provide('dashboardTheme', computed(() => config.value.theme))
+/** 向子组件提供视口与比例尺，供比例尺等 widget 使用 */
+provide(
+  'dashboardViewport',
+  computed(() => ({
+    viewportSize: viewportSize.value,
+    scale: sizeManager.value?.scale ?? 0,
+    designWidth: getDesignSize().width,
+    designHeight: getDesignSize().height
+  }))
+)
 
 const containerRef = ref<HTMLElement | null>(null)
 const sizeManager = ref<SizeManager2D | null>(null)
@@ -130,35 +130,21 @@ const containerStyle = computed((): Record<string, string> => {
 })
 
 function ensureSizeManager() {
-  if (!containerRef.value) return
   const d = getDesignSize()
-  const parent = containerRef.value.parentElement
-  let screenW = parent ? parent.clientWidth : 0
-  let screenH = parent ? parent.clientHeight : 0
-  if (typeof window !== 'undefined' && (screenW <= 0 || screenH <= 0)) {
-    screenW = screenW > 0 ? screenW : window.innerWidth
-    screenH = screenH > 0 ? screenH : window.innerHeight
-  }
-  if (!screenW || !screenH) return
-
-  const { actualWidth: actualW } = computeDashboardActualSize({
-    screenWidth: screenW,
-    screenHeight: screenH,
-    designWidth: d.width,
-    designHeight: d.height
-  })
+  const vs = getViewportAndScale(containerRef.value, d.width, d.height)
+  if (!vs) return
 
   if (!sizeManager.value) {
     sizeManager.value = new SizeManager2D({
       designWidth: d.width,
       designHeight: d.height,
-      actualWidth: actualW
+      actualWidth: vs.actualWidth
     })
   } else {
-    sizeManager.value.setActualWidth(actualW)
+    sizeManager.value.setActualWidth(vs.actualWidth)
   }
-  actualWidthUsed.value = actualW
-  viewportSize.value = { width: screenW, height: screenH }
+  actualWidthUsed.value = vs.actualWidth
+  viewportSize.value = vs.viewportSize
   sizeVersion.value++
 }
 
@@ -196,23 +182,8 @@ function getWidgetStyle(w: WidgetConfig2D): Record<string, string> {
   }
 }
 
-const componentMap: Record<WidgetType2D, unknown> = {
-  chart: Chart,
-  table: Table,
-  decoration: Decoration,
-  stat: Stat,
-  card: Card,
-  panel: Panel,
-  screenTitle: ScreenTitle,
-  topBar: TopBar,
-  glassChart: GlassChart,
-  deviceCard: DeviceCard,
-  bottomNav: BottomNav,
-  progressList: ProgressList
-}
-
 function getComponent(type: WidgetType2D) {
-  return componentMap[type] || Panel
+  return getWidgetComponent(type)
 }
 
 let ro: ResizeObserver | null = null
