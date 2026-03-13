@@ -10,6 +10,7 @@
       "lights": { "ambient": 100.5, "hemisphere": 100, "point": 300 },
       "camera": {
         "type": "orthographic",
+        "orthographicSize": 5,
         "layers": [
           { "layer": 0, "enable": true },
           { "layer": 1, "enable": false }

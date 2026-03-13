@@ -1,0 +1,17 @@
+{
+  "_comment": "registeredWidgets: 编辑器侧栏可拖拽组件。defaultSize 为拖入画布时的默认宽高(px)。sampleImage 为可选样例图文件名，放在 src/assets/editor-samples/ 下，如 stat.png，有则会在侧栏与画布占位中展示。",
+  "registeredWidgets": [
+    { "type": "screenTitle", "label": "大屏标题", "defaultSize": { "width": 1920, "height": 80 }, "sampleImage": "widget_title.png" },
+    { "type": "topBar", "label": "顶栏", "defaultSize": { "width": 1920, "height": 48 }, "sampleImage": "" },
+    { "type": "stat", "label": "指标", "defaultSize": { "width": 280, "height": 100 }, "sampleImage": "", "defaultProps": { "value": 0, "label": "指标" } },
+    { "type": "chart", "label": "图表", "defaultSize": { "width": 480, "height": 280 }, "sampleImage": "", "defaultProps": { "options": { "xAxis": { "type": "category", "data": ["A", "B", "C"] }, "yAxis": { "type": "value" }, "series": [{ "data": [120, 200, 150], "type": "bar" }] }, "height": "100%", "width": "100%" } },
+    { "type": "glassChart", "label": "玻璃图表", "defaultSize": { "width": 380, "height": 220 }, "sampleImage": "widget_chart_bar.png", "defaultProps": { "title": "图表", "subTitle": "CHART", "options": { "xAxis": { "type": "category", "data": ["A", "B", "C"] }, "yAxis": { "type": "value" }, "series": [{ "data": [120, 200, 150], "type": "bar" }] } } },
+    { "type": "table", "label": "表格", "defaultSize": { "width": 400, "height": 260 }, "sampleImage": "", "defaultProps": { "columns": [{ "key": "name", "title": "名称" }, { "key": "value", "title": "数值" }], "data": [{ "name": "项目1", "value": 100 }, { "name": "项目2", "value": 200 }] } },
+    { "type": "card", "label": "卡片", "defaultSize": { "width": 320, "height": 180 }, "sampleImage": "", "defaultProps": { "title": "卡片" } },
+    { "type": "panel", "label": "面板", "defaultSize": { "width": 360, "height": 200 }, "sampleImage": "", "defaultProps": { "title": "面板" } },
+    { "type": "decoration", "label": "装饰", "defaultSize": { "width": 120, "height": 120 }, "sampleImage": "", "defaultProps": { "variant": "corner" } },
+    { "type": "deviceCard", "label": "设备卡片", "defaultSize": { "width": 320, "height": 280 }, "sampleImage": "", "defaultProps": { "items": [{ "label": "设备", "value": "-", "icon": "▸" }] } },
+    { "type": "progressList", "label": "进度列表", "defaultSize": { "width": 340, "height": 200 }, "sampleImage": "", "defaultProps": { "title": "进度", "subTitle": "PROGRESS", "items": [{ "label": "项1", "value": "100", "percent": 60 }, { "label": "项2", "value": "200", "percent": 80 }] } },
+    { "type": "bottomNav", "label": "底栏", "defaultSize": { "width": 1920, "height": 56 }, "sampleImage": "" }
+  ]
+}

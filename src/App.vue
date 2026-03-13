@@ -117,7 +117,7 @@ onMounted(() => {
   if (u.searchParams.get('workshop') === '1') {
     isStandaloneWorkshop.value = true
     view.value = 'workshop'
-    if (typeof document !== 'undefined') document.title = '晶圆加工车间可视化大屏'
+    if (typeof document !== 'undefined') document.title = '水溶膜工车间数字化大屏'
     loadWorkshopConfig()
   }
   refreshTopBar()
