@@ -218,7 +218,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, watch, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import type { DashboardConfig, WidgetConfig2D, WidgetType2D } from '../types/dashboard'
 import type { EditorConfig, RegisteredWidgetDef } from '../types/editor'
 import { getWidgetSampleImageUrl } from '../assets/editor-samples'
@@ -476,6 +476,7 @@ onMounted(async () => {
   } catch {
     // 使用 FALLBACK_WIDGETS
   }
+  document.addEventListener('keydown', onEditorKeydown)
 })
 
 function onDragStart(e: DragEvent, item: RegisteredWidgetDef) {
@@ -610,6 +611,35 @@ watch(
 )
 watch(selectedConfig, (cur) => {
   if (!cur && config.widgets2D.length > 0) selectedId.value = config.widgets2D[0].id
+})
+
+/** 删除当前选中的组件实例（带确认） */
+function deleteSelectedWidget() {
+  if (!selectedId.value) return
+  const idx = config.widgets2D.findIndex((w) => w.id === selectedId.value)
+  if (idx < 0) return
+  const w = config.widgets2D[idx]
+  const label = typeLabelByType.value[w.type] || w.type
+  if (!confirm(`确定删除组件「${label}」？`)) return
+  config.widgets2D.splice(idx, 1)
+  if (config.widgets2D.length === 0) {
+    selectedId.value = null
+    return
+  }
+  selectedId.value = config.widgets2D[Math.min(idx, config.widgets2D.length - 1)].id
+}
+
+function onEditorKeydown(e: KeyboardEvent) {
+  if (e.key !== 'Delete' && e.key !== 'Backspace') return
+  const target = e.target as HTMLElement
+  if (target?.closest?.('input, textarea, select, [contenteditable="true"]')) return
+  if (!selectedId.value) return
+  e.preventDefault()
+  deleteSelectedWidget()
+}
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', onEditorKeydown)
 })
 
 function exportConfig() {
