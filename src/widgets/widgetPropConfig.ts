@@ -20,8 +20,9 @@ export const widgetTypeReg: Record<WidgetType2D, WidgetTypeRegItem> = {
     ]
   },
   chart: {
-    defaultProps: { options: chartDefaultOptions, height: '100%', width: '100%' },
+    defaultProps: { options: chartDefaultOptions, seriesType: 'bar', height: '100%', width: '100%' },
     propConfig: [
+      { key: 'seriesType', label: '系列类型', type: 'string', default: 'bar' },
       { key: 'options', label: '图表配置', type: 'object', default: chartDefaultOptions },
       { key: 'height', label: '高度', type: 'string', default: '100%' },
       { key: 'width', label: '宽度', type: 'string', default: '100%' }
@@ -71,11 +72,13 @@ export const widgetTypeReg: Record<WidgetType2D, WidgetTypeRegItem> = {
     defaultProps: {
       title: '图表',
       subTitle: 'CHART',
+      seriesType: 'bar',
       options: chartDefaultOptions
     },
     propConfig: [
       { key: 'title', label: '标题', type: 'string', default: '图表' },
       { key: 'subTitle', label: '副标题', type: 'string', default: 'CHART' },
+      { key: 'seriesType', label: '系列类型', type: 'string', default: 'bar' },
       { key: 'options', label: '图表配置', type: 'object', default: chartDefaultOptions }
     ]
   },

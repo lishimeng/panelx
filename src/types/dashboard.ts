@@ -34,6 +34,10 @@ export interface WidgetConfig2D {
   /** 通用外观 */
   title?: string
   visible?: boolean
+  /** 逻辑编号，由编辑器配置，用于与数据源绑定（如 SSE 的 event、Polling 的响应 key） */
+  logicCode?: string
+  /** 绑定的数据源 key（对应 DataSourceConfig.key），不填则不绑定 */
+  datasourceKey?: string
   /** 组件独有属性，由各组件类型定义 */
   props?: Record<string, unknown>
 }
@@ -108,6 +112,8 @@ export interface DashboardConfig {
   theme?: DashboardTheme
   /** layout 单位：px=设计稿像素（来自配置），percent=加载后转换的 0-100，渲染时不再使用 px */
   layoutUnit?: 'px' | 'percent'
+  /** 调试开关：加载配置后会同步到 localStorage，控制数据链等全局日志；组件内用 logManager.isDebugEnabled() 判断 */
+  debug?: boolean
 }
 
 /** 3D 模型文件格式 */

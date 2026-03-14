@@ -1,0 +1,56 @@
+{
+  "_comment": "registeredWidgets: 侧栏可拖拽组件。datasources: 数据源列表，widget 可绑定 logicCode 与 datasourceKey；SSE 用 eventByLogicCode 配置 logicCode->event。",
+  "datasources": [
+    { "type": "sse", "key": "sse_realtime", "url": "/api/sse", "eventByLogicCode": { "chart_1": "chart_data", "table_1": "table_data" } },
+    { "type": "polling", "key": "polling_stats", "url": "/api/stats", "interval": 5000 }
+  ],
+  "registeredWidgets": [
+    { "type": "screenTitle", "label": "大屏标题", "defaultSize": { "width": 1920, "height": 80 }, "sampleImage": "widget_title.png" },
+    { "type": "topBar", "label": "顶栏", "defaultSize": { "width": 1920, "height": 48 }, "sampleImage": "" },
+    { "type": "stat", "label": "指标", "defaultSize": { "width": 280, "height": 100 }, "sampleImage": "" },
+    { "type": "chart", "label": "图表", "defaultSize": { "width": 480, "height": 280 }, "sampleImage": "" },
+    { "type": "glassChart", "label": "玻璃图表", "defaultSize": { "width": 380, "height": 220 }, "sampleImage": "widget_chart_bar.png" },
+    { "type": "table", "label": "表格", "defaultSize": { "width": 400, "height": 260 }, "sampleImage": "" },
+    { "type": "card", "label": "卡片", "defaultSize": { "width": 320, "height": 180 }, "sampleImage": "" },
+    { "type": "panel", "label": "面板", "defaultSize": { "width": 360, "height": 200 }, "sampleImage": "" },
+    { "type": "decoration", "label": "装饰", "defaultSize": { "width": 120, "height": 120 }, "sampleImage": "" },
+    { "type": "deviceCard", "label": "设备卡片", "defaultSize": { "width": 320, "height": 280 }, "sampleImage": "" },
+    { "type": "progressList", "label": "进度列表", "defaultSize": { "width": 340, "height": 200 }, "sampleImage": "" },
+    { "type": "bottomNav", "label": "底栏", "defaultSize": { "width": 1920, "height": 56 }, "sampleImage": "" },
+    { "type": "scaleRuler", "label": "比例尺", "defaultSize": { "width": 120, "height": 48 }, "sampleImage": "" }
+  ],
+  "_commentPropData": "widgetPropData.defaultParams: 按类型配置默认参数，拖入画布时优先使用。dashboardData: 预留，后续支持 dashboard 的 data。",
+  "widgetPropData": {
+    "defaultParams": {
+      "stat": { "value": 0, "label": "指标" },
+      "chart": {
+        "seriesType": "bar",
+        "options": { "xAxis": { "type": "category", "data": ["A", "B", "C"] }, "yAxis": { "type": "value" }, "series": [{ "data": [120, 200, 150] }] },
+        "height": "100%",
+        "width": "100%"
+      },
+      "glassChart": {
+        "title": "图表",
+        "subTitle": "CHART",
+        "seriesType": "bar",
+        "options": { "xAxis": { "type": "category", "data": ["A", "B", "C"] }, "yAxis": { "type": "value" }, "series": [{ "data": [120, 200, 150] }] }
+      },
+      "table": {
+        "columns": [{ "key": "name", "title": "名称" }, { "key": "value", "title": "数值" }],
+        "data": [{ "name": "项目1", "value": 100 }, { "name": "项目2", "value": 200 }]
+      },
+      "card": { "title": "卡片" },
+      "panel": { "title": "面板" },
+      "decoration": { "variant": "corner" },
+      "deviceCard": { "items": [{ "label": "设备", "value": "-", "icon": "▸" }] },
+      "progressList": {
+        "title": "进度",
+        "subTitle": "PROGRESS",
+        "items": [{ "label": "项1", "value": "100", "percent": 60 }, { "label": "项2", "value": "200", "percent": 80 }]
+      },
+      "screenTitle": { "text": "大屏标题" },
+      "topBar": { "datetime": "", "temperature": "25℃", "humidity": "50%rh", "background": "transparent" },
+      "bottomNav": { "items": [{ "label": "首页", "icon": "▸", "active": true }, { "label": "数据", "icon": "" }] }
+    }
+  }
+}

@@ -44,41 +44,42 @@ grid-template-columns: 25% 50% 25%;
 grid-template-columns: 20% 60% 20%;
 ```
 
-## 编辑器 Widget 默认 Props 配置
+## 编辑器 Widget 默认配置
 
-每个 widget 的 props 不同，拖入画布时需要一套默认值。可选方案如下：
+每个 widget 拖入画布时需要默认 props 与尺寸；右侧属性栏的字段定义也来自同一套配置。
 
-### 方案一：配置文件（推荐）
+### Widget 默认配置所在文件
 
-在 **`src/demo/editor_config.json`** 的 `registeredWidgets` 里，为每种组件配置 **`defaultProps`**（以及 `defaultSize`）：
+| 位置 | 作用 | 优先级（拖入时） |
+|------|------|------------------|
+| **`src/editor/editor_config.json`** → `widgetPropData.defaultParams` | 按 **类型** 配置默认参数（如 `stat`、`chart`、`glassChart`），拖入时作为该类型 widget 的初始 props | **最高** |
+| **`src/editor/editor_config.json`** → `registeredWidgets[].defaultProps` | 每个侧栏项可选的 `defaultProps`，仅当 `defaultParams` 未配置该类型或为空时使用 | 次之 |
+| **`src/widgets/widgetPropConfig.ts`** → `widgetTypeReg[type].defaultProps` | 代码侧为每种 `WidgetType2D` 写的默认 props，未在 JSON 中配置时兜底 | 兜底 |
 
-- **`defaultSize`**：拖入时的默认宽高（设计稿 px）。
-- **`defaultProps`**：该类型对应的默认属性对象，拖入时作为 `widget.props` 的初始值。
+编辑器解析顺序：先取 **`widgetPropData.defaultParams[type]`**，若无再取 **`registeredWidgets` 中该 type 的 `defaultProps`**，再无则用 **`getWidgetDefaultProps(type)`**（来自 `widgetPropConfig.ts`）。  
+右侧「组件属性」的字段列表来自 **`src/widgets/widgetPropConfig.ts`** 的 **`propConfig`**（`getWidgetPropConfig(type)`），与默认值同文件定义。
 
-编辑器启动时会加载该 JSON；若某项未配置 `defaultProps` 或为空对象，则使用代码兜底（见方案二）。  
-修改 JSON 即可调整默认值，**无需改代码**。
+### 配置文件示例（editor_config.json）
 
-示例：
+- **`registeredWidgets`**：侧栏可拖拽列表；每项需 **`type`**、**`label`**、**`defaultSize`**（拖入时的宽高，设计稿 px），可选 **`defaultProps`**、**`sampleImage`**。
+- **`widgetPropData.defaultParams`**：按类型集中写默认参数，拖入时优先使用，无需在每条 `registeredWidgets` 里重复。  
+  编辑器启动时从 **`src/editor/editor_config.json`** 加载（见 `Editor.vue` 的 `onMounted`）；大屏/配置加载视图从同一文件取 `datasources`（`App.vue`、`DashboardWithLoader.vue`）。
 
 ```json
 {
-  "type": "stat",
-  "label": "指标",
-  "defaultSize": { "width": 280, "height": 100 },
-  "defaultProps": { "value": 0, "label": "指标" }
+  "widgetPropData": {
+    "defaultParams": {
+      "stat": { "value": 0, "label": "指标" },
+      "chart": { "seriesType": "bar", "options": { ... }, "height": "100%", "width": "100%" }
+    }
+  }
 }
 ```
 
-### 方案二：代码兜底（Widget Registry）
+### 代码兜底（Widget Registry）
 
-当 `editor_config.json` 里某 type 没有 `defaultProps` 或为空时，编辑器会使用 **Widget 注册表** 中的默认值：  
-**`src/widgets/widgetPropConfig.ts`** 为每种 `WidgetType2D` 配置了 **`defaultProps`** 与 **`propConfig`**，通过 **`getWidgetDefaultProps(type)`**（见 `src/widgets/widgetRegistry.ts`）获取。  
-适合：新增 widget 类型时在注册表里维护默认值与属性定义，保证未配置 JSON 时仍有可用默认值。
-
-### 方案三（扩展思路）
-
-- 将默认值抽到独立文件（如 `widget-defaults.json`），由 editor 与 `editor_config.json` 一起加载、合并。
-- 在编辑器内提供「按类型编辑默认值」的 UI，将结果写回配置文件或通过接口保存，便于运营/设计自行维护。
+**`src/widgets/widgetPropConfig.ts`** 中为每种 `WidgetType2D` 配置 **`defaultProps`** 与 **`propConfig`**；**`src/widgets/widgetRegistry.ts`** 对外提供 **`getWidgetDefaultProps(type)`**、**`getWidgetPropConfig(type)`**。  
+新增 widget 类型时在此维护默认值与属性定义，保证未配置 JSON 时仍有可用默认值及右侧栏字段。
 
 ## Widget 数据集成
 
@@ -124,3 +125,9 @@ setWidgetData?.('stat-1', { value: 123, label: '产量' })
 
 - **类型导出**（`src/types/widgets.ts`）  
   **`WidgetDataMap`**、**`SetWidgetDataFn`** 已导出，与 **`WidgetDataKey`**、**`SetWidgetDataKey`** 一起供全项目做类型约束。
+
+## 调试开关（dashboard_config.debug）
+
+- **配置**：在 **dashboard_config**（或导出的 Dashboard JSON）中增加 **`debug: true | false`**。加载该配置后会自动同步到 **localStorage** 的 `PanelX_DEBUG`（`1`/`0`），从而控制全局调试日志。
+- **加载时机**：在 **配置加载大屏**（DashboardWithLoader 的 `applyConfig`）、**大屏预览/车间**（App 的 `loadWorkshopConfig`）、**编辑器**「加载车间大屏配置」时，都会根据当前 config 的 `debug` 刷新 localStorage。
+- **使用方式**：数据链等日志已统一受该开关控制。需要判断日志开关的组件使用 **`logManager.isDebugEnabled()`**（`src/utils/logManager.ts`）判断后再输出，这样即可被 config.debug 与 localStorage 控制。

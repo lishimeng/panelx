@@ -20,8 +20,29 @@ let resizeObserver: ResizeObserver | null = null
 const width = props.width || '100%'
 const height = props.height || '25rem'
 
+const defaultSeriesType = 'bar'
+
+/** 用编辑器配置的 seriesType 补全 options.series[].type（数据源可能不带 type） */
+function ensureSeriesType(
+  options: import('echarts').EChartsOption,
+  seriesType?: string
+): import('echarts').EChartsOption {
+  const type = seriesType || defaultSeriesType
+  const series = options.series
+  if (!Array.isArray(series)) return options
+  return {
+    ...options,
+    series: series.map((s) =>
+      typeof s === 'object' && s !== null
+        ? { ...s, type: (s as { type?: string }).type ?? type }
+        : s
+    )
+  }
+}
+
 function getOptionsToSet(): import('echarts').EChartsOption {
-  return mergeMacaronRoundOptions(props.options)
+  const merged = mergeMacaronRoundOptions(props.options)
+  return ensureSeriesType(merged, props.seriesType)
 }
 
 function initChart() {
@@ -55,11 +76,15 @@ watch(() => props.theme, () => {
   initChart()
 })
 
-watch(() => props.options, () => {
-  if (chartInstance) {
-    chartInstance.setOption(getOptionsToSet())
-  }
-}, { deep: true })
+watch(
+  () => [props.options, props.seriesType] as const,
+  () => {
+    if (chartInstance) {
+      chartInstance.setOption(getOptionsToSet())
+    }
+  },
+  { deep: true }
+)
 
 watch(() => props.loading, (loading) => {
   if (chartInstance) {
@@ -79,7 +104,8 @@ onUnmounted(() => {
 /** 数据更新接口：外部喂数据时调用 */
 function setOption(option: import('echarts').EChartsOption) {
   if (chartInstance) {
-    chartInstance.setOption(mergeMacaronRoundOptions(option))
+    const merged = mergeMacaronRoundOptions(option)
+    chartInstance.setOption(ensureSeriesType(merged, props.seriesType))
   }
 }
 

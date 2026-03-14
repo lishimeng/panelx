@@ -1,5 +1,6 @@
 export * from './api'
 export * from './theme'
+export * from './data'
 export * from './components'
 export * from './size'
 export * from './dashboard'

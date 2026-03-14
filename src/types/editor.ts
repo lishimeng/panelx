@@ -1,4 +1,5 @@
 import type { WidgetType2D } from './dashboard'
+import type { DataSourceConfig } from './comm'
 
 /** 编辑器可注册的单个 widget 定义 */
 export interface RegisteredWidgetDef {
@@ -26,10 +27,12 @@ export interface WidgetPropData {
   dashboardData?: Record<string, Record<string, unknown>>
 }
 
-/** 编辑器配置文件结构：可注册的 widget 列表、prop 数据等 */
+/** 编辑器配置文件结构：可注册的 widget 列表、prop 数据、数据源等 */
 export interface EditorConfig {
   /** 可注册的 2D 组件列表，顺序即侧边栏展示顺序 */
   registeredWidgets: RegisteredWidgetDef[]
   /** 可选：prop 数据（默认参数 + 预留 dashboard 数据） */
   widgetPropData?: WidgetPropData
+  /** 可选：数据源列表，供 widget 绑定（逻辑编号 <-> SSE event / Polling 响应 key） */
+  datasources?: DataSourceConfig[]
 }

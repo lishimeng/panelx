@@ -19,18 +19,32 @@
       </div>
     </template>
     <div v-else class="panelx-dashboard-with-loader-wrap">
-      <Dashboard :config="runtimeConfig" />
+      <Dashboard :config="runtimeConfig" :datasources="editorDatasources" />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import Dashboard from './Dashboard.vue'
 import { convertDashboardConfigPxToPercent } from '../core/size'
+import { setDebugFromConfig } from '../utils/logManager'
 import type { DashboardConfig } from '../types/dashboard'
+import type { DataSourceConfig } from '../types/comm'
 
 const configLoaded = ref(false)
+/** 数据源列表（从 editor_config 加载），供绑定 datasourceKey 的 widget 使用 */
+const editorDatasources = ref<DataSourceConfig[]>([])
+
+onMounted(async () => {
+  try {
+    const mod = await import('../editor/editor_config.json')
+    const loaded = mod.default as { datasources?: DataSourceConfig[] }
+    if (loaded?.datasources?.length) editorDatasources.value = loaded.datasources
+  } catch {
+    // 无 editor_config 时无数据源
+  }
+})
 const dashboardConfig = ref<DashboardConfig>({
   design: { width: 1920, height: 1080 },
   widgets2D: []
@@ -76,8 +90,9 @@ function triggerFileSelect() {
   fileInputRef.value?.click()
 }
 
-/** 应用配置并完成初始化（widget + 3D） */
+/** 应用配置并完成初始化（widget + 3D）；同步 config.debug 到 localStorage 以控制全局日志 */
 function applyConfig(config: DashboardConfig) {
+  setDebugFromConfig(config.debug ?? false)
   dashboardConfig.value = config
   configLoaded.value = true
 }

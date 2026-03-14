@@ -3,6 +3,7 @@
     <div class="panelx-glass-chart-body">
       <Chart
         :options="chartOptions"
+        :series-type="seriesType"
         width="100%"
         height="100%"
         :theme="chartTheme"
@@ -23,6 +24,8 @@ const props = withDefaults(
     title: string
     /** 英文副标题，如 ORDER REVIEW */
     subTitle?: string
+    /** 系列类型（bar/line/pie 等），由编辑器配置 */
+    seriesType?: string
     options: EChartsOption
     chartHeight?: string
     /** 单独配置本 widget 主题，覆盖 dashboard 级 theme */
@@ -30,9 +33,12 @@ const props = withDefaults(
   }>(),
   {
     chartHeight: '100%',
+    seriesType: 'bar',
     theme: undefined
   }
 )
+
+const seriesType = computed(() => props.seriesType ?? 'bar')
 
 const dashboardTheme = inject<{ value?: DashboardTheme }>('dashboardTheme')
 

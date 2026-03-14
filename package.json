@@ -20,6 +20,7 @@
   ],
   "scripts": {
     "dev": "vite",
+    "sse": "node server/sse-server.mjs",
     "build": "vue-tsc && vite build",
     "build:lib": "vue-tsc && vite build --mode lib",
     "preview": "vite preview",

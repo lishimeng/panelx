@@ -11,6 +11,8 @@ export interface PanelProps {
 
 export interface ChartProps {
   options: EChartsOption
+  /** 系列类型（bar/line/pie 等），由编辑器配置；数据源下发的 series 若无 type 则用此值 */
+  seriesType?: string
   height?: string | number
   width?: string | number
   loading?: boolean

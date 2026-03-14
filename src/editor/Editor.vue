@@ -169,6 +169,35 @@
             />
           </div>
         </div>
+        <div class="panelx-editor-prop-group">
+          <h4>数据源</h4>
+          <div class="panelx-editor-field">
+            <label>逻辑编号</label>
+            <input
+              v-model="selectedConfig.logicCode"
+              type="text"
+              placeholder="如 chart_1、table_1"
+              title="与 SSE event / Polling 响应 key 对应"
+            />
+          </div>
+          <div class="panelx-editor-field">
+            <label>绑定数据源</label>
+            <select
+              v-model="selectedConfig.datasourceKey"
+              class="panelx-editor-select"
+              title="选择后该 widget 将按 logicCode 接收该数据源推送"
+            >
+              <option value="">不绑定</option>
+              <option
+                v-for="ds in datasourceList"
+                :key="ds.key"
+                :value="ds.key"
+              >
+                {{ ds.key }} ({{ ds.type }})
+              </option>
+            </select>
+          </div>
+        </div>
         <div v-if="propConfigList.length" class="panelx-editor-prop-group">
           <h4>组件属性</h4>
           <div
@@ -221,6 +250,7 @@
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import type { DashboardConfig, WidgetConfig2D, WidgetType2D } from '../types/dashboard'
 import type { EditorConfig, RegisteredWidgetDef } from '../types/editor'
+import { setDebugFromConfig, isDebugEnabled } from '../utils/logManager'
 import { getWidgetSampleImageUrl } from '../assets/editor-samples'
 import { getWidgetDefaultProps, getWidgetPropConfig } from '../widgets/widgetRegistry'
 import type { WidgetPropDef } from '../types/widgets'
@@ -240,6 +270,8 @@ const FALLBACK_WIDGETS: RegisteredWidgetDef[] = [
 
 const editorConfig = ref<EditorConfig | null>(null)
 const widgetList = computed(() => editorConfig.value?.registeredWidgets?.length ? editorConfig.value!.registeredWidgets : FALLBACK_WIDGETS)
+/** 数据源列表，供右侧栏「绑定数据源」下拉使用 */
+const datasourceList = computed(() => editorConfig.value?.datasources ?? [])
 
 const config = reactive<DashboardConfig>({
   design: { ...DESIGN },
@@ -263,7 +295,6 @@ const rulerLeftRef = ref<HTMLElement | null>(null)
 
 let dragItem: RegisteredWidgetDef | null = null
 
-let isDebug = false
 
 /** 设计稿尺寸（保证为有效整数，避免标尺除零或 NaN） */
 const designSize = computed(() => {
@@ -470,7 +501,7 @@ function onResizeStart(e: MouseEvent, w: WidgetConfig2D, handle: { key: string; 
 
 onMounted(async () => {
   try {
-    const mod = await import('../demo/editor_config.json')
+    const mod = await import('./editor_config.json')
     const loaded = mod.default as EditorConfig
     if (loaded?.registeredWidgets?.length) editorConfig.value = loaded
   } catch {
@@ -500,7 +531,7 @@ function onDrop(e: DragEvent) {
   config.widgets2D.push(w)
   selectedId.value = id
   const sampleImageUrl = getWidgetSampleImageUrl(dragItem.sampleImage)
-  if (isDebug) {
+  if (isDebugEnabled()) {
     console.log('[Editor] 创建 widget 实例', {
     widget: { id: w.id, type: w.type, layout: w.layout },
     registeredWidget: { type: dragItem.type, label: dragItem.label, sampleImage: dragItem.sampleImage },
@@ -691,6 +722,7 @@ function loadDemo() {
 async function loadWorkshopConfig() {
   const mod = await import('../demo/dashboard_config.json')
   const loaded = mod.default as unknown as DashboardConfig
+  setDebugFromConfig(loaded.debug ?? false)
   config.design = { ...loaded.design }
   config.backgroundLayer = loaded.backgroundLayer ? JSON.parse(JSON.stringify(loaded.backgroundLayer)) : undefined
   config.widgets2D = JSON.parse(JSON.stringify(loaded.widgets2D))

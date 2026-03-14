@@ -1,6 +1,7 @@
 {
   "_comment_theme": "options 内显式配置的 color、axisLabel、itemStyle、lineStyle 等会覆盖 ECharts 主题；若要让主题差异明显，可减少对应 widget 的 options 中的样式。",
   "design": { "width": 2560, "height": 1080 },
+  "debug": false,
   "theme": { "chartTheme": "dark" },
   "backgroundLayer": {
     "type": "scene3d",

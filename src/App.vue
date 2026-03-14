@@ -10,29 +10,11 @@
           编辑器
         </button>
         <button
-          :class="{ active: view === 'screen' }"
-          @click="view = 'screen'"
-        >
-          大屏预览
-        </button>
-        <button
-          :class="{ active: view === 'scene3d' }"
-          @click="view = 'scene3d'"
-        >
-          3D 框架
-        </button>
-        <button
           class="panelx-demo-header-open"
           @click="openWorkshopTab()"
           title="新标签页打开（无顶部导航）"
         >
           车间大屏（新标签）
-        </button>
-        <button
-          :class="{ active: view === 'verify' }"
-          @click="view = 'verify'"
-        >
-          演示验证
         </button>
         <button
           class="panelx-demo-header-open"
@@ -45,22 +27,14 @@
     </header>
     <main class="panelx-demo-main">
       <Editor v-if="view === 'editor'" />
-      <div v-else-if="view === 'screen'" class="panelx-demo-screen">
-        <div class="panelx-dashboard-wrap">
-          <Dashboard :config="demoConfigRuntime" />
-        </div>
-      </div>
       <div
         v-else-if="view === 'workshop'"
         class="panelx-demo-screen panelx-demo-workshop"
         :style="{ background: workshopDemoConfig?.background ?? 'transparent' }"
       >
         <div class="panelx-dashboard-wrap">
-          <Dashboard :config="workshopDemoConfig" />
+          <Dashboard :config="workshopDemoConfig" :datasources="editorDatasources" />
         </div>
-      </div>
-      <div v-else-if="view === 'scene3d'" class="panelx-demo-scene3d">
-        <Scene3DFramework :config="scene3DConfig" />
       </div>
       <div
         v-else-if="view === 'configurable'"
@@ -68,7 +42,6 @@
       >
         <DashboardWithLoader />
       </div>
-      <VerifyDemo v-else class="panelx-demo-verify" />
     </main>
   </div>
 </template>
@@ -76,13 +49,16 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { Editor } from './editor'
-import { Dashboard, DashboardWithLoader, Scene3DFramework } from './components'
-import { VerifyDemo } from './demo'
-import { LayerDef } from './framework'
+import { Dashboard, DashboardWithLoader } from './components'
 import { convertDashboardConfigPxToPercent } from './core/size'
-import type { DashboardConfig, Scene3DConfig } from './types/dashboard'
+import type { DashboardConfig } from './types/dashboard'
+import type { DataSourceConfig } from './types/comm'
+import { setDebugFromConfig } from './utils/logManager'
 
-const view = ref<'editor' | 'screen' | 'scene3d' | 'workshop' | 'verify' | 'configurable'>('editor')
+const view = ref<'editor' | 'workshop' | 'configurable'>('editor')
+
+/** 数据源列表（从 editor_config 加载），供大屏/车间视图的 Dashboard 绑定 widget */
+const editorDatasources = ref<DataSourceConfig[]>([])
 const isStandaloneWorkshop = ref(false)
 const isStandaloneConfigurable = ref(false)
 
@@ -104,10 +80,11 @@ const workshopBaseConfig = ref<DashboardConfig>({
   widgets2D: []
 })
 
-/** 模拟 API：异步加载车间大屏 JSON 配置；加载后立刻将 layout 从 px 转为 percent，系统内不再使用 px */
+/** 模拟 API：异步加载车间大屏 JSON 配置；加载后立刻将 layout 从 px 转为 percent，并同步 debug 到 localStorage */
 async function loadWorkshopConfig() {
   const mod = await import('./demo/dashboard_config.json')
   const base = mod.default as unknown as DashboardConfig
+  setDebugFromConfig(base.debug ?? false)
   workshopBaseConfig.value = convertDashboardConfigPxToPercent({ ...base } as DashboardConfig)
 }
 
@@ -132,7 +109,14 @@ function refreshTopBar() {
 
 let topBarRefreshTimer: ReturnType<typeof setInterval> | null = null
 
-onMounted(() => {
+onMounted(async () => {
+  try {
+    const mod = await import('./editor/editor_config.json')
+    const loaded = mod.default as { datasources?: DataSourceConfig[] }
+    if (loaded?.datasources?.length) editorDatasources.value = loaded.datasources
+  } catch {
+    // ignore
+  }
   const u = new URL(window.location.href)
   if (u.searchParams.get('workshop') === '1') {
     isStandaloneWorkshop.value = true
@@ -154,167 +138,6 @@ onUnmounted(() => {
     topBarRefreshTimer = null
   }
 })
-
-/** 3D 场景配置：模型列表等（参考 widgets2D 的配置方式） */
-const scene3DConfig: Scene3DConfig = {
-  statsStyle: 2,
-  // background: 0xeeeeee,
-  /** 仅 ambient 时很多 GLB（PBR 材质）会发黑，需配合 hemisphere/point 才有明暗 */
-  lights: {
-    ambient: 100.5,
-    hemisphere: 100,
-    point: 300
-  },
-  camera: {
-    type: 'orthographic',
-    /** 相机图层显示配置，不填则默认仅 layer=0 可见 */
-    layers: [
-      { layer: LayerDef.default, enable: true },
-      { layer: LayerDef.helper, enable: false },
-    ],
-  },
-  models: [
-    {
-      id: 'ProductLine-1',
-      source: '/product-line.glb',
-      format: 'gltf',
-      visible: true,
-      position: [-0.75-1.5, 0.5, 0],
-      scale: 5,
-    },
-    {
-      id: 'ProductLine-2',
-      source: '/product-line.glb',
-      format: 'gltf',
-      visible: true,
-      position: [-0.75-1.5*2, 0.5, 0],
-      scale: 5,
-    },
-    {
-      id: 'ProductLine-3',
-      source: '/product-line.glb',
-      format: 'gltf',
-      visible: true,
-      position: [-0.75-1.5*3, 0.5, 0],
-      scale: 5,
-    },
-    {
-      id: 'ProductLine-4',
-      source: '/product-line.glb',
-      format: 'gltf',
-      visible: true,
-      position: [-0.75, 0.5, 0],
-      scale: 5,
-    },
-    {
-      id: 'ProductLine-5',
-      source: '/product-line.glb',
-      format: 'gltf',
-      visible: true,
-      position: [0.75, 0.5, 0],
-      scale: 5,
-    },
-    {
-      id: 'ProductLine-6',
-      source: '/product-line.glb',
-      format: 'gltf',
-      visible: true,
-      position: [0.75+1.5, 0.5, 0],
-      scale: 5,
-    },
-    {
-      id: 'ProductLine-7',
-      source: '/product-line.glb',
-      format: 'gltf',
-      visible: true,
-      position: [0.75+1.5*2, 0.5, 0],
-      scale: 5,
-    },
-    {
-      id: 'ProductLine-8',
-      source: '/product-line.glb',
-      format: 'gltf',
-      visible: true,
-      position: [0.75+1.5*3, 0.5, 0],
-      scale: 5,
-    }
-  ]
-}
-
-const demoConfig: DashboardConfig = {
-  design: { width: 2560, height: 1080 },
-  // 第 1 层：背景层（可选）。不填则无背景；也可用 type: 'image', url: '...'
-  backgroundLayer: {
-    type: 'scene3d',
-    config: scene3DConfig
-  },
-  // 第 2 层：内容层（图表、统计等，透明背景）
-  widgets2D: [
-    {
-      id: 's1',
-      type: 'stat',
-      layout: { x: 40, y: 40, width: 280, height: 100 },
-      visible: true,
-      props: { value: 123456, label: '总销售额', prefix: '¥', trend: 'up', trendValue: '12.5%' }
-    },
-    {
-      id: 's2',
-      type: 'stat',
-      layout: { x: 340, y: 40, width: 280, height: 100 },
-      visible: true,
-      props: { value: 7890, label: '订单数', trend: 'up', trendValue: '8.3%' }
-    },
-    {
-      id: 'c1',
-      type: 'chart',
-      layout: { x: 40, y: 160, width: 580, height: 360 },
-      visible: true,
-      props: {
-        theme: 'macaron',
-        options: {
-          xAxis: { type: 'category', data: ['1月', '2月', '3月', '4月', '5月', '6月'] },
-          yAxis: { type: 'value' },
-          series: [{ data: [120, 132, 101, 134, 90, 230], type: 'line', smooth: true }]
-        },
-        height: '100%',
-        width: '100%'
-      }
-    },
-    /** 马卡龙主题 + 圆角 测试：柱状图、饼图、折线（theme 默认 macaron，圆角由 Chart 统一合并） */
-    {
-      id: 'chart-style-test',
-      type: 'glassChart',
-      layout: { x: 640, y: 160, width: 420, height: 320 },
-      visible: true,
-      props: {
-        title: '图表样式测试',
-        subTitle: 'MACARON + ROUND',
-        chartHeight: '15rem',
-        theme: 'macaron',
-        options: {
-          tooltip: { trigger: 'axis' },
-          grid: { left: 48, right: 24, top: 24, bottom: 48 },
-          xAxis: { type: 'category', data: ['A', 'B', 'C', 'D', 'E'] },
-          yAxis: { type: 'value' },
-          series: [
-            { name: '销量', data: [35, 62, 48, 88, 56], type: 'bar' },
-            { name: '趋势', data: [30, 55, 70, 65, 90], type: 'line' }
-          ]
-        }
-      }
-    },
-    {
-      id: 'd1',
-      type: 'decoration',
-      layout: { x: 1080, y: 160, width: 220, height: 140 },
-      visible: true,
-      props: { variant: 'corner' }
-    }
-  ]
-}
-
-/** 大屏预览用配置：加载后立刻转为 percent，不再使用 px */
-const demoConfigRuntime = computed(() => convertDashboardConfigPxToPercent({ ...demoConfig }))
 
 /** 车间大屏展示用配置：在 base 上注入 TopBar 时间/温湿度 */
 const workshopDemoConfig = computed<DashboardConfig>(() => {
@@ -473,20 +296,5 @@ body {
 .panelx-demo-standalone-configurable .panelx-dashboard-with-loader {
   width: 100%;
   height: 100%;
-}
-.panelx-demo-scene3d {
-  flex: 1;
-  min-height: 0;
-  min-width: 0;
-  width: 100%;
-  max-width: 100%;
-  position: relative;
-  background: #0d0d12;
-}
-.panelx-demo-verify {
-  height: 100%;
-  min-height: 0;
-  min-width: 0;
-  max-width: 100%;
 }
 </style>

@@ -49,12 +49,24 @@ import type {
   BackgroundLayerImage
 } from '../types/dashboard'
 import type { DesignRect } from '../types/size'
-import { WidgetDataKey, SetWidgetDataKey } from '../types/injections'
+import type { DataSourceConfig, SSESourceConfig } from '../types/comm'
+import { SSESource } from '../core/comm/SSESource'
+import { PollingSource } from '../core/comm/PollingSource'
+import {
+  WidgetDataKey,
+  SetWidgetDataKey,
+  UpdateWidgetDataKey,
+  UpdateWidgetKey,
+  WidgetRefreshVersionKey
+} from '../types/injections'
+import { dataChainLog } from '../core/comm/dataChainLog'
 import Scene3DFramework from './Scene3DFramework.vue'
 import { getWidgetComponent } from '../widgets'
 
 const props = defineProps<{
   config: DashboardConfig
+  /** 数据源列表（与 editor_config.datasources 一致）；传入后会按 widget 的 datasourceKey/logicCode 绑定并推送数据 */
+  datasources?: DataSourceConfig[]
 }>()
 
 const config = computed(() => props.config)
@@ -86,6 +98,8 @@ const visibleWidgets = computed(() =>
 
 /** 按 widget id 预置的数据，配置加载后从 config 填充，便于后续数据更新 */
 const widgetData = ref<Record<string, Record<string, unknown>>>({})
+/** 按 instanceId 的刷新版本号，updateWidget(id) 时自增，widget 可 watch 以重绘 */
+const widgetRefreshVersion = ref<Record<string, number>>({})
 
 /** 配置加载后同步 widgetData：为每个 widget id 写入其 props，便于后续数据更新只改 widgetData 而不动 config */
 function syncWidgetDataFromConfig() {
@@ -95,6 +109,10 @@ function syncWidgetDataFromConfig() {
     next[w.id] = { ...(w.props ?? {}) }
   }
   widgetData.value = next
+  dataChainLog('Dashboard.syncWidgetDataFromConfig', {
+    widgetCount: list.length,
+    ids: list.map((w) => w.id)
+  })
 }
 
 watch(
@@ -120,6 +138,109 @@ provide(SetWidgetDataKey, (id: string, patch: Record<string, unknown>) => {
   const cur = widgetData.value[id]
   widgetData.value = { ...widgetData.value, [id]: { ...(cur ?? {}), ...patch } }
 })
+
+/** 更新某 widget 的数据（仅改数据，不触发展示刷新；外部模块调用） */
+function updateWidgetData(instanceId: string, patch: Record<string, unknown>) {
+  const cur = widgetData.value[instanceId]
+  widgetData.value = { ...widgetData.value, [instanceId]: { ...(cur ?? {}), ...patch } }
+  dataChainLog('Dashboard.updateWidgetData', {
+    instanceId,
+    patchKeys: Object.keys(patch)
+  })
+}
+/** 触发某 widget 刷新展示（外部在更新数据后可调用，widget 通过 watch widgetRefreshVersion 重绘） */
+function updateWidget(instanceId: string) {
+  widgetRefreshVersion.value = {
+    ...widgetRefreshVersion.value,
+    [instanceId]: (widgetRefreshVersion.value[instanceId] ?? 0) + 1
+  }
+  dataChainLog('Dashboard.updateWidget', { instanceId })
+}
+provide(UpdateWidgetDataKey, updateWidgetData)
+provide(UpdateWidgetKey, updateWidget)
+provide(WidgetRefreshVersionKey, widgetRefreshVersion)
+
+/** 数据源实例与取消订阅句柄，用于 connector 的清理 */
+const dataSourceInstances = ref<Map<string, { start: () => void; stop: () => void }>>(new Map())
+const dataSourceUnsubs = ref<(() => void)[]>([])
+
+/** 将 config.widgets2D 中带 datasourceKey/logicCode 的 widget 绑定到 datasources，收到数据后调用 updateWidgetData */
+function setupDataSourceConnector() {
+  dataSourceUnsubs.value.forEach((fn) => fn())
+  dataSourceUnsubs.value = []
+  dataSourceInstances.value.forEach((inst) => inst.stop())
+  dataSourceInstances.value.clear()
+
+  const list = props.datasources ?? []
+  const widgets = config.value.widgets2D ?? []
+  const bound = widgets.filter(
+    (w) => w.datasourceKey && w.logicCode
+  ) as (WidgetConfig2D & { datasourceKey: string; logicCode: string })[]
+  if (list.length === 0 || bound.length === 0) return
+
+  const sources = new Map<string, { start: () => void; stop: () => void }>()
+  const unsubs: (() => void)[] = []
+
+  for (const w of bound) {
+    const dsConfig = list.find((d) => d.key === w.datasourceKey)
+    if (!dsConfig) {
+      dataChainLog('Dashboard.connector.skip', { reason: 'datasource not found', datasourceKey: w.datasourceKey })
+      continue
+    }
+    if (dsConfig.type === 'sse') {
+      const sseConfig = dsConfig as SSESourceConfig
+      let source = sources.get(dsConfig.key) as SSESource<unknown> | undefined
+      if (!source) {
+        source = new SSESource(sseConfig)
+        sources.set(dsConfig.key, source)
+      }
+      const eventName = sseConfig.eventByLogicCode?.[w.logicCode] ?? w.logicCode
+      const unsub = source.onEvent(eventName, (data) => {
+        const patch =
+          w.type === 'chart' || w.type === 'glassChart'
+            ? { options: data }
+            : (data as Record<string, unknown>)
+        updateWidgetData(w.id, patch)
+        updateWidget(w.id)
+      })
+      unsubs.push(unsub)
+      dataChainLog('Dashboard.connector.bind', {
+        widgetId: w.id,
+        type: w.type,
+        datasourceKey: w.datasourceKey,
+        logicCode: w.logicCode,
+        eventName
+      })
+    } else if (dsConfig.type === 'polling') {
+      let source = sources.get(dsConfig.key) as PollingSource<unknown> | undefined
+      if (!source) {
+        source = new PollingSource(dsConfig)
+        sources.set(dsConfig.key, source)
+      }
+      const unsub = source.onDataByLogicCode(w.logicCode, (data) => {
+        const patch =
+          w.type === 'chart' || w.type === 'glassChart'
+            ? { options: data }
+            : (data as Record<string, unknown>)
+        updateWidgetData(w.id, patch)
+        updateWidget(w.id)
+      })
+      unsubs.push(unsub)
+      dataChainLog('Dashboard.connector.bind', {
+        widgetId: w.id,
+        type: w.type,
+        datasourceKey: w.datasourceKey,
+        logicCode: w.logicCode
+      })
+    }
+  }
+
+  sources.forEach((inst, key) => {
+    inst.start()
+    dataSourceInstances.value.set(key, inst)
+  })
+  dataSourceUnsubs.value = unsubs
+}
 
 const backgroundImageStyle = computed((): Record<string, string> => {
   const bg = config.value.backgroundLayer
@@ -224,6 +345,12 @@ function getComponent(type: WidgetType2D) {
   return getWidgetComponent(type)
 }
 
+watch(
+  () => [props.config?.widgets2D?.length ?? 0, props.datasources?.length ?? 0] as const,
+  () => setupDataSourceConnector(),
+  { immediate: true }
+)
+
 let ro: ResizeObserver | null = null
 let roParent: ResizeObserver | null = null
 onMounted(() => {
@@ -240,6 +367,10 @@ onMounted(() => {
   }
 })
 onUnmounted(() => {
+  dataSourceUnsubs.value.forEach((fn) => fn())
+  dataSourceUnsubs.value = []
+  dataSourceInstances.value.forEach((inst) => inst.stop())
+  dataSourceInstances.value.clear()
   ro?.disconnect()
   roParent?.disconnect()
 })

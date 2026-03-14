@@ -10,7 +10,7 @@
 ## 使用方式
 
 1. 将图片放入本目录，如：`stat.png`、`chart.png`。
-2. 在 `src/demo/editor_config.json` 的 `registeredWidgets` 中，为对应组件设置 `sampleImage` 为**文件名**（含扩展名），例如：
+2. 在 `src/editor/editor_config.json` 的 `registeredWidgets` 中，为对应组件设置 `sampleImage` 为**文件名**（含扩展名），例如：
 
    ```json
    { "type": "stat", "label": "指标", "defaultSize": { "width": 280, "height": 100 }, "sampleImage": "stat.png" }
