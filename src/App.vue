@@ -10,7 +10,7 @@
 <style>
 body {
   margin: 0;
-  background: #1a1a2e;
+  /* background: #1a1a2e; */
 }
 .panelx-app {
   min-height: 100vh;

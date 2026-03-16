@@ -1,8 +1,11 @@
 <template>
   <div class="panelx-editor3d">
     <aside class="panelx-editor3d-sidebar">
-      <h3>场景尺寸</h3>
-      <div class="panelx-editor3d-size-display">
+      <button type="button" class="panelx-editor3d-group-header" @click="leftGroups.sceneOpen = !leftGroups.sceneOpen">
+        <span>场景尺寸</span>
+        <span class="panelx-editor3d-group-toggle">{{ leftGroups.sceneOpen ? '−' : '+' }}</span>
+      </button>
+      <div v-if="leftGroups.sceneOpen" class="panelx-editor3d-size-display">
         <div class="panelx-editor3d-size-row">
           <span class="panelx-editor3d-size-label">Dashboard</span>
           <span class="panelx-editor3d-size-value">{{ designSize.width }} × {{ designSize.height }}</span>
@@ -41,40 +44,93 @@
             </label>
           </div>
         </div>
+        <div class="panelx-editor3d-size-row panelx-editor3d-size-row-bg">
+          <span class="panelx-editor3d-size-label">背景色</span>
+          <div class="panelx-editor3d-color-wrap">
+            <input
+              v-model="editorBackgroundColor"
+              type="color"
+              class="panelx-editor3d-color-picker"
+              title="选择背景色"
+            />
+            <input
+              v-model="editorBackgroundColor"
+              type="text"
+              class="panelx-editor3d-color-hex"
+              placeholder="#0f172a"
+            />
+          </div>
+        </div>
       </div>
-      <h3>模型类型</h3>
-      <div
-        v-for="item in modelTypeList"
-        :key="'type-' + item.id"
-        class="panelx-editor3d-model-item"
-        draggable="true"
-        :title="`${item.label} (${item.id})`"
-        @dragstart="onDragStartType($event, item)"
+
+      <button
+        type="button"
+        class="panelx-editor3d-group-header panelx-editor3d-section"
+        @click="leftGroups.typeOpen = !leftGroups.typeOpen"
       >
-        <span class="panelx-editor3d-model-label">{{ item.label }}</span>
-        <span v-if="item.category" class="panelx-editor3d-model-category">{{ item.category }}</span>
-      </div>
-      <template v-if="presetModels?.length">
-        <h3 class="panelx-editor3d-section">可用模型（预设）</h3>
+        <span>模型类型</span>
+        <span class="panelx-editor3d-group-toggle">{{ leftGroups.typeOpen ? '−' : '+' }}</span>
+      </button>
+      <div v-if="leftGroups.typeOpen">
         <div
-          v-for="p in presetModels"
-          :key="'preset-' + p.id"
-          class="panelx-editor3d-model-item panelx-editor3d-preset"
+          v-for="item in modelTypeList"
+          :key="'type-' + item.id"
+          class="panelx-editor3d-model-item"
           draggable="true"
-          :title="`${p.label} · ${p.typeId} · ${p.source}`"
-          @dragstart="onDragStartPreset($event, p)"
+          :title="`${item.label} (${item.id})`"
+          @dragstart="onDragStartType($event, item)"
         >
-          <span class="panelx-editor3d-model-label">{{ p.label }}</span>
-          <span class="panelx-editor3d-model-category">{{ p.typeId }}</span>
+          <span class="panelx-editor3d-model-label">{{ item.label }}</span>
+          <span v-if="item.category" class="panelx-editor3d-model-category">{{ item.category }}</span>
+        </div>
+      </div>
+
+      <template v-if="presetModels?.length">
+        <button
+          type="button"
+          class="panelx-editor3d-group-header panelx-editor3d-section"
+          @click="leftGroups.presetOpen = !leftGroups.presetOpen"
+        >
+          <span>可用模型（预设）</span>
+          <span class="panelx-editor3d-group-toggle">{{ leftGroups.presetOpen ? '−' : '+' }}</span>
+        </button>
+        <div v-if="leftGroups.presetOpen">
+          <div
+            v-for="p in presetModels"
+            :key="'preset-' + p.id"
+            class="panelx-editor3d-model-item panelx-editor3d-preset"
+            draggable="true"
+            :title="`${p.label} · ${p.typeId} · ${p.source}`"
+            @dragstart="onDragStartPreset($event, p)"
+          >
+            <span class="panelx-editor3d-model-label">{{ p.label }}</span>
+            <span class="panelx-editor3d-model-category">{{ p.typeId }}</span>
+          </div>
         </div>
       </template>
-      <h3 class="panelx-editor3d-ops">操作</h3>
+
+      <button
+        type="button"
+        class="panelx-editor3d-group-header panelx-editor3d-section"
+        @click="leftGroups.opsOpen = !leftGroups.opsOpen"
+      >
+        <span>操作</span>
+        <span class="panelx-editor3d-group-toggle">{{ leftGroups.opsOpen ? '−' : '+' }}</span>
+      </button>
       <button type="button" class="panelx-editor3d-btn" @click="exportConfig">
         导出配置
       </button>
+
       <template v-if="widgets3D.length">
-        <h3 class="panelx-editor3d-section">已添加</h3>
-        <ul class="panelx-editor3d-widget-list">
+        <button
+          type="button"
+          class="panelx-editor3d-group-header panelx-editor3d-section"
+          @click="leftGroups.widgetsOpen = !leftGroups.widgetsOpen"
+        >
+          <span>已添加</span>
+          <span class="panelx-editor3d-group-toggle">{{ leftGroups.widgetsOpen ? '−' : '+' }}</span>
+        </button>
+        <ul v-if="leftGroups.widgetsOpen" class="panelx-editor3d-widget-list">
           <li
             v-for="w in widgets3D"
             :key="w.id"
@@ -83,7 +139,7 @@
           >
             <span class="panelx-editor3d-widget-tag-text" @click="onSelectWidget(w)">
               {{ w.id }} · {{ (w.props?.position as number[] | undefined)?.join(',') ?? '-' }} · 缩放
-              {{ (w.props?.scale as number) ?? '-' }}
+              {{ formatWidgetScale(w.props?.scale) }}
             </span>
             <button
               type="button"
@@ -95,9 +151,41 @@
             </button>
           </li>
         </ul>
-        <div v-if="selectedWidgetId" class="panelx-editor3d-pos-editor">
+      </template>
+    </aside>
+    <main
+      class="panelx-editor3d-main"
+      :class="{ 'panelx-editor3d-main-drag-over': isDragOver }"
+      :style="{ background: editorBackgroundColor }"
+      @dragover.prevent="isDragOver = true"
+      @dragleave="isDragOver = false"
+      @drop.prevent="onDrop"
+    >
+      <div class="panelx-editor3d-canvas">
+        <div class="panelx-editor3d-world-wrap" :style="worldOuterStyle">
+          <div id="panelx-editor3d-world" class="panelx-editor3d-world" />
+          <div v-if="!widgets3D.length" class="panelx-editor3d-world-hint">
+            拖入左侧模型到此处，放下后填写位置与缩放
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- 右侧：当前选中模型的变换（位置 + 缩放） -->
+    <aside class="panelx-editor3d-sidebar panelx-editor3d-sidebar-right">
+      <button
+        type="button"
+        class="panelx-editor3d-group-header"
+        @click="rightGroups.transformOpen = !rightGroups.transformOpen"
+      >
+        <span>选中模型</span>
+        <span class="panelx-editor3d-group-toggle">{{ rightGroups.transformOpen ? '−' : '+' }}</span>
+      </button>
+      <p v-if="!selectedWidgetId" class="panelx-editor3d-right-empty">在左侧列表中点击模型以编辑</p>
+      <template v-else>
+        <div v-if="rightGroups.transformOpen" class="panelx-editor3d-pos-editor">
           <div class="panelx-editor3d-pos-row">
-            <span class="panelx-editor3d-size-label">位置</span>
+            <span class="panelx-editor3d-size-label">位置 (X/Y/Z)</span>
             <div class="panelx-editor3d-size-inputs">
               <label>
                 X
@@ -135,24 +223,94 @@
             </div>
           </div>
         </div>
-      </template>
-    </aside>
-    <main
-      class="panelx-editor3d-main"
-      :class="{ 'panelx-editor3d-main-drag-over': isDragOver }"
-      @dragover.prevent="isDragOver = true"
-      @dragleave="isDragOver = false"
-      @drop.prevent="onDrop"
-    >
-      <div class="panelx-editor3d-canvas">
-        <div class="panelx-editor3d-world-wrap" :style="worldOuterStyle">
-          <div id="panelx-editor3d-world" class="panelx-editor3d-world" />
-          <div v-if="!widgets3D.length" class="panelx-editor3d-world-hint">
-            拖入左侧模型到此处，放下后填写位置与缩放
+
+        <div v-if="rightGroups.transformOpen" class="panelx-editor3d-scale-editor">
+          <div class="panelx-editor3d-pos-row">
+            <span class="panelx-editor3d-size-label">统一缩放</span>
+            <div class="panelx-editor3d-size-inputs">
+              <label>
+                S
+                <input
+                  v-model.number="selectedScaleUniform"
+                  type="number"
+                  step="any"
+                  min="0.01"
+                  @change="onScaleUniformChange"
+                />
+              </label>
+            </div>
+          </div>
+          <div class="panelx-editor3d-pos-row">
+            <span class="panelx-editor3d-size-label">缩放 Z/Y/X</span>
+            <div class="panelx-editor3d-size-inputs">
+              <label>
+                Z
+                <input
+                  v-model.number="selectedScale.z"
+                  type="number"
+                  step="any"
+                  min="0.01"
+                  @change="onScaleAxisChange('z')"
+                />
+              </label>
+              <label>
+                Y
+                <input
+                  v-model.number="selectedScale.y"
+                  type="number"
+                  step="any"
+                  min="0.01"
+                  @change="onScaleAxisChange('y')"
+                />
+              </label>
+              <label>
+                X
+                <input
+                  v-model.number="selectedScale.x"
+                  type="number"
+                  step="any"
+                  min="0.01"
+                  @change="onScaleAxisChange('x')"
+                />
+              </label>
+            </div>
+          </div>
+
+          <div class="panelx-editor3d-pos-row">
+            <span class="panelx-editor3d-size-label">旋转 (度)</span>
+            <div class="panelx-editor3d-size-inputs">
+              <label>
+                X
+                <input
+                  v-model.number="selectedRotation.x"
+                  type="number"
+                  step="any"
+                  @change="onRotationAxisChange('x')"
+                />
+              </label>
+              <label>
+                Y
+                <input
+                  v-model.number="selectedRotation.y"
+                  type="number"
+                  step="any"
+                  @change="onRotationAxisChange('y')"
+                />
+              </label>
+              <label>
+                Z
+                <input
+                  v-model.number="selectedRotation.z"
+                  type="number"
+                  step="any"
+                  @change="onRotationAxisChange('z')"
+                />
+              </label>
+            </div>
           </div>
         </div>
-      </div>
-    </main>
+      </template>
+    </aside>
 
     <!-- 放下后弹出的位置/缩放对话框 -->
     <Teleport to="body">
@@ -226,6 +384,9 @@ const sceneLights = reactive<{ ambient: number; hemisphere: number; point: numbe
   hemisphere: 2.0,
   point: 8.0
 })
+
+/** 3D 编辑区背景色（主区域），可用色彩选择器配置 */
+const editorBackgroundColor = ref('#0f172a')
 /** 父容器尺寸（跟随 dashboard 设计尺寸，只控制宽高比，不影响 3D 世界坐标系） */
 const worldOuterStyle = computed(() => {
   const w = Math.max(1, Number(designSize.width) || 1920)
@@ -291,13 +452,35 @@ const loaderRef = ref<Loader | null>(null)
 const worldRef = ref<World | null>(null)
 const storyboardRef = ref<StoryBoard | null>(null)
 const addedModelNames = new Set<string>()
-const pendingTransforms = new Map<string, { position: [number, number, number]; scale: number }>()
+const pendingTransforms = new Map<
+  string,
+  { position: [number, number, number]; scale: [number, number, number]; rotation: [number, number, number] }
+>()
 /** widget id -> 已加入场景的 Object3D（用于删除时从 scene 移除） */
 const addedModelNodes = new Map<string, Object3D>()
 
 const selectedWidgetId = ref<string | null>(null)
 const selectedPosition = reactive<{ x: number; y: number; z: number }>({ x: 0, y: 0, z: 0 })
+const selectedScale = reactive<{ x: number; y: number; z: number }>({ x: 1, y: 1, z: 1 })
+const selectedScaleUniform = ref(1)
+const selectedRotation = reactive<{ x: number; y: number; z: number }>({ x: 0, y: 0, z: 0 })
 const axisLock = reactive<{ x: boolean; y: boolean; z: boolean }>({ x: false, y: false, z: false })
+
+const leftGroups = reactive({
+  sceneOpen: true,
+  typeOpen: true,
+  presetOpen: true,
+  opsOpen: true,
+  widgetsOpen: true
+})
+
+const rightGroups = reactive({
+  transformOpen: true
+})
+
+function degToRad(deg: number): number {
+  return (deg * Math.PI) / 180
+}
 
 /** 主区域是否处于拖拽悬停 */
 const isDragOver = ref(false)
@@ -308,6 +491,26 @@ function onSelectWidget(w: WidgetConfig3D): void {
   selectedPosition.x = pos[0] ?? 0
   selectedPosition.y = pos[1] ?? 0
   selectedPosition.z = pos[2] ?? 0
+  const rawScale = (w.props?.scale as unknown) ?? 1
+  let sx = 1
+  let sy = 1
+  let sz = 1
+  if (Array.isArray(rawScale)) {
+    sx = Number(rawScale[0]) || 1
+    sy = Number(rawScale[1]) || 1
+    sz = Number(rawScale[2]) || 1
+  } else if (typeof rawScale === 'number') {
+    sx = sy = sz = Number.isFinite(rawScale) && rawScale > 0 ? rawScale : 1
+  }
+  selectedScale.x = sx
+  selectedScale.y = sy
+  selectedScale.z = sz
+  selectedScaleUniform.value = sx
+
+  const rot = (w.props?.rotation as [number, number, number] | undefined) ?? [0, 0, 0]
+  selectedRotation.x = rot[0] ?? 0
+  selectedRotation.y = rot[1] ?? 0
+  selectedRotation.z = rot[2] ?? 0
 }
 
 /** 模型类型拖入：拖起时写入 payload */
@@ -434,9 +637,28 @@ function addWidgetModelToScene(w: WidgetConfig3D): void {
   if (!model) return
 
   const pos = (props.position as [number, number, number] | undefined) ?? [0, 0, 0]
-  const scale = typeof props.scale === 'number' ? (props.scale as number) : Number(props.scale)
-  const scaleVal = Number.isFinite(scale) && scale > 0 ? scale : 1
-  pendingTransforms.set(modelName, { position: [pos[0] ?? 0, pos[1] ?? 0, pos[2] ?? 0], scale: scaleVal })
+  const rawScale = props.scale
+  const rawRotation = (props.rotation as [number, number, number] | undefined) ?? [0, 0, 0]
+  let sx = 1
+  let sy = 1
+  let sz = 1
+  if (Array.isArray(rawScale)) {
+    sx = Number(rawScale[0]) || 1
+    sy = Number(rawScale[1]) || 1
+    sz = Number(rawScale[2]) || 1
+  } else if (typeof rawScale === 'number') {
+    const v = Number.isFinite(rawScale) && rawScale > 0 ? rawScale : 1
+    sx = sy = sz = v
+  }
+  pendingTransforms.set(modelName, {
+    position: [pos[0] ?? 0, pos[1] ?? 0, pos[2] ?? 0],
+    scale: [sx, sy, sz],
+    rotation: [
+      Number(rawRotation[0]) || 0,
+      Number(rawRotation[1]) || 0,
+      Number(rawRotation[2]) || 0
+    ]
+  })
 
   loader.getStore().addModel(modelName, model as unknown as Model)
   if (model instanceof ModelLoadable) {
@@ -448,7 +670,8 @@ function addWidgetModelToScene(w: WidgetConfig3D): void {
     const inst = model as unknown as Model
     if (inst.scene && tf) {
       inst.scene.position.set(tf.position[0], tf.position[1], tf.position[2])
-      inst.scene.scale.setScalar(tf.scale)
+      inst.scene.scale.set(tf.scale[0], tf.scale[1], tf.scale[2])
+      inst.scene.rotation.set(degToRad(tf.rotation[0]), degToRad(tf.rotation[1]), degToRad(tf.rotation[2]))
     }
     ;(sb as BaseStoryBoard).addModel(inst)
     addedModelNames.add(modelName)
@@ -506,7 +729,8 @@ function onFrameworkLoaded(loader: Loader, world: World): void {
     const tf = pendingTransforms.get(name)
     if (tf) {
       inst.scene.position.set(tf.position[0], tf.position[1], tf.position[2])
-      inst.scene.scale.setScalar(tf.scale)
+      inst.scene.scale.set(tf.scale[0], tf.scale[1], tf.scale[2])
+      inst.scene.rotation.set(degToRad(tf.rotation[0]), degToRad(tf.rotation[1]), degToRad(tf.rotation[2]))
     }
     ;(sb as BaseStoryBoard).addModel(inst as unknown as Model)
     addedModelNames.add(name)
@@ -554,6 +778,95 @@ function onPositionInputChange(axis: 'x' | 'y' | 'z'): void {
   }
 }
 
+function updateSelectedWidgetScale(scaleVec: [number, number, number]): void {
+  const id = selectedWidgetId.value
+  if (!id) return
+  const arr = config.widgets3D
+  const w = arr?.find((item) => item.id === id)
+  if (!w) return
+  if (!w.props) w.props = {}
+  w.props.scale = scaleVec
+  const obj = addedModelNodes.get(id)
+  if (obj) {
+    obj.scale.set(scaleVec[0], scaleVec[1], scaleVec[2])
+  }
+  const tf = pendingTransforms.get(id)
+  if (tf) {
+    tf.scale = scaleVec
+  }
+}
+
+function onScaleUniformChange(): void {
+  const v = Number(selectedScaleUniform.value)
+  const s = Number.isFinite(v) && v > 0 ? v : 1
+  selectedScale.x = s
+  selectedScale.y = s
+  selectedScale.z = s
+  selectedScaleUniform.value = s
+  updateSelectedWidgetScale([s, s, s])
+}
+
+function onScaleAxisChange(axis: 'x' | 'y' | 'z'): void {
+  const sx = Number(selectedScale.x) || 1
+  const sy = Number(selectedScale.y) || 1
+  const sz = Number(selectedScale.z) || 1
+  const vec: [number, number, number] = [sx, sy, sz]
+  if (axis === 'x') {
+    vec[0] = sx
+  } else if (axis === 'y') {
+    vec[1] = sy
+  } else {
+    vec[2] = sz
+  }
+  updateSelectedWidgetScale(vec)
+}
+
+function updateSelectedWidgetRotation(rotVec: [number, number, number]): void {
+  const id = selectedWidgetId.value
+  if (!id) return
+  const arr = config.widgets3D
+  const w = arr?.find((item) => item.id === id)
+  if (!w) return
+  if (!w.props) w.props = {}
+  w.props.rotation = rotVec
+  const obj = addedModelNodes.get(id)
+  if (obj) {
+    obj.rotation.set(degToRad(rotVec[0]), degToRad(rotVec[1]), degToRad(rotVec[2]))
+  }
+  const tf = pendingTransforms.get(id)
+  if (tf) {
+    tf.rotation = rotVec
+  }
+}
+
+function onRotationAxisChange(axis: 'x' | 'y' | 'z'): void {
+  const rx = Number(selectedRotation.x) || 0
+  const ry = Number(selectedRotation.y) || 0
+  const rz = Number(selectedRotation.z) || 0
+  const vec: [number, number, number] = [rx, ry, rz]
+  if (axis === 'x') {
+    vec[0] = rx
+  } else if (axis === 'y') {
+    vec[1] = ry
+  } else {
+    vec[2] = rz
+  }
+  updateSelectedWidgetRotation(vec)
+}
+
+function formatWidgetScale(scale: unknown): string {
+  if (Array.isArray(scale)) {
+    const [sx, sy, sz] = scale as unknown[]
+    const toStr = (v: unknown) =>
+      typeof v === 'number' && Number.isFinite(v) ? Number(v).toFixed(2).replace(/\.00$/, '') : '-'
+    return `${toStr(sx)},${toStr(sy)},${toStr(sz)}`
+  }
+  if (typeof scale === 'number' && Number.isFinite(scale)) {
+    return String(scale)
+  }
+  return '-'
+}
+
 onMounted(async () => {
   await nextTick()
   // 初始化 3D world：主区域容器内创建 renderer/canvas，并在资源加载完成后回调 onFrameworkLoaded
@@ -592,7 +905,7 @@ function exportConfig() {
         }))
       : []
   }
-  if (config.background != null) payload.background = config.background
+  payload.background = editorBackgroundColor.value
   if (config.debug != null) payload.debug = config.debug
   const json = JSON.stringify(payload, null, 2)
   const blob = new Blob([json], { type: 'application/json' })
@@ -620,6 +933,35 @@ function exportConfig() {
   background: #1e293b;
   color: #e2e8f0;
   border-right: 1px solid #334155;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  overflow-y: auto;
+}
+.panelx-editor3d-sidebar-right {
+  border-right: none;
+  border-left: 1px solid #334155;
+}
+.panelx-editor3d-group-header {
+  width: 100%;
+  padding: 0.35rem 0.4rem;
+  margin: 0 0 0.4rem;
+  border: none;
+  border-radius: 0.35rem;
+  background: #0f172a;
+  color: #e5e7eb;
+  font-size: 0.8rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+.panelx-editor3d-group-header:hover {
+  background: #1f2937;
+}
+.panelx-editor3d-group-toggle {
+  font-size: 0.9rem;
 }
 .panelx-editor3d-sidebar h3 {
   margin: 0 0 0.5rem;
@@ -661,6 +1003,32 @@ function exportConfig() {
 .panelx-editor3d-size-inputs input {
   width: 3.2rem;
   padding: 0.2rem 0.3rem;
+  border-radius: 0.25rem;
+  border: 1px solid #475569;
+  background: #020617;
+  color: #e2e8f0;
+  font-size: 0.75rem;
+}
+.panelx-editor3d-size-row-bg {
+  margin-top: 0.25rem;
+}
+.panelx-editor3d-color-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.panelx-editor3d-color-picker {
+  width: 2rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 1px solid #475569;
+  border-radius: 0.25rem;
+  background: #0f172a;
+  cursor: pointer;
+}
+.panelx-editor3d-color-hex {
+  width: 5rem;
+  padding: 0.2rem 0.35rem;
   border-radius: 0.25rem;
   border: 1px solid #475569;
   background: #020617;
@@ -712,6 +1080,11 @@ function exportConfig() {
 }
 .panelx-editor3d-btn:hover {
   background: #475569;
+}
+.panelx-editor3d-right-empty {
+  margin: 0.25rem 0 0;
+  font-size: 0.75rem;
+  color: #9ca3af;
 }
 .panelx-editor3d-main {
   flex: 1;
