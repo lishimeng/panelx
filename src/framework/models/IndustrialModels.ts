@@ -2,11 +2,13 @@ import {
   BoxGeometry,
   CanvasTexture,
   Color,
+  CylinderGeometry,
   DoubleSide,
   Mesh,
   MeshBasicMaterial,
   PlaneGeometry,
   Scene,
+  SphereGeometry,
   Sprite,
   SpriteMaterial,
   Vector3
@@ -367,6 +369,632 @@ export class PowerModule extends Model {
     const face = new Mesh(faceGeom, faceMat)
     face.position.set(0, height / 2, depth / 2 + 0.01)
     scene.add(face)
+
+    this.setScene(scene)
+  }
+}
+
+/** 监控屏幕：带底座与屏幕内容的显示器，自发光外观 */
+export class MonitorScreen extends Model {
+  constructor(name = 'MonitorScreen') {
+    super(name)
+    const scene = new Scene()
+
+    // 尺寸（大致 24-27 寸显示器比例）
+    const screenW = 1.6
+    const screenH = 0.95
+    const thickness = 0.08
+
+    // 外框
+    const frameGeom = new BoxGeometry(screenW, screenH, thickness)
+    const frameMat = new MeshBasicMaterial({ color: 0x111827 })
+    const frame = new Mesh(frameGeom, frameMat)
+    frame.position.set(0, 1.35, 0)
+    scene.add(frame)
+
+    // 屏幕内容（CanvasTexture）
+    const canvas = document.createElement('canvas')
+    canvas.width = 1024
+    canvas.height = 640
+    const ctx = canvas.getContext('2d')
+    if (ctx) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      // 背景渐变
+      const g = ctx.createLinearGradient(0, 0, canvas.width, canvas.height)
+      g.addColorStop(0, '#0b1220')
+      g.addColorStop(1, '#061427')
+      ctx.fillStyle = g
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+      // 顶部栏
+      ctx.fillStyle = 'rgba(56,189,248,0.18)'
+      ctx.fillRect(0, 0, canvas.width, 86)
+      ctx.fillStyle = '#e5e7eb'
+      ctx.font = 'bold 44px system-ui, -apple-system, BlinkMacSystemFont, sans-serif'
+      ctx.textAlign = 'left'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('MONITOR', 36, 44)
+
+      // 网格/曲线
+      ctx.strokeStyle = 'rgba(148,163,184,0.22)'
+      ctx.lineWidth = 2
+      for (let x = 0; x <= canvas.width; x += 64) {
+        ctx.beginPath()
+        ctx.moveTo(x, 86)
+        ctx.lineTo(x, canvas.height)
+        ctx.stroke()
+      }
+      for (let y = 86; y <= canvas.height; y += 64) {
+        ctx.beginPath()
+        ctx.moveTo(0, y)
+        ctx.lineTo(canvas.width, y)
+        ctx.stroke()
+      }
+
+      ctx.strokeStyle = 'rgba(34,197,94,0.9)'
+      ctx.lineWidth = 6
+      ctx.beginPath()
+      const baseY = 400
+      for (let x = 0; x <= canvas.width; x += 20) {
+        const t = x / canvas.width
+        const y = baseY + Math.sin(t * Math.PI * 2) * 60 + Math.sin(t * Math.PI * 6) * 18
+        if (x === 0) ctx.moveTo(x, y)
+        else ctx.lineTo(x, y)
+      }
+      ctx.stroke()
+
+      // 右下角状态
+      ctx.fillStyle = 'rgba(148,163,184,0.9)'
+      ctx.font = '28px system-ui, -apple-system, BlinkMacSystemFont, sans-serif'
+      ctx.textAlign = 'right'
+      ctx.textBaseline = 'bottom'
+      ctx.fillText('ONLINE', canvas.width - 26, canvas.height - 18)
+    }
+
+    const tex = new CanvasTexture(canvas)
+    const screenMat = new MeshBasicMaterial({ map: tex, side: DoubleSide })
+    const screenGeom = new PlaneGeometry(screenW * 0.92, screenH * 0.86)
+    const screen = new Mesh(screenGeom, screenMat)
+    screen.position.set(0, 1.35, thickness / 2 + 0.01)
+    scene.add(screen)
+
+    // 支架/底座
+    const standGeom = new BoxGeometry(0.18, 0.6, 0.18)
+    const standMat = new MeshBasicMaterial({ color: 0x334155 })
+    const stand = new Mesh(standGeom, standMat)
+    stand.position.set(0, 0.85, 0)
+    scene.add(stand)
+
+    const baseGeom = new BoxGeometry(0.9, 0.08, 0.5)
+    const baseMat = new MeshBasicMaterial({ color: 0x1f2937 })
+    const base = new Mesh(baseGeom, baseMat)
+    base.position.set(0, 0.42, 0.05)
+    scene.add(base)
+
+    this.setScene(scene)
+  }
+}
+
+/** 监控屏幕（无底座）：仅外框 + 屏幕内容，可用于挂墙/嵌入式 */
+export class MonitorScreenNoStand extends Model {
+  constructor(name = 'MonitorScreenNoStand') {
+    super(name)
+    const scene = new Scene()
+
+    const screenW = 1.6
+    const screenH = 0.95
+    const thickness = 0.08
+
+    const frameGeom = new BoxGeometry(screenW, screenH, thickness)
+    const frameMat = new MeshBasicMaterial({ color: 0x111827 })
+    const frame = new Mesh(frameGeom, frameMat)
+    frame.position.set(0, 1.35, 0)
+    scene.add(frame)
+
+    const canvas = document.createElement('canvas')
+    canvas.width = 1024
+    canvas.height = 640
+    const ctx = canvas.getContext('2d')
+    if (ctx) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height)
+      const g = ctx.createLinearGradient(0, 0, canvas.width, canvas.height)
+      g.addColorStop(0, '#0b1220')
+      g.addColorStop(1, '#061427')
+      ctx.fillStyle = g
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+      ctx.fillStyle = 'rgba(56,189,248,0.18)'
+      ctx.fillRect(0, 0, canvas.width, 86)
+      ctx.fillStyle = '#e5e7eb'
+      ctx.font = 'bold 44px system-ui, -apple-system, BlinkMacSystemFont, sans-serif'
+      ctx.textAlign = 'left'
+      ctx.textBaseline = 'middle'
+      ctx.fillText('MONITOR', 36, 44)
+
+      ctx.strokeStyle = 'rgba(148,163,184,0.22)'
+      ctx.lineWidth = 2
+      for (let x = 0; x <= canvas.width; x += 64) {
+        ctx.beginPath()
+        ctx.moveTo(x, 86)
+        ctx.lineTo(x, canvas.height)
+        ctx.stroke()
+      }
+      for (let y = 86; y <= canvas.height; y += 64) {
+        ctx.beginPath()
+        ctx.moveTo(0, y)
+        ctx.lineTo(canvas.width, y)
+        ctx.stroke()
+      }
+
+      ctx.strokeStyle = 'rgba(34,197,94,0.9)'
+      ctx.lineWidth = 6
+      ctx.beginPath()
+      const baseY = 400
+      for (let x = 0; x <= canvas.width; x += 20) {
+        const t = x / canvas.width
+        const y = baseY + Math.sin(t * Math.PI * 2) * 60 + Math.sin(t * Math.PI * 6) * 18
+        if (x === 0) ctx.moveTo(x, y)
+        else ctx.lineTo(x, y)
+      }
+      ctx.stroke()
+
+      ctx.fillStyle = 'rgba(148,163,184,0.9)'
+      ctx.font = '28px system-ui, -apple-system, BlinkMacSystemFont, sans-serif'
+      ctx.textAlign = 'right'
+      ctx.textBaseline = 'bottom'
+      ctx.fillText('ONLINE', canvas.width - 26, canvas.height - 18)
+    }
+
+    const tex = new CanvasTexture(canvas)
+    const screenMat = new MeshBasicMaterial({ map: tex, side: DoubleSide })
+    const screenGeom = new PlaneGeometry(screenW * 0.92, screenH * 0.86)
+    const screen = new Mesh(screenGeom, screenMat)
+    screen.position.set(0, 1.35, thickness / 2 + 0.01)
+    scene.add(screen)
+
+    this.setScene(scene)
+  }
+}
+
+/** 光条（静态辉光效果）：圆柱形细长条，亮心与柔和边缘纹理，自发光 */
+export class LightStrip extends Model {
+  constructor(name = 'LightStrip') {
+    super(name)
+    const scene = new Scene()
+
+    const length = 3
+    const radius = 0.06
+
+    // 辉光纹理：U 沿周长（亮心在中间）、V 沿轴向
+    const w = 128
+    const h = 512
+    const canvas = document.createElement('canvas')
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d')
+    if (ctx) {
+      ctx.clearRect(0, 0, w, h)
+      const g = ctx.createLinearGradient(0, 0, w, 0)
+      g.addColorStop(0, 'rgba(56,189,248,0.2)')
+      g.addColorStop(0.4, 'rgba(125,211,252,0.85)')
+      g.addColorStop(0.5, 'rgba(224,242,254,0.98)')
+      g.addColorStop(0.6, 'rgba(125,211,252,0.85)')
+      g.addColorStop(1, 'rgba(56,189,248,0.2)')
+      ctx.fillStyle = g
+      ctx.fillRect(0, 0, w, h)
+    }
+
+    const tex = new CanvasTexture(canvas)
+    const mat = new MeshBasicMaterial({ map: tex, transparent: true, side: DoubleSide })
+    const geom = new CylinderGeometry(radius, radius, length, 24, 1)
+    const mesh = new Mesh(geom, mat)
+    mesh.rotation.x = -Math.PI / 2
+    mesh.position.set(0, radius + 0.02, 0)
+    scene.add(mesh)
+
+    this.setScene(scene)
+  }
+}
+
+/** 二层别墅：主体 + 坡屋顶 + 简单窗格纹理，自发光 */
+export class Villa2F extends Model {
+  constructor(name = 'Villa2F') {
+    super(name)
+    const scene = new Scene()
+
+    const w = 4
+    const d = 3.5
+    const floorH = 1.2
+    const totalH = floorH * 2
+
+    const bodyGeom = new BoxGeometry(w, totalH, d)
+    const bodyMat = new MeshBasicMaterial({ color: 0xfef3c7 })
+    const body = new Mesh(bodyGeom, bodyMat)
+    body.position.set(0, totalH / 2, 0)
+    scene.add(body)
+
+    const cw = 512
+    const ch = 512
+    const canvas = document.createElement('canvas')
+    canvas.width = cw
+    canvas.height = ch
+    const ctx = canvas.getContext('2d')
+    if (ctx) {
+      ctx.fillStyle = '#fef3c7'
+      ctx.fillRect(0, 0, cw, ch)
+      ctx.strokeStyle = '#78716c'
+      ctx.lineWidth = 3
+      const cols = 4
+      const rows = 4
+      const cellW = cw / cols
+      const cellH = ch / rows
+      const margin = 12
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          const x = col * cellW + margin
+          const y = row * cellH + margin
+          const bw = cellW - margin * 2
+          const bh = cellH - margin * 2
+          ctx.fillStyle = '#a78bfa'
+          ctx.fillRect(x, y, bw, bh)
+          ctx.strokeRect(x, y, bw, bh)
+        }
+      }
+    }
+    const wallTex = new CanvasTexture(canvas)
+    const wallMat = new MeshBasicMaterial({ map: wallTex, side: DoubleSide })
+    const wallGeom = new PlaneGeometry(w * 0.98, totalH * 0.98)
+    const frontWall = new Mesh(wallGeom, wallMat)
+    frontWall.position.set(0, totalH / 2, d / 2 + 0.01)
+    scene.add(frontWall)
+
+    const roofW = w * 1.08
+    const roofD = d * 1.08
+    const roofH = 0.85
+    const roofGeom = new BoxGeometry(roofW, roofH, roofD)
+    const roofMat = new MeshBasicMaterial({ color: 0x78716c })
+    const roof = new Mesh(roofGeom, roofMat)
+    roof.position.set(0, totalH + roofH / 2, 0)
+    roof.rotation.x = Math.PI / 4
+    scene.add(roof)
+
+    this.setScene(scene)
+  }
+}
+
+/** 十层楼房：竖向长条 + 窗格纹理，自发光 */
+export class Building10F extends Model {
+  constructor(name = 'Building10F') {
+    super(name)
+    const scene = new Scene()
+
+    const w = 3
+    const d = 2.5
+    const floorH = 0.8
+    const floors = 10
+    const totalH = floorH * floors
+
+    const bodyGeom = new BoxGeometry(w, totalH, d)
+    const bodyMat = new MeshBasicMaterial({ color: 0xe2e8f0 })
+    const body = new Mesh(bodyGeom, bodyMat)
+    body.position.set(0, totalH / 2, 0)
+    scene.add(body)
+
+    const cw = 256
+    const ch = 1024
+    const canvas = document.createElement('canvas')
+    canvas.width = cw
+    canvas.height = ch
+    const ctx = canvas.getContext('2d')
+    if (ctx) {
+      ctx.fillStyle = '#e2e8f0'
+      ctx.fillRect(0, 0, cw, ch)
+      const cols = 3
+      const rows = floors * 2
+      const cellW = cw / cols
+      const cellH = ch / rows
+      const margin = 6
+      ctx.fillStyle = '#38bdf8'
+      ctx.strokeStyle = '#0f172a'
+      ctx.lineWidth = 2
+      for (let row = 0; row < rows; row++) {
+        for (let col = 0; col < cols; col++) {
+          const x = col * cellW + margin
+          const y = row * cellH + margin
+          const bw = cellW - margin * 2
+          const bh = cellH - margin * 2
+          ctx.fillRect(x, y, bw, bh)
+          ctx.strokeRect(x, y, bw, bh)
+        }
+      }
+    }
+    const wallTex = new CanvasTexture(canvas)
+    const wallMat = new MeshBasicMaterial({ map: wallTex, side: DoubleSide })
+    const wallGeom = new PlaneGeometry(w * 0.98, totalH * 0.98)
+    const frontWall = new Mesh(wallGeom, wallMat)
+    frontWall.position.set(0, totalH / 2, d / 2 + 0.01)
+    scene.add(frontWall)
+
+    this.setScene(scene)
+  }
+}
+
+/** AGV（自动导引车）：底盘 + 载货面 + 四轮 + 前侧指示灯，自发光 */
+export class AGV extends Model {
+  constructor(name = 'AGV') {
+    super(name)
+    const scene = new Scene()
+
+    const bodyL = 1.2
+    const bodyW = 0.8
+    const bodyH = 0.2
+    const chassisGeom = new BoxGeometry(bodyL, bodyH, bodyW)
+    const chassisMat = new MeshBasicMaterial({ color: 0x334155 })
+    const chassis = new Mesh(chassisGeom, chassisMat)
+    chassis.position.set(0, bodyH / 2, 0)
+    scene.add(chassis)
+
+    const deckH = 0.06
+    const deckGeom = new BoxGeometry(bodyL * 0.92, deckH, bodyW * 0.92)
+    const deckMat = new MeshBasicMaterial({ color: 0x475569 })
+    const deck = new Mesh(deckGeom, deckMat)
+    deck.position.set(0, bodyH + deckH / 2, 0)
+    scene.add(deck)
+
+    const wheelR = 0.08
+    const wheelW = 0.06
+    const wheelGeom = new CylinderGeometry(wheelR, wheelR, wheelW, 16)
+    const wheelMat = new MeshBasicMaterial({ color: 0x1e293b })
+    const halfL = bodyL / 2 - wheelR * 0.6
+    const halfW = bodyW / 2 - wheelR * 0.6
+    const wheelY = wheelR + 0.01
+    ;[
+      [halfL, wheelY, halfW],
+      [halfL, wheelY, -halfW],
+      [-halfL, wheelY, halfW],
+      [-halfL, wheelY, -halfW]
+    ].forEach(([x, y, z]) => {
+      const wheel = new Mesh(wheelGeom, wheelMat)
+      wheel.rotation.z = Math.PI / 2
+      wheel.position.set(x, y, z)
+      scene.add(wheel)
+    })
+
+    const panelGeom = new BoxGeometry(bodyW * 0.7, bodyH * 1.2, 0.04)
+    const panelMat = new MeshBasicMaterial({ color: 0x1e293b })
+    const panel = new Mesh(panelGeom, panelMat)
+    panel.position.set(0, bodyH / 2 + 0.02, bodyW / 2 + 0.03)
+    scene.add(panel)
+
+    const lampW = 64
+    const lampH = 32
+    const lampCanvas = document.createElement('canvas')
+    lampCanvas.width = lampW
+    lampCanvas.height = lampH
+    const lctx = lampCanvas.getContext('2d')
+    if (lctx) {
+      lctx.fillStyle = '#1e293b'
+      lctx.fillRect(0, 0, lampW, lampH)
+      lctx.fillStyle = '#22c55e'
+      lctx.beginPath()
+      lctx.arc(lampW * 0.25, lampH / 2, 8, 0, Math.PI * 2)
+      lctx.fill()
+      lctx.fillStyle = '#eab308'
+      lctx.beginPath()
+      lctx.arc(lampW * 0.5, lampH / 2, 8, 0, Math.PI * 2)
+      lctx.fill()
+      lctx.fillStyle = '#ef4444'
+      lctx.beginPath()
+      lctx.arc(lampW * 0.75, lampH / 2, 8, 0, Math.PI * 2)
+      lctx.fill()
+    }
+    const lampTex = new CanvasTexture(lampCanvas)
+    const lampMat = new MeshBasicMaterial({ map: lampTex, transparent: true, side: DoubleSide })
+    const lampGeom = new PlaneGeometry(bodyW * 0.5, bodyH * 0.8)
+    const lamp = new Mesh(lampGeom, lampMat)
+    lamp.position.set(0, bodyH / 2 + 0.02, bodyW / 2 + 0.06)
+    scene.add(lamp)
+
+    this.setScene(scene)
+  }
+}
+
+/** 叉车：底盘 + 驾驶室 + 门架 + 货叉 + 配重 + 四轮，自发光 */
+export class Forklift extends Model {
+  constructor(name = 'Forklift') {
+    super(name)
+    const scene = new Scene()
+
+    const bodyL = 1.0
+    const bodyW = 0.6
+    const bodyH = 0.22
+    const chassisGeom = new BoxGeometry(bodyL, bodyH, bodyW)
+    const chassisMat = new MeshBasicMaterial({ color: 0xf59e0b })
+    const chassis = new Mesh(chassisGeom, chassisMat)
+    chassis.position.set(0, bodyH / 2, 0)
+    scene.add(chassis)
+
+    const cabW = 0.5
+    const cabD = 0.4
+    const cabH = 0.45
+    const cabGeom = new BoxGeometry(cabW, cabH, cabD)
+    const cabMat = new MeshBasicMaterial({ color: 0xd97706 })
+    const cab = new Mesh(cabGeom, cabMat)
+    cab.position.set(-bodyL / 2 + cabW / 2 + 0.08, bodyH + cabH / 2, 0)
+    scene.add(cab)
+
+    const mastW = 0.08
+    const mastD = 0.12
+    const mastH = 0.75
+    const mastGeom = new BoxGeometry(mastW, mastH, mastD)
+    const mastMat = new MeshBasicMaterial({ color: 0x78716c })
+    const mastL = new Mesh(mastGeom, mastMat)
+    mastL.position.set(0.18, bodyH + mastH / 2, bodyW / 2 - mastD / 2 - 0.02)
+    scene.add(mastL)
+    const mastR = new Mesh(mastGeom, mastMat)
+    mastR.position.set(0.18, bodyH + mastH / 2, -bodyW / 2 + mastD / 2 + 0.02)
+    scene.add(mastR)
+
+    const forkL = 0.55
+    const forkW = 0.06
+    const forkH = 0.04
+    const forkGeom = new BoxGeometry(forkL, forkH, forkW)
+    const forkMat = new MeshBasicMaterial({ color: 0x57534e })
+    const forkY = bodyH + 0.02
+    const forkZ = bodyW / 2 - 0.08
+    const fork1 = new Mesh(forkGeom, forkMat)
+    fork1.position.set(0.18 + forkL / 2, forkY, forkZ)
+    scene.add(fork1)
+    const fork2 = new Mesh(forkGeom, forkMat)
+    fork2.position.set(0.18 + forkL / 2, forkY, -forkZ)
+    scene.add(fork2)
+
+    const counterW = 0.35
+    const counterD = 0.5
+    const counterH = 0.4
+    const counterGeom = new BoxGeometry(counterW, counterH, counterD)
+    const counterMat = new MeshBasicMaterial({ color: 0x44403c })
+    const counter = new Mesh(counterGeom, counterMat)
+    counter.position.set(-bodyL / 2 - 0.02, bodyH / 2 + counterH / 2, 0)
+    scene.add(counter)
+
+    const wheelR = 0.07
+    const wheelW = 0.05
+    const wheelGeom = new CylinderGeometry(wheelR, wheelR, wheelW, 16)
+    const wheelMat = new MeshBasicMaterial({ color: 0x1e293b })
+    const halfL = bodyL / 2 - wheelR * 0.5
+    const halfW = bodyW / 2 - wheelR * 0.5
+    const wheelY = wheelR + 0.01
+    ;[
+      [halfL, wheelY, halfW],
+      [halfL, wheelY, -halfW],
+      [-halfL, wheelY, halfW],
+      [-halfL, wheelY, -halfW]
+    ].forEach(([x, y, z]) => {
+      const wheel = new Mesh(wheelGeom, wheelMat)
+      wheel.rotation.z = Math.PI / 2
+      wheel.position.set(x, y, z)
+      scene.add(wheel)
+    })
+
+    this.setScene(scene)
+  }
+}
+
+/** 激光束：细长圆柱 + 亮心与轴向渐变纹理，自发光，默认沿 Y 轴向上 */
+export class LaserBeam extends Model {
+  constructor(name = 'LaserBeam') {
+    super(name)
+    const scene = new Scene()
+
+    const length = 2.5
+    const radius = 0.03
+
+    const w = 64
+    const h = 512
+    const canvas = document.createElement('canvas')
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d')
+    if (ctx) {
+      ctx.clearRect(0, 0, w, h)
+      const g = ctx.createLinearGradient(0, 0, 0, h)
+      g.addColorStop(0, 'rgba(239,68,68,0)')
+      g.addColorStop(0.12, 'rgba(239,68,68,0.5)')
+      g.addColorStop(0.5, 'rgba(248,113,113,0.95)')
+      g.addColorStop(0.88, 'rgba(239,68,68,0.5)')
+      g.addColorStop(1, 'rgba(239,68,68,0)')
+      ctx.fillStyle = g
+      ctx.fillRect(0, 0, w, h)
+      const g2 = ctx.createLinearGradient(0, 0, w, 0)
+      g2.addColorStop(0, 'rgba(255,255,255,0)')
+      g2.addColorStop(0.35, 'rgba(254,226,226,0.6)')
+      g2.addColorStop(0.5, 'rgba(255,255,255,0.98)')
+      g2.addColorStop(0.65, 'rgba(254,226,226,0.6)')
+      g2.addColorStop(1, 'rgba(255,255,255,0)')
+      ctx.fillStyle = g2
+      ctx.globalCompositeOperation = 'source-over'
+      ctx.fillRect(0, 0, w, h)
+    }
+
+    const tex = new CanvasTexture(canvas)
+    const mat = new MeshBasicMaterial({ map: tex, transparent: true, side: DoubleSide })
+    const geom = new CylinderGeometry(radius, radius, length, 24, 1)
+    const mesh = new Mesh(geom, mat)
+    mesh.position.set(0, length / 2, 0)
+    scene.add(mesh)
+
+    this.setScene(scene)
+  }
+}
+
+/** 树：树干 + 树冠（球体），自发光 */
+export class SimpleTree extends Model {
+  constructor(name = 'SimpleTree') {
+    super(name)
+    const scene = new Scene()
+
+    const trunkH = 1.2
+    const trunkR = 0.12
+    const trunkGeom = new CylinderGeometry(trunkR * 1.1, trunkR * 1.3, trunkH, 12)
+    const trunkMat = new MeshBasicMaterial({ color: 0x78350f })
+    const trunk = new Mesh(trunkGeom, trunkMat)
+    trunk.position.set(0, trunkH / 2, 0)
+    scene.add(trunk)
+
+    const crownR = 0.85
+    const crownGeom = new SphereGeometry(crownR, 12, 10)
+    const crownMat = new MeshBasicMaterial({ color: 0x166534 })
+    const crown = new Mesh(crownGeom, crownMat)
+    crown.position.set(0, trunkH + crownR * 0.3, 0)
+    scene.add(crown)
+
+    this.setScene(scene)
+  }
+}
+
+/** 草地：平面 + 草纹理（深浅绿斑点），自发光 */
+export class GrassPatch extends Model {
+  constructor(name = 'GrassPatch') {
+    super(name)
+    const scene = new Scene()
+
+    const w = 4
+    const h = 4
+    const canvas = document.createElement('canvas')
+    const size = 256
+    canvas.width = size
+    canvas.height = size
+    const ctx = canvas.getContext('2d')
+    if (ctx) {
+      ctx.fillStyle = '#15803d'
+      ctx.fillRect(0, 0, size, size)
+      for (let i = 0; i < 800; i++) {
+        ctx.fillStyle = Math.random() > 0.5 ? '#166534' : '#22c55e'
+        ctx.fillRect(
+          Math.floor(Math.random() * size),
+          Math.floor(Math.random() * size),
+          2 + Math.floor(Math.random() * 4),
+          2 + Math.floor(Math.random() * 4)
+        )
+      }
+      for (let i = 0; i < 200; i++) {
+        ctx.fillStyle = '#14532d'
+        ctx.fillRect(
+          Math.floor(Math.random() * size),
+          Math.floor(Math.random() * size),
+          1,
+          1
+        )
+      }
+    }
+    const tex = new CanvasTexture(canvas)
+    const mat = new MeshBasicMaterial({ map: tex, side: DoubleSide })
+    const geom = new PlaneGeometry(w, h)
+    const mesh = new Mesh(geom, mat)
+    mesh.rotation.x = -Math.PI / 2
+    mesh.position.set(0, 0.01, 0)
+    scene.add(mesh)
 
     this.setScene(scene)
   }

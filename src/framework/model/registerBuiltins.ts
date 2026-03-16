@@ -11,8 +11,19 @@ import {
   LabelBoard,
   SimpleWall,
   PowerCabinet,
-  PowerModule
+  PowerModule,
+  MonitorScreen,
+  MonitorScreenNoStand,
+  LightStrip,
+  Villa2F,
+  Building10F,
+  AGV,
+  Forklift,
+  LaserBeam,
+  SimpleTree,
+  GrassPatch
 } from '../models/IndustrialModels'
+import { EzTreeModel } from '../models/EzTreeModel'
 
 function registerBuiltins(): void {
   modelRegistry.register({
@@ -134,6 +145,116 @@ function registerBuiltins(): void {
     create(config: ModelRegistryCreateConfig) {
       const name = config.name ?? config.id ?? 'PowerModule'
       return new PowerModule(name)
+    }
+  })
+
+  modelRegistry.register({
+    id: 'monitor-screen',
+    label: 'Monitor Screen',
+    category: 'builtin',
+    create(config: ModelRegistryCreateConfig) {
+      const name = config.name ?? config.id ?? 'MonitorScreen'
+      return new MonitorScreen(name)
+    }
+  })
+
+  modelRegistry.register({
+    id: 'monitor-screen-no-stand',
+    label: 'Monitor Screen (No Stand)',
+    category: 'builtin',
+    create(config: ModelRegistryCreateConfig) {
+      const name = config.name ?? config.id ?? 'MonitorScreenNoStand'
+      return new MonitorScreenNoStand(name)
+    }
+  })
+
+  modelRegistry.register({
+    id: 'light-strip',
+    label: 'Light Strip',
+    category: 'builtin',
+    create(config: ModelRegistryCreateConfig) {
+      const name = config.name ?? config.id ?? 'LightStrip'
+      return new LightStrip(name)
+    }
+  })
+
+  modelRegistry.register({
+    id: 'villa-2f',
+    label: 'Villa (2F)',
+    category: 'builtin',
+    create(config: ModelRegistryCreateConfig) {
+      const name = config.name ?? config.id ?? 'Villa2F'
+      return new Villa2F(name)
+    }
+  })
+
+  modelRegistry.register({
+    id: 'building-10f',
+    label: 'Building (10F)',
+    category: 'builtin',
+    create(config: ModelRegistryCreateConfig) {
+      const name = config.name ?? config.id ?? 'Building10F'
+      return new Building10F(name)
+    }
+  })
+
+  modelRegistry.register({
+    id: 'agv',
+    label: 'AGV',
+    category: 'builtin',
+    create(config: ModelRegistryCreateConfig) {
+      const name = config.name ?? config.id ?? 'AGV'
+      return new AGV(name)
+    }
+  })
+
+  modelRegistry.register({
+    id: 'forklift',
+    label: 'Forklift',
+    category: 'builtin',
+    create(config: ModelRegistryCreateConfig) {
+      const name = config.name ?? config.id ?? 'Forklift'
+      return new Forklift(name)
+    }
+  })
+
+  modelRegistry.register({
+    id: 'laser-beam',
+    label: 'Laser Beam',
+    category: 'builtin',
+    create(config: ModelRegistryCreateConfig) {
+      const name = config.name ?? config.id ?? 'LaserBeam'
+      return new LaserBeam(name)
+    }
+  })
+
+  modelRegistry.register({
+    id: 'simple-tree',
+    label: 'Tree',
+    category: 'builtin',
+    create(config: ModelRegistryCreateConfig) {
+      const name = config.name ?? config.id ?? 'SimpleTree'
+      return new SimpleTree(name)
+    }
+  })
+
+  modelRegistry.register({
+    id: 'grass-patch',
+    label: 'Grass Patch',
+    category: 'builtin',
+    create(config: ModelRegistryCreateConfig) {
+      const name = config.name ?? config.id ?? 'GrassPatch'
+      return new GrassPatch(name)
+    }
+  })
+
+  modelRegistry.register({
+    id: 'ez-tree',
+    label: 'Tree (EZ-Tree)',
+    category: 'builtin',
+    create(config: ModelRegistryCreateConfig) {
+      const name = config.name ?? config.id ?? 'EzTree'
+      return new EzTreeModel(name)
     }
   })
 }
