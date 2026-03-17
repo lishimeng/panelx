@@ -446,6 +446,36 @@
                 </button>
               </div>
             </div>
+
+            <div class="panelx-editor3d-pos-row">
+              <span class="panelx-editor3d-size-label">移动到</span>
+              <div class="panelx-editor3d-size-inputs">
+                <label>
+                  X
+                  <input v-model.number="moveCmd.x" type="number" step="any" />
+                </label>
+                <label>
+                  Y
+                  <input v-model.number="moveCmd.y" type="number" step="any" />
+                </label>
+                <label>
+                  Z
+                  <input v-model.number="moveCmd.z" type="number" step="any" />
+                </label>
+              </div>
+            </div>
+            <div class="panelx-editor3d-pos-row">
+              <span class="panelx-editor3d-size-label">移动速度 (单位/秒)</span>
+              <div class="panelx-editor3d-size-inputs">
+                <label>
+                  S
+                  <input v-model.number="moveCmd.speed" type="number" step="any" min="0" />
+                </label>
+                <button type="button" class="panelx-editor3d-btn panelx-editor3d-btn-inline" @click="runMoveToOnce">
+                  执行一次
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </template>
@@ -667,6 +697,23 @@ function runRotateToOnce(): void {
   model.setRotateSpeed(Number.isFinite(rotateCmd.speed) ? rotateCmd.speed : Math.PI)
   // Editor 输入为“角度”，Model 内部使用“弧度”
   model.rotateTo(new Vector3(degToRad(rotateCmd.x || 0), degToRad(rotateCmd.y || 0), degToRad(rotateCmd.z || 0)))
+}
+
+const moveCmd = reactive({
+  x: 0,
+  y: 0,
+  z: 0,
+  speed: 1
+})
+
+function runMoveToOnce(): void {
+  const id = selectedWidgetId.value
+  if (!id) return
+  const sb = storyboardRef.value as BaseStoryBoard | null
+  const model = sb?.getModelByName(id)
+  if (!model) return
+  model.setMoveSpeed(Number.isFinite(moveCmd.speed) ? moveCmd.speed : 1)
+  model.moveTo(new Vector3(moveCmd.x || 0, moveCmd.y || 0, moveCmd.z || 0))
 }
 
 /** 当前选中 widget 的 custom 对象（用于右侧栏 Props 配置），保证存在且可写 */
