@@ -22,6 +22,7 @@ import {
   GrassPatch
 } from '../models/IndustrialModels'
 import { EzTreeModel } from '../models/EzTreeModel'
+import { DryingMachine } from '../models/DryingMachine'
 
 function registerBuiltins(): void {
   // gltf、fbx、simple 不注册为可直接选的模型类型，由 ModelLoadable/SimpleModel 继承使用；预设或配置中 typeId 为 gltf/fbx/simple 时由编辑器侧直接创建实例
@@ -234,6 +235,18 @@ function registerBuiltins(): void {
     create(config: ModelRegistryCreateConfig) {
       const name = config.name ?? config.id ?? 'GrassPatch'
       return new GrassPatch(name)
+    }
+  })
+
+  modelRegistry.register({
+    id: 'drying-machine',
+    label: 'Drying Machine',
+    category: 'builtin',
+    group: 'equipment',
+    supportedProps: DryingMachine.supportedProps,
+    create(config: ModelRegistryCreateConfig) {
+      const name = config.name ?? config.id ?? 'DryingMachine'
+      return new DryingMachine(name)
     }
   })
 

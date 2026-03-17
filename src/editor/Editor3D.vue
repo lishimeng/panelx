@@ -200,7 +200,7 @@
               :class="{ active: selectedWidgetId === w.id }"
             >
               <span class="panelx-editor3d-widget-tag-text" @click="onSelectWidget(w)">
-                {{ w.id }} · {{ (w.props?.position as number[] | undefined)?.join(',') ?? '-' }} · 缩放
+                {{ getWidgetDisplayName(w) }} · {{ (w.props?.position as number[] | undefined)?.join(',') ?? '-' }} · 缩放
                 {{ formatWidgetScale(w.props?.scale) }}
               </span>
               <button
@@ -246,6 +246,17 @@
       <p v-if="!selectedWidgetId" class="panelx-editor3d-right-empty">在左侧列表中点击模型以编辑</p>
       <template v-else>
         <div v-if="rightGroups.transformOpen" class="panelx-editor3d-pos-editor">
+          <div class="panelx-editor3d-pos-row">
+            <span class="panelx-editor3d-size-label">名称 (name)</span>
+            <div class="panelx-editor3d-size-inputs">
+              <input
+                v-model="selectedWidgetName"
+                type="text"
+                class="panelx-editor3d-props-value"
+                placeholder="可空，用于实例列表显示"
+              />
+            </div>
+          </div>
           <div class="panelx-editor3d-pos-row">
             <span class="panelx-editor3d-size-label">位置 (X/Y/Z)</span>
             <div class="panelx-editor3d-size-inputs">
@@ -460,7 +471,8 @@
                   type="text"
                   class="panelx-editor3d-props-value"
                   :placeholder="prop.key"
-                  @input="setCustomPropValue(prop.key, ($event.target as HTMLInputElement).value)"
+                  @change="setCustomPropValue(prop.key, ($event.target as HTMLInputElement).value)"
+                  @keydown.enter="setCustomPropValue(prop.key, ($event.target as HTMLInputElement).value)"
                 />
               </div>
             </div>
@@ -477,7 +489,8 @@
                     :value="val"
                     type="text"
                     class="panelx-editor3d-props-value"
-                    @input="setCustomPropValue(key, ($event.target as HTMLInputElement).value)"
+                    @change="setCustomPropValue(key, ($event.target as HTMLInputElement).value)"
+                    @keydown.enter="setCustomPropValue(key, ($event.target as HTMLInputElement).value)"
                   />
                   <button
                     type="button"
@@ -816,6 +829,32 @@ const selectedScale = reactive<{ x: number; y: number; z: number }>({ x: 1, y: 1
 const selectedScaleUniform = ref(1)
 const selectedRotation = reactive<{ x: number; y: number; z: number }>({ x: 0, y: 0, z: 0 })
 const axisLock = reactive<{ x: boolean; y: boolean; z: boolean }>({ x: false, y: false, z: false })
+
+const selectedWidgetName = computed<string>({
+  get() {
+    const id = selectedWidgetId.value
+    if (!id) return ''
+    const w = config.widgets3D?.find((item) => item.id === id)
+    const name = (w?.props as Record<string, unknown> | undefined)?.name
+    return typeof name === 'string' ? name : ''
+  },
+  set(v: string) {
+    const id = selectedWidgetId.value
+    if (!id) return
+    const w = config.widgets3D?.find((item) => item.id === id)
+    if (!w) return
+    if (!w.props) w.props = {}
+    const s = String(v ?? '').trim()
+    if (s) (w.props as Record<string, unknown>).name = s
+    else delete (w.props as Record<string, unknown>).name
+  }
+})
+
+function getWidgetDisplayName(w: WidgetConfig3D): string {
+  const name = (w.props as Record<string, unknown> | undefined)?.name
+  if (typeof name === 'string' && name.trim() !== '') return name.trim()
+  return w.id
+}
 
 const leftGroups = reactive({
   sceneOpen: true,
@@ -1985,20 +2024,22 @@ function exportConfig() {
 }
 .panelx-editor3d-props-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.35rem;
 }
 .panelx-editor3d-props-key {
   flex-shrink: 0;
-  min-width: 4rem;
+  width: 5.5rem;
+  max-width: 5.5rem;
   font-size: 0.75rem;
   color: #94a3b8;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .panelx-editor3d-props-value {
   flex: 1;
-  min-width: 0;
+  min-width: 7rem;
   padding: 0.2rem 0.35rem;
   border-radius: 0.25rem;
   border: 1px solid #475569;

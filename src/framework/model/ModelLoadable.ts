@@ -36,6 +36,11 @@ export class ModelLoadable extends Model{
         }
     }
 
+    /**
+     * 控制(设置)颜色
+     * @param name 要改变的模型内部mesh的名称(mesh.name匹配)
+     * @param h 具体改动逻辑, 参数是待更改的mesh和原material
+     */
     controlMaterial = (name: string, h: (mesh: Mesh, mat:Material)=>void) => {
         this.findMesh(name, (mesh:Mesh) => {
             let material = mesh.material as Material
