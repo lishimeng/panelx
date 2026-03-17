@@ -48,6 +48,23 @@
           </div>
         </div>
         <div class="panelx-editor3d-size-row panelx-editor3d-size-row-inputs">
+          <span class="panelx-editor3d-size-label">坐标系</span>
+          <div class="panelx-editor3d-size-inputs">
+            <label class="panelx-editor3d-checkbox">
+              <input v-model="designCoord.enabled" type="checkbox" />
+              XZ 设计坐标
+            </label>
+            <label>
+              OX
+              <input v-model.number="designCoord.originX" type="number" step="any" />
+            </label>
+            <label>
+              OY
+              <input v-model.number="designCoord.originY" type="number" step="any" />
+            </label>
+          </div>
+        </div>
+        <div class="panelx-editor3d-size-row panelx-editor3d-size-row-inputs">
           <span class="panelx-editor3d-size-label">Lights</span>
           <div class="panelx-editor3d-size-inputs">
             <label>
@@ -186,6 +203,14 @@
                 {{ w.id }} · {{ (w.props?.position as number[] | undefined)?.join(',') ?? '-' }} · 缩放
                 {{ formatWidgetScale(w.props?.scale) }}
               </span>
+              <button
+                type="button"
+                class="panelx-editor3d-widget-clone"
+                title="克隆一个实例（复制位置/缩放/旋转/属性）"
+                @click.stop="cloneWidget(w)"
+              >
+                克隆
+              </button>
               <button
                 type="button"
                 class="panelx-editor3d-widget-delete"
@@ -343,6 +368,56 @@
                   @change="onRotationAxisChange('z')"
                 />
               </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- 遮罩：包围盒透明遮罩（颜色/透明度），选中时临时覆盖为 75% -->
+        <div class="panelx-editor3d-mask">
+          <button
+            type="button"
+            class="panelx-editor3d-group-header panelx-editor3d-section"
+            @click="rightGroups.maskOpen = !rightGroups.maskOpen"
+          >
+            <span>遮罩</span>
+            <span class="panelx-editor3d-group-toggle">{{ rightGroups.maskOpen ? '−' : '+' }}</span>
+          </button>
+          <div v-if="rightGroups.maskOpen" class="panelx-editor3d-commands-body">
+            <div class="panelx-editor3d-pos-row">
+              <span class="panelx-editor3d-size-label">颜色</span>
+              <div class="panelx-editor3d-size-inputs">
+                <input
+                  :value="getMaskSettings(selectedWidgetId!).color"
+                  type="color"
+                  class="panelx-editor3d-color-picker"
+                  title="选择遮罩颜色"
+                  @input="onMaskColorInput(($event.target as HTMLInputElement).value)"
+                />
+                <input
+                  :value="getMaskSettings(selectedWidgetId!).color"
+                  type="text"
+                  class="panelx-editor3d-color-hex"
+                  placeholder="#38bdf8"
+                  @input="onMaskColorInput(($event.target as HTMLInputElement).value)"
+                />
+              </div>
+            </div>
+            <div class="panelx-editor3d-pos-row">
+              <span class="panelx-editor3d-size-label">透明度</span>
+              <div class="panelx-editor3d-size-inputs">
+                <label>
+                  %
+                  <input
+                    :value="Math.round(getMaskSettings(selectedWidgetId!).opacity * 100)"
+                    type="number"
+                    step="1"
+                    min="0"
+                    max="100"
+                    @input="onMaskOpacityInput(Number(($event.target as HTMLInputElement).value))"
+                  />
+                </label>
+                <span class="panelx-editor3d-size-value">选中时固定 75%</span>
+              </div>
             </div>
           </div>
         </div>
@@ -549,6 +624,7 @@ import type { StoryBoard } from '../framework'
 import type { Model } from '../framework'
 import { ModelLoadable } from '../framework/model/ModelLoadable'
 import { SimpleModel } from '../framework/model/SimpleModel'
+import { designInputToWorldXZ, worldXZToDesignInput } from '../utils/coord3d'
 
 /** 预设模型列表（由 examples 等注入），在侧栏「可用模型」中展示 */
 defineProps<{
@@ -610,6 +686,19 @@ const canvasPixelSize = computed(() => ({
   x: Math.max(0, Math.round(viewportSize.value.x * dpr.value)),
   y: Math.max(0, Math.round(viewportSize.value.y * dpr.value))
 }))
+
+/**
+ * 3D Editor 坐标系（用于 XZ 转换）：
+ * - 基础坐标为「3D 设计尺寸」坐标系
+ * - 输入/定义：把“左上角”的 (x,y) 定义为 (0,0)
+ * - origin 表示左上角在「3D 设计坐标」中的基准点
+ * - 例：origin=(-10,-10)，输入(1,1) => 设计坐标(-9,-9) => 乘比例尺得到 world (x,z)
+ */
+const designCoord = reactive({
+  enabled: true,
+  originX: 0,
+  originY: 0
+})
 
 function applyOrthographicByWorldSize(): void {
   const sb = storyboardRef.value as BaseStoryBoard | null
@@ -741,11 +830,84 @@ const floatingInstanceListOpen = ref(true)
 const rightGroups = reactive({
   transformOpen: true,
   propsOpen: true,
-  commandsOpen: true
+  commandsOpen: true,
+  maskOpen: true
 })
 
 /** 选中模型的「自定义属性」存储在 w.props.custom，此处 key 与配置约定一致 */
 const CUSTOM_PROPS_KEY = 'custom'
+
+const MASK_COLOR_KEY = 'maskColor'
+const MASK_OPACITY_KEY = 'maskOpacity'
+const SELECTED_MASK_OPACITY = 0.75
+const UNSELECTED_OPACITY_MULTIPLIER = 0.5
+
+function toHexColorString(v: unknown, fallback = '#38bdf8'): string {
+  if (typeof v !== 'string') return fallback
+  const s = v.trim()
+  if (/^#[0-9a-fA-F]{6}$/.test(s)) return s
+  if (/^[0-9a-fA-F]{6}$/.test(s)) return `#${s}`
+  return fallback
+}
+
+function getWidgetById(id: string): WidgetConfig3D | undefined {
+  return config.widgets3D?.find((w) => w.id === id)
+}
+
+function getMaskSettings(id: string): { color: string; opacity: number } {
+  const w = getWidgetById(id)
+  const custom = (w?.props as Record<string, unknown> | undefined)?.[CUSTOM_PROPS_KEY] as Record<string, unknown> | undefined
+  const color = toHexColorString(custom?.[MASK_COLOR_KEY], '#38bdf8')
+  const op = Number(custom?.[MASK_OPACITY_KEY])
+  const opacity = Number.isFinite(op) ? Math.min(1, Math.max(0, op)) : 1
+  return { color, opacity }
+}
+
+function setMaskSettingsToCustom(id: string, next: { color?: string; opacity?: number }): void {
+  const w = getWidgetById(id)
+  if (!w) return
+  if (!w.props) w.props = {}
+  const props = w.props as Record<string, unknown>
+  if (typeof props[CUSTOM_PROPS_KEY] !== 'object' || props[CUSTOM_PROPS_KEY] === null) props[CUSTOM_PROPS_KEY] = {}
+  const custom = props[CUSTOM_PROPS_KEY] as Record<string, unknown>
+  if (next.color != null) custom[MASK_COLOR_KEY] = toHexColorString(next.color)
+  if (next.opacity != null && Number.isFinite(next.opacity)) custom[MASK_OPACITY_KEY] = Math.min(1, Math.max(0, next.opacity))
+}
+
+function applyMaskToModel(id: string, opts: { selected: boolean }): void {
+  const sb = storyboardRef.value as BaseStoryBoard | null
+  const model = sb?.getModelByName(id)
+  if (!model) return
+  const { color, opacity } = getMaskSettings(id)
+  model.setMaskColor(color)
+  model.setMaskVisible(opts.selected)
+  model.setMaskOpacity(opts.selected ? SELECTED_MASK_OPACITY : opacity * UNSELECTED_OPACITY_MULTIPLIER)
+  model.refreshMask()
+}
+
+watch(
+  () => selectedWidgetId.value,
+  (next, prev) => {
+    if (prev) applyMaskToModel(prev, { selected: false })
+    if (next) applyMaskToModel(next, { selected: true })
+  }
+)
+
+function onMaskColorInput(v: string): void {
+  const id = selectedWidgetId.value
+  if (!id) return
+  setMaskSettingsToCustom(id, { color: v })
+  applyMaskToModel(id, { selected: true })
+}
+
+function onMaskOpacityInput(percent: number): void {
+  const id = selectedWidgetId.value
+  if (!id) return
+  const p = Number(percent)
+  const opacity = Number.isFinite(p) ? Math.min(1, Math.max(0, p / 100)) : 1
+  setMaskSettingsToCustom(id, { opacity })
+  applyMaskToModel(id, { selected: true })
+}
 
 const importInputRef = ref<HTMLInputElement | null>(null)
 
@@ -860,7 +1022,12 @@ function runMoveToOnce(): void {
   const model = sb?.getModelByName(id)
   if (!model) return
   model.setMoveSpeed(Number.isFinite(moveCmd.speed) ? moveCmd.speed : 1)
-  model.moveTo(new Vector3(moveCmd.x || 0, moveCmd.y || 0, moveCmd.z || 0))
+  if (designCoord.enabled) {
+    const xz = designInputToWorldXZ(moveCmd.x || 0, moveCmd.z || 0, designCoord.originX, designCoord.originY, worldScale.value)
+    model.moveTo(new Vector3(xz.x, moveCmd.y || 0, xz.z))
+  } else {
+    model.moveTo(new Vector3(moveCmd.x || 0, moveCmd.y || 0, moveCmd.z || 0))
+  }
 }
 
 /** 当前选中 widget 的 custom 对象（用于右侧栏 Props 配置），保证存在且可写 */
@@ -906,9 +1073,15 @@ const isDragOver = ref(false)
 function onSelectWidget(w: WidgetConfig3D): void {
   selectedWidgetId.value = w.id
   const pos = (w.props?.position as [number, number, number] | undefined) ?? [0, 0, 0]
-  selectedPosition.x = pos[0] ?? 0
+  if (designCoord.enabled) {
+    const ui = worldXZToDesignInput(pos[0] ?? 0, pos[2] ?? 0, designCoord.originX, designCoord.originY, worldScale.value)
+    selectedPosition.x = ui.x
+    selectedPosition.z = ui.y
+  } else {
+    selectedPosition.x = pos[0] ?? 0
+    selectedPosition.z = pos[2] ?? 0
+  }
   selectedPosition.y = pos[1] ?? 0
-  selectedPosition.z = pos[2] ?? 0
   const rawScale = (w.props?.scale as unknown) ?? 1
   let sx = 1
   let sy = 1
@@ -1185,6 +1358,30 @@ function deleteWidget(w: WidgetConfig3D): void {
   }
 }
 
+function cloneWidget(source: WidgetConfig3D): void {
+  const props = (source.props ? { ...(source.props as Record<string, unknown>) } : {}) as Record<string, unknown>
+  const typeId = String(props.typeId ?? '')
+  const id = `model-${typeId || source.id}-clone-${Date.now()}`
+
+  // 深拷贝常见字段，避免复用引用
+  const nextProps: Record<string, unknown> = { ...props }
+  if (Array.isArray(props.position)) nextProps.position = [...(props.position as unknown[])] as unknown
+  if (Array.isArray(props.scale)) nextProps.scale = [...(props.scale as unknown[])] as unknown
+  if (Array.isArray(props.rotation)) nextProps.rotation = [...(props.rotation as unknown[])] as unknown
+  if (typeof props.custom === 'object' && props.custom != null) nextProps.custom = { ...(props.custom as Record<string, unknown>) }
+
+  const w: WidgetConfig3D = {
+    ...source,
+    id,
+    props: nextProps
+  }
+
+  if (!config.widgets3D) config.widgets3D = []
+  config.widgets3D.push(w)
+  addWidgetModelToScene(w)
+  onSelectWidget(w)
+}
+
 function onPositionInputChange(axis: 'x' | 'y' | 'z'): void {
   const id = selectedWidgetId.value
   if (!id) return
@@ -1194,14 +1391,23 @@ function onPositionInputChange(axis: 'x' | 'y' | 'z'): void {
   if (!w) return
   if (!w.props) w.props = {}
   const pos = (w.props.position as [number, number, number] | undefined) ?? [0, 0, 0]
-  const next: [number, number, number] = [pos[0] ?? 0, pos[1] ?? 0, pos[2] ?? 0]
-  const idx = axis === 'x' ? 0 : axis === 'y' ? 1 : 2
-  const value = axis === 'x' ? selectedPosition.x : axis === 'y' ? selectedPosition.y : selectedPosition.z
-  next[idx] = Number(value) || 0
-  w.props.position = next
+  const currentWorld: [number, number, number] = [pos[0] ?? 0, pos[1] ?? 0, pos[2] ?? 0]
+
+  let nextWorld: [number, number, number] = [...currentWorld] as [number, number, number]
+  if (designCoord.enabled) {
+    // X/Z 输入按“设计坐标系”解释：先换算到 3D 设计坐标，再按比例尺得到 world
+    const xz = designInputToWorldXZ(Number(selectedPosition.x) || 0, Number(selectedPosition.z) || 0, designCoord.originX, designCoord.originY, worldScale.value)
+    nextWorld = [xz.x, Number(selectedPosition.y) || 0, xz.z]
+  } else {
+    const idx = axis === 'x' ? 0 : axis === 'y' ? 1 : 2
+    const value = axis === 'x' ? selectedPosition.x : axis === 'y' ? selectedPosition.y : selectedPosition.z
+    nextWorld[idx] = Number(value) || 0
+  }
+
+  w.props.position = nextWorld
   const obj = addedModelNodes.get(id)
   if (obj) {
-    obj.position.set(next[0], next[1], next[2])
+    obj.position.set(nextWorld[0], nextWorld[1], nextWorld[2])
   }
 }
 
@@ -1723,6 +1929,21 @@ function exportConfig() {
   color: #94a3b8;
   font-size: 0.75rem;
   cursor: pointer;
+}
+.panelx-editor3d-widget-clone {
+  flex-shrink: 0;
+  padding: 0.2rem 0.5rem;
+  border: 1px solid #475569;
+  border-radius: 0.25rem;
+  background: #334155;
+  color: #94a3b8;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+.panelx-editor3d-widget-clone:hover {
+  background: #475569;
+  border-color: #475569;
+  color: #fff;
 }
 .panelx-editor3d-widget-delete:hover {
   background: #dc2626;

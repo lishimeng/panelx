@@ -1,4 +1,4 @@
-import {AnimationAction, AnimationClip, AnimationMixer, Object3D, Scene, Vector3} from "three";
+import {AnimationAction, AnimationClip, AnimationMixer, Box3, Mesh, MeshBasicMaterial, Object3D, Scene, SphereGeometry, Vector3} from "three";
 import {ModelInstanceStore} from "../ModelInstanceStore.ts";
 import type { PropDefinition } from "./ModelRegistry";
 
@@ -32,6 +32,15 @@ export class Model extends Object3D{
     private moveTarget?: Vector3
     /** snap 阈值：当某轴剩余小于该值时直接修正到目标（坐标单位/弧度单位） */
     private static readonly SNAP_EPS = 0.1
+
+    /** 遮罩球体（用于可视化/选中提示） */
+    private maskMesh?: Mesh
+    private maskMat?: MeshBasicMaterial
+    private maskColor: number = 0x38bdf8
+    /** 透明度：0~1，默认 1（100%） */
+    private maskOpacity: number = 1
+    /** 遮罩半径（world 单位）。当前固定为 3 */
+    private static readonly MASK_RADIUS_WORLD = 3
 
     constructor(name: string) {
         super()
@@ -73,6 +82,105 @@ export class Model extends Object3D{
 
     setPosition(x: number, y: number, z: number) {
         this.scene?.position.set(x,y,z)
+    }
+
+    /** 设置遮罩颜色（十六进制 number 或 '#rrggbb'/'rrggbb'） */
+    setMaskColor(color: number | string): void {
+        const hex = this.parseColorToHex(color)
+        if (hex == null) return
+        this.maskColor = hex
+        this.ensureMask()
+        if (this.maskMat) this.maskMat.color.setHex(this.maskColor)
+    }
+
+    /** 设置遮罩是否可见（仅控制显示，不影响配置） */
+    setMaskVisible(visible: boolean): void {
+        this.ensureMask()
+        if (this.maskMesh) this.maskMesh.visible = visible
+    }
+
+    /** 设置遮罩透明度（0~1），默认 1（100%） */
+    setMaskOpacity(opacity: number): void {
+        const v = Number(opacity)
+        if (!Number.isFinite(v)) return
+        this.maskOpacity = Math.min(1, Math.max(0, v))
+        this.ensureMask()
+        if (this.maskMat) this.maskMat.opacity = this.maskOpacity
+    }
+
+    getMaskOpacity(): number {
+        return this.maskOpacity
+    }
+
+    /** 刷新遮罩尺寸/位置（按模型外接圆/球计算） */
+    refreshMask(): void {
+        if (!this.maskMesh || !this.maskMat) return
+        const root = this.scene ?? this
+        root.updateMatrixWorld(true)
+
+        // 避免把 mask 自身算进包围盒
+        const prevVisible = this.maskMesh.visible
+        this.maskMesh.visible = false
+        const box = new Box3().setFromObject(root)
+        this.maskMesh.visible = prevVisible
+
+        if (!Number.isFinite(box.min.x) || box.isEmpty()) return
+
+        const sizeWorld = new Vector3()
+        const centerWorld = new Vector3()
+        box.getSize(sizeWorld)
+        box.getCenter(centerWorld)
+
+        // 遮罩半径：按需求固定为 world 半径 3（不再随模型尺寸计算）
+        const radiusWorld = Math.max(0.001, Model.MASK_RADIUS_WORLD)
+
+        // mask 是 root 的子节点，需要把 world 中心换算到 root 的本地坐标
+        const centerLocal = centerWorld.clone()
+        root.worldToLocal(centerLocal)
+
+        // 将 world 半径换算到 root 本地（考虑 root 的缩放）
+        const worldScale = new Vector3()
+        root.getWorldScale(worldScale)
+        // 为保证“world 空间下是球体”，按各轴缩放分别抵消（避免非等比缩放导致椭球、尺寸看起来不对）
+        const sx = Math.max(0.000001, worldScale.x)
+        const sy = Math.max(0.000001, worldScale.y)
+        const sz = Math.max(0.000001, worldScale.z)
+
+        this.maskMesh.position.copy(centerLocal)
+        this.maskMesh.scale.set(radiusWorld / sx, radiusWorld / sy, radiusWorld / sz)
+    }
+
+    private ensureMask(): void {
+        if (this.maskMesh && this.maskMat) {
+            // 可能模型变化，顺便刷新一次
+            this.refreshMask()
+            return
+        }
+        const root = this.scene ?? this
+        this.maskMat = new MeshBasicMaterial({
+            color: this.maskColor,
+            transparent: true,
+            opacity: this.maskOpacity,
+            depthWrite: false,
+            depthTest: false,
+            wireframe: true
+        })
+        // 单位球体，后续用 scale 设置半径
+        this.maskMesh = new Mesh(new SphereGeometry(1, 24, 16), this.maskMat)
+        this.maskMesh.renderOrder = 999
+        this.maskMesh.visible = false
+        root.add(this.maskMesh)
+        this.refreshMask()
+    }
+
+    private parseColorToHex(color: number | string): number | null {
+        if (typeof color === 'number' && Number.isFinite(color)) return color
+        if (typeof color !== 'string') return null
+        const s = color.trim()
+        if (!s) return null
+        const hexStr = s.startsWith('#') ? s.slice(1) : s
+        if (!/^[0-9a-fA-F]{6}$/.test(hexStr)) return null
+        return parseInt(hexStr, 16)
     }
 
     /**
@@ -164,6 +272,8 @@ export class Model extends Object3D{
 
         // 旋转任务
         if (!this.rotating || !this.rotateTarget) {
+            // 即使不旋转，也可能需要在运动后刷新遮罩
+            if (this.maskMesh) this.refreshMask()
             return
         }
         const current = new Vector3(obj.rotation.x, obj.rotation.y, obj.rotation.z)
@@ -210,6 +320,9 @@ export class Model extends Object3D{
             this.rotating = false
             this.rotateTarget = undefined
         }
+
+        // 更新遮罩跟随（位置/旋转不影响包围盒中心在局部坐标下的计算，这里简单每帧刷新）
+        if (this.maskMesh) this.refreshMask()
     }
 
     /**
