@@ -807,6 +807,7 @@ function confirmDropDialog() {
       status: 'ONLINE',
       statusType: 'normal',
       colorPreset: 'info',
+      fx: 'scanlines',
       runningTime: '12.3 h',
       message: 'Link stable · 0.8ms'
     }

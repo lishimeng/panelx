@@ -6,6 +6,8 @@ import { createScene3DInfoBox, resolveScene3DInfoBoxTheme } from '../Scene3DInfo
 
 const STATUS_ENUM: Scene3DInfoBoxStatusType[] = ['normal', 'warning', 'fault']
 const PRESET_ENUM: Scene3DInfoBoxColorPreset[] = ['info', 'success', 'warning', 'error']
+const FX_ENUM = ['none', 'scanlines', 'noise', 'glitch', 'all'] as const
+type InfoBoxFx = (typeof FX_ENUM)[number]
 
 /**
  * 3D 场景信息框（CSS3DObject）：
@@ -19,6 +21,7 @@ export class InfoBoxModel extends Model {
     { key: 'status', label: '状态文本' },
     { key: 'statusType', label: '状态类型', enum: STATUS_ENUM },
     { key: 'colorPreset', label: '主题色', enum: PRESET_ENUM },
+    { key: 'fx', label: '屏幕特效', enum: [...FX_ENUM] },
     { key: 'runningTime', label: '运行时长' },
     { key: 'message', label: '提示信息' }
   ]
@@ -37,6 +40,7 @@ export class InfoBoxModel extends Model {
       status: 'OK',
       statusType: 'normal',
       colorPreset: 'info',
+      fx: 'scanlines',
       runningTime: '',
       message: ''
     }
@@ -56,6 +60,7 @@ export class InfoBoxModel extends Model {
       oldEl.style.background = theme.bg
       oldEl.style.borderColor = theme.border
       oldEl.style.boxShadow = theme.glow
+      oldEl.dataset.fx = (this.cfg.fx ?? 'scanlines') as string
     }
     // 保留原对象与 uuid，不替换 this.css3d
   }
@@ -73,6 +78,9 @@ export class InfoBoxModel extends Model {
     } else if (key === 'colorPreset') {
       const p = v as Scene3DInfoBoxColorPreset
       if (PRESET_ENUM.includes(p)) this.cfg.colorPreset = p
+    } else if (key === 'fx') {
+      const fx = v as InfoBoxFx
+      if (FX_ENUM.includes(fx)) this.cfg.fx = fx
     } else {
       super.propUpdate(key, value)
       return

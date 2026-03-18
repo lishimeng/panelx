@@ -185,6 +185,8 @@ export interface Scene3DInfoBoxConfig {
   runningTime?: string
   /** 异常信息（故障时显示） */
   message?: string
+  /** 屏幕特效：none/scanlines/noise/glitch/all */
+  fx?: 'none' | 'scanlines' | 'noise' | 'glitch' | 'all'
   /** 是否显示 */
   visible?: boolean
 }
