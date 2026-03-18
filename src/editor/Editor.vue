@@ -248,7 +248,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
-import type { DashboardConfig, WidgetConfig2D, WidgetType2D } from '../types/dashboard'
+import type { DashboardConfig, WidgetConfig2D } from '../types/dashboard'
 import type { EditorConfig, RegisteredWidgetDef } from '../types/editor'
 import { setDebugFromConfig, isDebugEnabled } from '../utils/logManager'
 import { getWidgetSampleImageUrl } from '../assets/editor-samples'
@@ -567,10 +567,6 @@ function onDrop(e: DragEvent) {
   }
   
   dragItem = null
-}
-
-function getWidgetDef(type: WidgetType2D): RegisteredWidgetDef | undefined {
-  return widgetList.value.find((item) => item.type === type)
 }
 
 /** 根据鼠标放下位置创建 layout，使组件中心落在鼠标位置（设计稿坐标） */

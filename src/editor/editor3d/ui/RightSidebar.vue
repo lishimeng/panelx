@@ -220,6 +220,28 @@
         </button>
         <div v-if="rightGroups.commandsOpen" class="panelx-editor3d-commands-body">
           <div class="panelx-editor3d-pos-row">
+            <span class="panelx-editor3d-size-label">自旋转</span>
+            <div class="panelx-editor3d-size-inputs">
+              <label class="panelx-editor3d-checkbox">
+                <input v-model="autoRotateCmd.enabled" type="checkbox" @change="applyAutoRotate()" />
+                启用
+              </label>
+              <label>
+                轴
+                <select v-model="autoRotateCmd.axis" class="panelx-editor3d-props-value panelx-editor3d-props-select" @change="applyAutoRotate()">
+                  <option value="x">X</option>
+                  <option value="y">Y</option>
+                  <option value="z">Z</option>
+                </select>
+              </label>
+              <label>
+                速度(度/秒)
+                <input v-model.number="autoRotateCmd.speedDeg" type="number" step="any" @change="applyAutoRotate()" />
+              </label>
+            </div>
+          </div>
+
+          <div class="panelx-editor3d-pos-row">
             <span class="panelx-editor3d-size-label">旋转到 (度)</span>
             <div class="panelx-editor3d-size-inputs">
               <label>X <input v-model.number="rotateCmd.x" type="number" step="any" /></label>
@@ -270,6 +292,7 @@ const selectedRotation = defineModel<any>('selectedRotation', { required: true }
 const axisLock = defineModel<any>('axisLock', { required: true })
 const rotateCmd = defineModel<any>('rotateCmd', { required: true })
 const moveCmd = defineModel<any>('moveCmd', { required: true })
+const autoRotateCmd = defineModel<any>('autoRotateCmd', { required: true })
 const newPropKey = defineModel<any>('newPropKey', { required: true })
 const newPropValue = defineModel<any>('newPropValue', { required: true })
 
@@ -288,7 +311,8 @@ defineProps({
   removeCustomProp: { type: Function as PropType<(key: string) => void>, required: true },
   addCustomProp: { type: Function as PropType<() => void>, required: true },
   runRotateToOnce: { type: Function as PropType<() => void>, required: true },
-  runMoveToOnce: { type: Function as PropType<() => void>, required: true }
+  runMoveToOnce: { type: Function as PropType<() => void>, required: true },
+  applyAutoRotate: { type: Function as PropType<() => void>, required: true }
 })
 </script>
 

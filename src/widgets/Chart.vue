@@ -32,7 +32,8 @@ function ensureSeriesType(
   if (!Array.isArray(series)) return options
   return {
     ...options,
-    series: series.map((s) =>
+    // ECharts 的联合类型非常严格：这里仅做“补全 type”用途，运行时合法即可
+    series: (series as any[]).map((s) =>
       typeof s === 'object' && s !== null
         ? { ...s, type: (s as { type?: string }).type ?? type }
         : s

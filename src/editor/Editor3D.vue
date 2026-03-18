@@ -58,6 +58,7 @@
       v-model:selectedRotation="selectedRotation"
       v-model:rotateCmd="rotateCmd"
       v-model:moveCmd="moveCmd"
+      v-model:autoRotateCmd="autoRotateCmd"
       v-model:newPropKey="newPropKey"
       v-model:newPropValue="newPropValue"
       :selected-widget-supported-props="selectedWidgetSupportedProps"
@@ -75,6 +76,7 @@
       :add-custom-prop="addCustomProp"
       :run-rotate-to-once="runRotateToOnce"
       :run-move-to-once="runMoveToOnce"
+      :apply-auto-rotate="applyAutoRotateToSelected"
     />
 
     <!-- 放下后弹出的位置/缩放对话框 -->
@@ -491,6 +493,12 @@ const rotateCmd = reactive({
   speed: Math.PI
 })
 
+const autoRotateCmd = reactive({
+  enabled: false,
+  axis: 'y' as 'x' | 'y' | 'z',
+  speedDeg: 30
+})
+
 function runRotateToOnce(): void {
   const id = selectedWidgetId.value
   if (!id) return
@@ -508,6 +516,19 @@ const moveCmd = reactive({
   z: 0,
   speed: 1
 })
+
+function applyAutoRotateToSelected(): void {
+  const id = selectedWidgetId.value
+  if (!id) return
+  const sb = storyboardRef.value as BaseStoryBoard | null
+  const model = sb?.getModelByName(id)
+  if (!model) return
+  const axis = autoRotateCmd.axis
+  const axisVec = axis === 'x' ? new Vector3(1, 0, 0) : axis === 'y' ? new Vector3(0, 1, 0) : new Vector3(0, 0, 1)
+  model.setAutoRotateAxis(axisVec)
+  model.setAutoRotateSpeed(degToRad(autoRotateCmd.speedDeg || 0))
+  model.setAutoRotateEnabled(Boolean(autoRotateCmd.enabled))
+}
 
 function runMoveToOnce(): void {
   const id = selectedWidgetId.value

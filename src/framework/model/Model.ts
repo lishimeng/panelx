@@ -42,6 +42,13 @@ export class Model extends Object3D{
     /** 遮罩半径（world 单位）。当前固定为 3 */
     private static readonly MASK_RADIUS_WORLD = 3
 
+    /** 自旋转：开关 */
+    private autoRotateEnabled: boolean = false
+    /** 自旋转：轴（局部坐标系），默认为 Y 轴 */
+    private autoRotateAxis: Vector3 = new Vector3(0, 1, 0)
+    /** 自旋转：速度（弧度/秒） */
+    private autoRotateSpeed: number = 0
+
     constructor(name: string) {
         super()
         this.modelName = name
@@ -237,6 +244,26 @@ export class Model extends Object3D{
         this.rotating = true
     }
 
+    /** 设置自旋转开关 */
+    setAutoRotateEnabled(enabled: boolean): void {
+        this.autoRotateEnabled = Boolean(enabled)
+    }
+
+    /** 设置自旋转轴（xyz 任意向量，会自动归一化；长度为 0 则忽略） */
+    setAutoRotateAxis(axis: Vector3): void {
+        const v = axis.clone()
+        if (v.lengthSq() <= 1e-12) return
+        v.normalize()
+        this.autoRotateAxis.copy(v)
+    }
+
+    /** 设置自旋转速度（弧度/秒） */
+    setAutoRotateSpeed(speedRadPerSec: number): void {
+        const s = Number(speedRadPerSec)
+        if (!Number.isFinite(s)) return
+        this.autoRotateSpeed = s
+    }
+
     update(delta: number) {
         const obj = this.scene ?? this
 
@@ -244,6 +271,14 @@ export class Model extends Object3D{
         const anyThis = this as unknown as { actionMixer?: AnimationMixer }
         if (anyThis.actionMixer && typeof anyThis.actionMixer.update === 'function') {
             anyThis.actionMixer.update(delta)
+        }
+
+        // 自旋转：默认在没有显式旋转任务时生效，避免与 rotate/rotateTo 冲突
+        if (this.autoRotateEnabled && !this.rotating && this.autoRotateSpeed !== 0) {
+            const angle = this.autoRotateSpeed * delta
+            if (Number.isFinite(angle) && angle !== 0) {
+                obj.rotateOnAxis(this.autoRotateAxis, angle)
+            }
         }
 
         // 移动任务

@@ -2,8 +2,6 @@
  * Widget 统一 prop 配置格式，供 Editor 展示、解析 config 与后续数据更新使用
  */
 
-import type { WidgetType2D } from './dashboard'
-
 /** 单个 prop 的定义（统一格式） */
 export interface WidgetPropDef {
   /** 属性键名，与 props[key] 对应 */
