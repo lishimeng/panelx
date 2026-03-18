@@ -55,6 +55,11 @@ function resolveTheme(config: Scene3DInfoBoxConfig): ThemeColors {
   }
 }
 
+/** 供外部在不重建 element 的情况下更新主题色 */
+export function resolveScene3DInfoBoxTheme(config: Scene3DInfoBoxConfig): ThemeColors {
+  return resolveTheme(config)
+}
+
 /** 创建 3D 场景内科技感信息框的 DOM 并包装为 CSS3DObject，需调用方设置 position 并 add 到 scene */
 export function createScene3DInfoBox(config: Scene3DInfoBoxConfig): CSS3DObject {
   const theme = resolveTheme(config)

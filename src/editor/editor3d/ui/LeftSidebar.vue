@@ -147,6 +147,7 @@
     </button>
     <button type="button" class="panelx-editor3d-btn" @click="exportConfig">导出配置</button>
     <button type="button" class="panelx-editor3d-btn" @click="triggerImportConfig">导入配置</button>
+    <button type="button" class="panelx-editor3d-btn" @click="createRobotDemoScene">生成 Robot 示例</button>
   </aside>
 </template>
 
@@ -182,7 +183,8 @@ defineProps({
     required: true
   },
   exportConfig: { type: Function as PropType<() => void>, required: true },
-  triggerImportConfig: { type: Function as PropType<() => void>, required: true }
+  triggerImportConfig: { type: Function as PropType<() => void>, required: true },
+  createRobotDemoScene: { type: Function as PropType<() => void>, required: true }
 })
 </script>
 

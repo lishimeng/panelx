@@ -1,6 +1,7 @@
 import { modelRegistry } from './ModelRegistry'
 import type { ModelRegistryCreateConfig } from './ModelRegistry'
 import { RightHandAxes } from '../models/RightHandAxes'
+import { InfoBoxModel } from '../models/InfoBoxModel'
 import {
   IndustrialFloor,
   SingleDoor,
@@ -33,6 +34,18 @@ function registerBuiltins(): void {
     create(config: ModelRegistryCreateConfig) {
       const name = config.name ?? config.id ?? 'RightHandAxes'
       return new RightHandAxes(name)
+    }
+  })
+
+  modelRegistry.register({
+    id: 'info-box',
+    label: 'Info Box',
+    category: 'builtin',
+    group: 'decoration',
+    supportedProps: InfoBoxModel.supportedProps,
+    create(config: ModelRegistryCreateConfig) {
+      const name = config.name ?? config.id ?? 'InfoBox'
+      return new InfoBoxModel(name)
     }
   })
 

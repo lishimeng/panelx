@@ -20,6 +20,7 @@
       :on-drag-start-preset="onDragStartPreset"
       :export-config="exportConfig"
       :trigger-import-config="triggerImportConfig"
+      :create-robot-demo-scene="createRobotDemoScene"
     />
     <input
       ref="importInputRef"
@@ -123,6 +124,8 @@ import { SimpleModel } from '../framework/model/SimpleModel'
 import { designInputToWorldXZ, worldXZToDesignInput } from '../utils/coord3d'
 import { useModelTypesByGroup } from './editor3d/useModelTypesByGroup'
 import { useViewportLayout } from './editor3d/useViewportLayout'
+import { createScene3DInfoBox } from '../framework/Scene3DInfoBox'
+import type { Scene3DInfoBoxConfig } from '../types/dashboard'
 
 /** 预设模型列表（由 examples 等注入），在侧栏「可用模型」中展示 */
 defineProps<{
@@ -499,6 +502,9 @@ const autoRotateCmd = reactive({
   speedDeg: 30
 })
 
+const DEMO_ROBOT_ID = 'demo-robot'
+let demoInfoBoxes: Object3D[] = []
+
 function runRotateToOnce(): void {
   const id = selectedWidgetId.value
   if (!id) return
@@ -528,6 +534,93 @@ function applyAutoRotateToSelected(): void {
   model.setAutoRotateAxis(axisVec)
   model.setAutoRotateSpeed(degToRad(autoRotateCmd.speedDeg || 0))
   model.setAutoRotateEnabled(Boolean(autoRotateCmd.enabled))
+}
+
+function clearDemoInfoBoxes(): void {
+  const sb = storyboardRef.value as BaseStoryBoard | null
+  if (!sb) return
+  for (const obj of demoInfoBoxes) {
+    try {
+      sb.css3dManager.remove(obj.uuid)
+      sb.scene.remove(obj)
+      obj.removeFromParent()
+    } catch {
+      // ignore
+    }
+  }
+  demoInfoBoxes = []
+}
+
+async function createRobotDemoScene(): Promise<void> {
+  clearDemoInfoBoxes()
+
+  const existing = config.widgets3D?.find((w) => w.id === DEMO_ROBOT_ID)
+  if (!existing) {
+    const w: WidgetConfig3D = {
+      id: DEMO_ROBOT_ID,
+      type: 'model3d',
+      visible: true,
+      props: {
+        typeId: 'gltf',
+        source: '/models/RobotExpressive.glb',
+        position: [0, 0, 0],
+        scale: 1,
+        rotation: [0, 0, 0],
+        name: 'Robot'
+      }
+    }
+    if (!config.widgets3D) config.widgets3D = []
+    config.widgets3D.push(w)
+    addWidgetModelToScene(w)
+    onSelectWidget(w)
+  } else {
+    onSelectWidget(existing)
+  }
+
+  await nextTick()
+  const sb = storyboardRef.value as BaseStoryBoard | null
+  if (!sb) return
+
+  let model = sb.getModelByName(DEMO_ROBOT_ID)
+  for (let i = 0; i < 60 && !model; i++) {
+    await new Promise((r) => setTimeout(r, 50))
+    model = sb.getModelByName(DEMO_ROBOT_ID)
+  }
+  if (!model || !model.scene) return
+
+  model.setAutoRotateAxis(new Vector3(0, 1, 0))
+  model.setAutoRotateSpeed(degToRad(30))
+  model.setAutoRotateEnabled(true)
+
+  const base: Omit<Scene3DInfoBoxConfig, 'id' | 'title' | 'equipmentId' | 'status'> = {
+    visible: true,
+    statusType: 'normal',
+    colorPreset: 'info',
+    runningTime: '12.3 h'
+  }
+  const configs: Scene3DInfoBoxConfig[] = [
+    { ...base, id: 'demo-box-1', title: 'Robot / Telemetry', equipmentId: 'RB-001', status: 'ONLINE', message: 'Link stable · 0.8ms' },
+    { ...base, id: 'demo-box-2', title: 'Power Core', equipmentId: 'PWR-7A', status: 'OK', message: 'Battery 87% · Temp 36℃', colorPreset: 'success' },
+    { ...base, id: 'demo-box-3', title: 'Navigation', equipmentId: 'NAV-3', status: 'OK', message: 'IMU locked · Map synced', colorPreset: 'info' },
+    { ...base, id: 'demo-box-4', title: 'Safety', equipmentId: 'SAFE-2', status: 'WARN', statusType: 'warning', message: 'Proximity alert: 1.2m', colorPreset: 'warning' }
+  ]
+  const offsets: Array<[number, number, number]> = [
+    [2.2, 1.4, 0],
+    [-2.2, 1.4, 0],
+    [0, 1.4, 2.2],
+    [0, 1.4, -2.2]
+  ]
+  for (let i = 0; i < configs.length; i++) {
+    const css3d = createScene3DInfoBox(configs[i])
+    const [ox, oy, oz] = offsets[i]
+    // 信息框固定在世界坐标中：仅 robot 自旋转，信息框不跟随旋转/不移动
+    const basePos = model.scene.position
+    css3d.position.set(basePos.x + ox, basePos.y + oy, basePos.z + oz)
+    css3d.rotation.set(0, 0, 0)
+    sb.scene.add(css3d)
+    sb.css3dManager.register(css3d)
+    demoInfoBoxes.push(css3d)
+  }
 }
 
 function runMoveToOnce(): void {
@@ -705,6 +798,21 @@ function confirmDropDialog() {
   } else {
     w.props!.typeId = payload.id
   }
+
+  // info-box：给一个默认的 custom，拖入后立即有内容可见
+  if (w.props!.typeId === 'info-box') {
+    ;(w.props as Record<string, unknown>)[CUSTOM_PROPS_KEY] = {
+      title: 'Robot / Telemetry',
+      equipmentId: 'RB-001',
+      status: 'ONLINE',
+      statusType: 'normal',
+      colorPreset: 'info',
+      runningTime: '12.3 h',
+      message: 'Link stable · 0.8ms'
+    }
+    // CSS3D 默认有 0.01 scale；这里默认值用 1 即可
+    w.props!.scale = w.props!.scale ?? 1
+  }
   if (!config.widgets3D) config.widgets3D = []
   config.widgets3D.push(w)
   // 同步到 3D 场景：注册并加载
@@ -750,6 +858,18 @@ function addWidgetModelToScene(w: WidgetConfig3D): void {
   const model = createModelByTypeId(typeId, modelName, source)
   if (!model) return
 
+  // 初始化同步 custom props（让新建实例就能体现配置）
+  const custom = props[CUSTOM_PROPS_KEY]
+  if (custom && typeof custom === 'object') {
+    for (const [k, v] of Object.entries(custom as Record<string, unknown>)) {
+      try {
+        model.propUpdate(k, v)
+      } catch {
+        // ignore
+      }
+    }
+  }
+
   const pos = (props.position as [number, number, number] | undefined) ?? [0, 0, 0]
   const rawScale = props.scale
   const rawRotation = (props.rotation as [number, number, number] | undefined) ?? [0, 0, 0]
@@ -782,9 +902,11 @@ function addWidgetModelToScene(w: WidgetConfig3D): void {
     // 内置/简单模型（如坐标轴）已经有 scene，直接同步加入当前 storyboard
     const tf = pendingTransforms.get(modelName)
     const inst = model as unknown as Model
+    const isCss3d = Boolean((inst as unknown as { isCss3d?: boolean }).isCss3d)
+    const cssScaleMul = isCss3d ? 0.01 : 1
     if (inst.scene && tf) {
       inst.scene.position.set(tf.position[0], tf.position[1], tf.position[2])
-      inst.scene.scale.set(tf.scale[0], tf.scale[1], tf.scale[2])
+      inst.scene.scale.set(tf.scale[0] * cssScaleMul, tf.scale[1] * cssScaleMul, tf.scale[2] * cssScaleMul)
       inst.scene.rotation.set(degToRad(tf.rotation[0]), degToRad(tf.rotation[1]), degToRad(tf.rotation[2]))
     }
     ;(sb as BaseStoryBoard).addModel(inst)
@@ -936,7 +1058,10 @@ function updateSelectedWidgetScale(scaleVec: [number, number, number]): void {
   w.props.scale = scaleVec
   const obj = addedModelNodes.get(id)
   if (obj) {
-    obj.scale.set(scaleVec[0], scaleVec[1], scaleVec[2])
+    const sb = storyboardRef.value as BaseStoryBoard | null
+    const model = sb?.getModelByName(id) as unknown as { isCss3d?: boolean } | undefined
+    const mul = model?.isCss3d ? 0.01 : 1
+    obj.scale.set(scaleVec[0] * mul, scaleVec[1] * mul, scaleVec[2] * mul)
   }
   const tf = pendingTransforms.get(id)
   if (tf) {
