@@ -8,7 +8,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
-import { OrthographicCamera, PerspectiveCamera, Vector3 } from 'three'
+import { AdditiveBlending, BufferGeometry, Color, Float32BufferAttribute, OrthographicCamera, PerspectiveCamera, Points, PointsMaterial, Vector3 } from 'three'
 import { setup3D, ControlsStoryBoard, LayerDef, ModelLoadable, SimpleModel, modelRegistry } from '../framework'
 import type { World } from '../framework'
 import type { Model } from '../framework'
@@ -193,24 +193,92 @@ onMounted(() => {
         ...(isOrthographic && { orthographicSize })
       }
       const storyBoard = new ControlsStoryBoard('main', camera, sceneOptions)
+
+      // 星空粒子背景：用 THREE.Points 生成远处散点
+      // 让它们落在默认 layer，避免引入新的 layer 规则；camera.layers 开关关闭默认层时也会一起隐藏。
+      const STAR_COUNT = 1800
+      // 让星星分布别太远，保证在相机视野内更容易看到
+      const STAR_MIN_RADIUS = 25
+      const STAR_MAX_RADIUS = 140
+      const STAR_COLOR = new Color(0x38bdf8)
+      const starPositions = new Float32Array(STAR_COUNT * 3)
+      const starColors = new Float32Array(STAR_COUNT * 3)
+      for (let i = 0; i < STAR_COUNT; i++) {
+        // 球面随机分布（避免“平面一条带”的感觉）
+        const u = Math.random()
+        const v = Math.random()
+        const theta = 2 * Math.PI * u
+        const phi = Math.acos(2 * v - 1)
+
+        const r = STAR_MIN_RADIUS + Math.random() * (STAR_MAX_RADIUS - STAR_MIN_RADIUS)
+        const sinPhi = Math.sin(phi)
+
+        const x = r * sinPhi * Math.cos(theta)
+        const y = r * Math.cos(phi)
+        const z = r * sinPhi * Math.sin(theta)
+
+        starPositions[i * 3 + 0] = x
+        starPositions[i * 3 + 1] = y
+        starPositions[i * 3 + 2] = z
+
+        // 少量白色更亮，形成“星星”层次
+        const brightness = 0.25 + Math.random() * 0.75
+        const isWhite = Math.random() < 0.18
+        const c = isWhite ? new Color(0xffffff) : STAR_COLOR
+        const final = c.clone().multiplyScalar(brightness)
+        starColors[i * 3 + 0] = final.r
+        starColors[i * 3 + 1] = final.g
+        starColors[i * 3 + 2] = final.b
+      }
+
+      const starGeometry = new BufferGeometry()
+      starGeometry.setAttribute('position', new Float32BufferAttribute(starPositions, 3))
+      starGeometry.setAttribute('color', new Float32BufferAttribute(starColors, 3))
+      const starMaterial = new PointsMaterial({
+        size: 0.12,
+        vertexColors: true,
+        color: 0xffffff,
+        transparent: true,
+        opacity: 0.98,
+        depthWrite: false,
+        blending: AdditiveBlending
+      })
+      const starField = new Points(starGeometry, starMaterial)
+      // 星空背景希望不受 camera.layers 开关误伤：允许在任意相机层可见
+      starField.layers.enableAll()
+      storyBoard.scene.add(starField)
+
       camera.layers.disableAll()
       const cameraLayers = cameraConfig?.layers
       if (cameraLayers != null && cameraLayers.length > 0) {
+        let anyEnabled = false
         cameraLayers
           .filter((item) => item.enable)
-          .forEach((item) => camera.layers.enable(LayerDef.normalize(item.layer)))
+          .forEach((item) => {
+            anyEnabled = true
+            camera.layers.enable(LayerDef.normalize(item.layer))
+          })
+        // 避免误配置导致 camera mask=0，全黑
+        if (!anyEnabled) camera.layers.enable(LayerDef.default)
       } else {
         camera.layers.enable(LayerDef.default)
       }
+
       const store = loader.getStore()
       const runtimeModels = useWidgets3DRuntime
         ? widgets3DConfig.map((w) => ({ id: w.id, visible: w.visible, layer: w.layer }))
         : modelsConfig.map((m) => ({ id: m.id, visible: m.visible, layer: m.layer }))
-      for (const item of runtimeModels) {
-        const stored = store.getModels().get(item.id)
-        if (stored) stored.layer = toLayerArray(item.layer)
-      }
+      // 注意：不要在这里把 widget/model 的 layer 强行覆盖给实例。
+      // 模型的 layer 应尽量由模型自身/类型规则决定；仅 info-box/sprite-info-box 需要由配置控制。
       const modelPositions = new Map<string, [number, number, number]>()
+      const widgetTypeIdById = new Map<string, string>()
+      if (useWidgets3DRuntime) {
+        for (const w of widgets3DConfig) {
+          const p = (w.props ?? {}) as Record<string, unknown>
+          const typeId = String(p.typeId ?? '')
+          if (typeId) widgetTypeIdById.set(w.id, typeId)
+        }
+      }
       for (const item of runtimeModels) {
         if (item.visible === false) continue
         const model = store.getModel(item.id)
@@ -224,6 +292,7 @@ onMounted(() => {
                 model.scene.scale.multiplyScalar(tf.scale)
               model.scene.rotation.set(degToRad(tf.rotationDeg[0]), degToRad(tf.rotationDeg[1]), degToRad(tf.rotationDeg[2]))
               modelPositions.set(item.id, [...tf.position])
+
             }
             const wp = widgetPropsMap.get(item.id)
               if (wp) {
@@ -291,7 +360,15 @@ onMounted(() => {
     },
     (): Model[] => {
       if (!useWidgets3DRuntime) {
-        return modelsConfig.map((m) => new ModelLoadable(m.id, m.format ?? 'gltf', m.source))
+        return modelsConfig.map((m) => {
+          const source = m.source ?? ''
+          if (source.startsWith('builtin:')) {
+            const typeId = source.slice('builtin:'.length)
+            const model = createModelByTypeId(typeId, m.id, undefined)
+            if (model) return model
+          }
+          return new ModelLoadable(m.id, m.format ?? 'gltf', m.source)
+        })
       }
       const list: Model[] = []
       for (const w of widgets3DConfig) {
@@ -304,7 +381,16 @@ onMounted(() => {
         if ((typeId === 'gltf' || typeId === 'fbx') && !source) continue
         const model = createModelByTypeId(typeId, w.id, source)
         if (!model) continue
-        model.layer = toLayerArray(w.layer)
+        // 只有部分模型需要依赖外部 layer 开关；其余模型让自身默认 layer 行为生效
+        if (typeId === 'sprite-info-box') {
+          model.layer = [LayerDef.sprite]
+        } else if (typeId === 'info-box') {
+          model.layer = toLayerArray(w.layer)
+        } else {
+          // expanding-ring / gltf/fbx 等默认使用 Object3D 默认 layer=0，
+          // 不把 widget.layer 强行覆盖到 mesh 上，避免出现 configurable 中“只少某模型”的 layer mask 问题
+          model.layer = []
+        }
         model.props = { ...p }
         applyCustomProps(model, p)
         const pos = (p.position as [number, number, number] | undefined) ?? [0, 0, 0]

@@ -3,6 +3,7 @@ import { Model } from '../model/Model'
 import type { PropDefinition } from '../model/ModelRegistry'
 
 const DEFAULT_COLOR = '#6EE7B7'
+const RING_MESH_NAME = '__panelx_expanding_ring_mesh__'
 
 function normalizeHexColorInput(value: string): string {
   const s = value.trim()
@@ -41,7 +42,7 @@ export class ExpandingRingModel extends Model {
 
   private cfg: RingConfig
   private mesh: import('three').Mesh
-  private readonly uniforms: {
+  private uniforms: {
     uColor: { value: Color }
     uInnerRadius: { value: number }
     uOuterRadius: { value: number }
@@ -135,6 +136,7 @@ export class ExpandingRingModel extends Model {
     })
 
     this.mesh = new Mesh(geom, mat)
+    this.mesh.name = RING_MESH_NAME
 
     // PlaneGeometry 默认在 XY 平面；旋转到 XZ 平面（法线朝 +Y）
     this.mesh.rotation.set(-Math.PI / 2, 0, 0)
@@ -145,6 +147,16 @@ export class ExpandingRingModel extends Model {
     this.setScene(scene)
 
     this.applyRingUniforms()
+  }
+
+  override setScene(scene: Scene) {
+    super.setScene(scene)
+    const candidate = scene.getObjectByName(RING_MESH_NAME)
+    if (!(candidate instanceof Mesh)) return
+    const mat = candidate.material
+    if (!(mat instanceof ShaderMaterial) || !mat.uniforms) return
+    this.mesh = candidate
+    this.uniforms = mat.uniforms as typeof this.uniforms
   }
 
   private clampNumber(v: number, min: number, max: number) {

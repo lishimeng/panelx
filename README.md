@@ -195,6 +195,21 @@ export class SomeModel extends Model {
   - Editor 中的 layer 开关只用于控制相机渲染哪些层，从而控制哪些模型实例在画面中可见。
   - Editor 不应提供“让用户直接修改模型 layer 归属”的能力；模型 layer 的规则应当始终保持与 `LayerDef`/模型实现一致。
 
+### 5. Builtin 模型克隆一致性（Editor 与 configurable）
+
+本项目的 configurable 路径会通过 `ModelInstanceStore.getModel()` 克隆模型实例。  
+对于像 `ExpandingRingModel` 这类“内部持有 mesh/material/uniform 引用”的模型，必须保证克隆后内部引用与新 `scene` 一致，否则会出现：
+
+- Editor 中可见，但 configurable 中“实例存在却不显示/不更新”
+- `model.scene` 存在，transform 正常，但动画参数没有作用到屏幕对象
+
+约定如下：
+
+1. `ModelInstanceStore` 在替换克隆场景时，统一调用 `model.setScene(clonedScene)`，不要直接赋值 `model.scene = ...`。
+2. 有内部对象引用的模型需重写 `setScene(scene)`，在新场景中重新绑定关键对象（如 mesh、material、uniforms）。
+3. 避免在 `Scene3DFramework` 用 runtime 兜底“偷偷改模型参数”来掩盖此类问题；优先修复模型生命周期与克隆绑定逻辑。
+4. 排查这类问题优先检查：`store.getModel()` 克隆路径、`setScene` 是否触发、模型内部引用是否重绑。
+
 ## 调试开关（dashboard_config.debug）
 
 - **配置**：在 **dashboard_config**（或导出的 Dashboard JSON）中增加 **`debug: true | false`**。加载该配置后会自动同步到 **localStorage** 的 `PanelX_DEBUG`（`1`/`0`），从而控制全局调试日志。

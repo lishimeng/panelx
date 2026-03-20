@@ -26,9 +26,10 @@ export class ModelInstanceStore {
         }
         let model = m.clone()
         if (m.animationsClips && m.animationsClips?.length > 0) {
-            model.scene = SkeletonUtils.clone(m.scene!) as import('three').Scene
+            model.setScene(SkeletonUtils.clone(m.scene!) as import('three').Scene)
         } else {
-            model.scene = m.scene?.clone(true)
+            const clonedScene = m.scene?.clone(true)
+            if (clonedScene) model.setScene(clonedScene)
         }
 
         model.isCss3d = m.isCss3d

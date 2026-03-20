@@ -17,6 +17,7 @@ import type {
 import { LayerDef } from '../framework/LayerDef'
 
 const CUSTOM_PROPS_KEY = 'custom'
+const BUILTIN_SOURCE_PREFIX = 'builtin:'
 
 /** 已知 typeId 的默认 source（配置未带 source 时兜底，如旧导出） */
 const TYPE_ID_SOURCE_FALLBACK: Record<string, string> = {
@@ -89,8 +90,10 @@ export function widgets3DToScene3DConfig(
     }
 
     let source = props.source != null ? String(props.source) : TYPE_ID_SOURCE_FALLBACK[typeId]
-    if (!source) continue
-    if (!source.startsWith('http') && !source.startsWith('/')) source = '/' + source
+    // 对于内置 simple 模型（如 expanding-ring），没有 source 也应该能渲染；
+    // 在非 widgets3D runtime 路径里用这个前缀交给 Scene3DFramework 创建。
+    if (!source) source = `${BUILTIN_SOURCE_PREFIX}${typeId}`
+    if (!source.startsWith(BUILTIN_SOURCE_PREFIX) && !source.startsWith('http') && !source.startsWith('/')) source = '/' + source
 
     const position = props.position as [number, number, number] | undefined
     const rotation = rotationToRadians(props.rotation)

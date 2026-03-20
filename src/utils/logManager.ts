@@ -9,6 +9,12 @@ const DEBUG_KEY = 'PanelX_DEBUG'
 /** 加载 dashboard 配置后调用，将 config.debug 同步到 localStorage，后续 isDebugEnabled() 依此生效 */
 export function setDebugFromConfig(debug: boolean): void {
   if (typeof localStorage === 'undefined') return
+  // 兼容调试排查场景：
+  // 若用户已手动强制开启（PanelX_DEBUG=1/true），则不要被配置 debug=false 覆盖回 0。
+  // 否则由配置决定调试开关。
+  const cur = localStorage.getItem(DEBUG_KEY)
+  const isForcedOn = cur === '1' || cur === 'true'
+  if (isForcedOn) return
   localStorage.setItem(DEBUG_KEY, debug ? '1' : '0')
 }
 
@@ -18,5 +24,7 @@ export function setDebugFromConfig(debug: boolean): void {
  */
 export function isDebugEnabled(): boolean {
   if (typeof localStorage === 'undefined') return false
-  return localStorage.getItem(DEBUG_KEY) === '1'
+  const v = localStorage.getItem(DEBUG_KEY)
+  // 兼容可能存在的历史写入：'1' 或 'true'
+  return v === '1' || v === 'true'
 }
