@@ -41,9 +41,9 @@ function parseColorHex(value: unknown): number | null {
 /** 工业环境通用路面（自发光、不依赖灯光），深灰底；支持 prop 修改尺寸与颜色 */
 export class IndustrialFloor extends Model {
   static supportedProps: PropDefinition[] = [
-    { key: 'width', label: '宽度' },
-    { key: 'depth', label: '深度' },
-    { key: 'color', label: '颜色（十六进制，如 222630 或 #222630）' }
+    { key: 'width', label: '宽度', default: DEFAULT_FLOOR_WIDTH },
+    { key: 'depth', label: '深度', default: DEFAULT_FLOOR_DEPTH },
+    { key: 'color', label: '颜色（十六进制，如 222630 或 #222630）', default: '222630', type: 'color' }
   ]
 
   private _width = DEFAULT_FLOOR_WIDTH
@@ -234,7 +234,7 @@ export class CompassNESW extends Model {
 /** 可显示中文名称的自发光模块（简单牌子）；支持 prop 修改文字内容 */
 export class LabelBoard extends Model {
   static supportedProps: PropDefinition[] = [
-    { key: 'text', label: '文字内容' }
+    { key: 'text', label: '文字内容', default: '设备 A' }
   ]
 
   private _text = '设备 A'

@@ -10,6 +10,17 @@ export interface PropDefinition {
   label?: string
   /** 可选预置枚举，有则编辑器用下拉选择；无则自由输入 */
   enum?: (string | number)[]
+  /**
+   * 默认值：用于 Editor 右侧 Props 面板展示（当当前实例的 custom[prop.key] 为空时）
+   * 注意：仅用于 UI 展示，不会自动写入到运行时模型；模型仍使用自身 constructor 内的默认 cfg。
+   */
+  default?: unknown
+  /**
+   * 渲染类型提示：Editor 用于决定使用何种输入控件。
+   * - `color`：渲染颜色调色板（type="color"）并提供 hex 文本输入
+   * - 其它值目前未做强制（未定义时回退为普通文本输入）
+   */
+  type?: 'string' | 'number' | 'boolean' | 'color'
 }
 
 /**

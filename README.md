@@ -126,6 +126,75 @@ setWidgetData?.('stat-1', { value: 123, label: '产量' })
 - **类型导出**（`src/types/widgets.ts`）  
   **`WidgetDataMap`**、**`SetWidgetDataFn`** 已导出，与 **`WidgetDataKey`**、**`SetWidgetDataKey`** 一起供全项目做类型约束。
 
+## 3D Model Props 规则（Editor3D）
+
+3D 场景里可拖入/可配置的模型由 `Model` 的实例承载，Editor3D 会根据模型类型暴露的 `supportedProps` 来渲染右侧「属性（Props）」面板。
+
+### 1. PropDefinition 与 supportedProps
+
+在 `src/framework/model/ModelRegistry.ts` 中：
+
+- `supportedProps?: PropDefinition[]`：模型类型声明自己支持哪些 prop（由模型类 `static supportedProps` 提供）
+- `PropDefinition` 字段：
+  - `key: string`：prop 名称（与 `props.custom[key]`/`model.propUpdate(key, value)` 的 key 对应）
+  - `label?: string`：右侧展示标签（没有则回退为 key）
+  - `enum?: (string | number)[]`：存在则在 Editor 中渲染为下拉 `<select>`
+  - `default?: unknown`：当实例的 `props.custom[key]` 为空时，用于 **UI 展示回填**（不自动写入 custom，不自动触发运行时 propUpdate）
+
+模型类需要在 `src/framework/models/*.ts` 中声明：
+
+```ts
+export class SomeModel extends Model {
+  static supportedProps: PropDefinition[] = [
+    { key: 'status', label: '状态', enum: ['normal', 'fault'] },
+    { key: 'width', label: '宽度', default: 1 },
+  ]
+}
+```
+
+然后在 `src/framework/model/registerBuiltins.ts` 注册时把 `supportedProps` 传进去（编辑器用于生成右侧字段列表）。
+
+### 2. Editor3D 如何渲染 Props UI
+
+右侧面板在 `src/editor/editor3d/ui/RightSidebar.vue` 渲染规则：
+
+- 若 `prop.enum?.length` 存在：渲染为 `<select>`，选项来自 `prop.enum`
+- 否则：渲染为 `<input type="text">`
+- 右侧展示值的优先级：
+  1. `props.custom[prop.key]`
+  2. `prop.default`（当 custom 为空时用于显示回填）
+
+重要：**只有当用户在 UI 中真正修改了值（触发 change）时**，Editor 才会写入 `w.props.custom[key]` 并调用 `model.propUpdate(key, value)`。
+
+### 3. 运行时生效与导出
+
+- `model.propUpdate(key, value)`：由 Editor3D 在 `custom` 发生变更时触发，用于更新模型内部状态/材质/纹理等。
+- Editor3D 导出时（`Editor3D.vue#exportConfig`）会把当前 `w.props` 原样写进导出配置，并额外把遮罩/自旋转相关字段落到 `props.custom`（mask/autoRotate）。
+- 因此：
+  - 如果你希望某个模型 prop 被持久化到可配置文件里，请确保在 Editor 中实际把该 prop 修改并写入了 `props.custom`。
+  - `prop.default` 主要解决「UI 展示为空」的问题，用于提升编辑体验；不会自动写入/不会持久化到导出文件中。
+
+### 4. Layer（图层）责任边界（Editor3D）
+
+本系统的 `LayerDef`、模型与相机遵循固定的责任边界，避免外部配置错误导致渲染异常。
+
+1. `LayerDef`：系统层定义（固定）
+  - `LayerDef` 负责声明并管理本系统使用的层编号与含义（例如默认渲染层、sprite 层、bloom 层等）。
+  - 三.js `Object3D.layers` 仅支持 `0..31`，因此如存在历史遗留编号，会通过 `LayerDef.normalize()` 做兼容映射。
+  - `LayerDef` 的 layer 定义属于“系统保留资源”，不应由业务/集成方随意改动。
+
+2. 模型（Model / Widget 实例）：自己管理自己所在 layer（硬编码）
+  - 每个 3D 模型在构建时会把自己的网格/子物体分配到对应层（并在导出配置中携带其 layer 信息）。
+  - 集成侧/外部配置**不应该**在运行时随意更改模型实例的层归属；模型的 layer 由模型实现决定。
+
+3. 相机（Camera）：可由 Editor 开关（开放）
+  - 相机的 `camera.layers` 由 Editor 暴露可切换的开关控制（即“相机图层”UI）。
+  - Editor 仅负责启用/禁用相机的某个 layer；相机开或关某层，即可决定是否渲染那些处于该 layer 的模型实例。
+
+4. Editor：只配置“相机可见性”，不配置“模型层归属”
+  - Editor 中的 layer 开关只用于控制相机渲染哪些层，从而控制哪些模型实例在画面中可见。
+  - Editor 不应提供“让用户直接修改模型 layer 归属”的能力；模型 layer 的规则应当始终保持与 `LayerDef`/模型实现一致。
+
 ## 调试开关（dashboard_config.debug）
 
 - **配置**：在 **dashboard_config**（或导出的 Dashboard JSON）中增加 **`debug: true | false`**。加载该配置后会自动同步到 **localStorage** 的 `PanelX_DEBUG`（`1`/`0`），从而控制全局调试日志。

@@ -15,8 +15,9 @@
           :key="w.id"
           class="panelx-editor3d-widget-tag"
           :class="{ active: selectedWidgetId === w.id }"
+          @click="onSelectWidget(w)"
         >
-          <span class="panelx-editor3d-widget-tag-text" @click="onSelectWidget(w)">
+          <span class="panelx-editor3d-widget-tag-text">
             {{ getWidgetDisplayName(w) }} · {{ (w.props?.position as number[] | undefined)?.join(',') ?? '-' }} · 缩放
             {{ formatWidgetScale(w.props?.scale) }}
           </span>

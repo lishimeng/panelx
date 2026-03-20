@@ -62,7 +62,6 @@
       v-model:selectedScaleUniform="selectedScaleUniform"
       v-model:selectedScale="selectedScale"
       v-model:selectedRotation="selectedRotation"
-      v-model:selectedLayerText="selectedLayerText"
       v-model:rotateCmd="rotateCmd"
       v-model:moveCmd="moveCmd"
       v-model:autoRotateCmd="autoRotateCmd"
@@ -75,8 +74,6 @@
       :on-scale-uniform-change="onScaleUniformChange"
       :on-scale-axis-change="onScaleAxisChange"
       :on-rotation-axis-change="onRotationAxisChange"
-      :on-layer-input-change="onLayerInputChange"
-      :layer-hint="layerHint"
       :get-mask-settings="getMaskSettings"
       :on-mask-color-input="onMaskColorInput"
       :on-mask-opacity-input="onMaskOpacityInput"
@@ -338,7 +335,6 @@ const selectedPosition = reactive<{ x: number; y: number; z: number }>({ x: 0, y
 const selectedScale = reactive<{ x: number; y: number; z: number }>({ x: 1, y: 1, z: 1 })
 const selectedScaleUniform = ref(1)
 const selectedRotation = reactive<{ x: number; y: number; z: number }>({ x: 0, y: 0, z: 0 })
-const selectedLayerText = ref(String(LayerDef.default))
 const axisLock = reactive<{ x: boolean; y: boolean; z: boolean }>({ x: false, y: false, z: false })
 
 const selectedWidgetName = computed<string>({
@@ -849,19 +845,6 @@ function normalizeLayerValues(layer: unknown): number[] {
   return uniq.length ? uniq : [LayerDef.default]
 }
 
-function parseLayerTextToValues(text: string): number[] {
-  const arr = String(text ?? '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .map((s) => Number(s))
-  return normalizeLayerValues(arr)
-}
-
-function layerValuesToText(values: number[]): string {
-  return values.join(',')
-}
-
 function applyLayersToObject(obj: Object3D, values: number[]): void {
   const first = values[0] ?? LayerDef.default
   obj.traverse((child) => {
@@ -869,12 +852,6 @@ function applyLayersToObject(obj: Object3D, values: number[]): void {
     for (const l of values.slice(1)) child.layers.enable(l)
   })
 }
-
-const layerHint = computed(() =>
-  LayerDef.getAllLayers()
-    .map((l) => `${LayerDef.getHelperName(l)}=${l}`)
-    .join(' | ')
-)
 
 /** 主区域是否处于拖拽悬停 */
 const isDragOver = ref(false)
@@ -911,7 +888,6 @@ function onSelectWidget(w: WidgetConfig3D): void {
   selectedRotation.x = rot[0] ?? 0
   selectedRotation.y = rot[1] ?? 0
   selectedRotation.z = rot[2] ?? 0
-  selectedLayerText.value = layerValuesToText(normalizeLayerValues(w.layer))
 }
 
 /** 模型类型拖入：拖起时写入 payload */
@@ -1271,25 +1247,6 @@ function onPositionInputChange(axis: 'x' | 'y' | 'z'): void {
   if (obj) {
     obj.position.set(nextWorld[0], nextWorld[1], nextWorld[2])
   }
-}
-
-function onLayerInputChange(): void {
-  const id = selectedWidgetId.value
-  if (!id) return
-  const w = config.widgets3D?.find((item) => item.id === id)
-  if (!w) return
-  const nextLayers = parseLayerTextToValues(selectedLayerText.value)
-  w.layer = nextLayers.length === 1 ? nextLayers[0] : nextLayers
-  selectedLayerText.value = layerValuesToText(nextLayers)
-
-  const sb = storyboardRef.value as BaseStoryBoard | null
-  const model = sb?.getModelByName(id)
-  if (model) {
-    model.layer = nextLayers
-    if (model.scene) applyLayersToObject(model.scene, nextLayers)
-  }
-  const obj = addedModelNodes.get(id)
-  if (obj) applyLayersToObject(obj, nextLayers)
 }
 
 function updateSelectedWidgetScale(scaleVec: [number, number, number]): void {
@@ -1831,9 +1788,15 @@ function exportConfig() {
   background: #1e293b;
   color: #94a3b8;
   font-size: 0.8125rem;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 .panelx-editor3d-widget-tag.active {
   border: 1px solid #38bdf8;
+}
+.panelx-editor3d-widget-tag:hover {
+  background: rgba(56, 189, 248, 0.12);
+  color: #e2e8f0;
+  border: 1px solid rgba(56, 189, 248, 0.35);
 }
 .panelx-editor3d-widget-tag-text {
   flex: 1;
@@ -1841,6 +1804,7 @@ function exportConfig() {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  cursor: pointer;
 }
 .panelx-editor3d-widget-delete {
   flex-shrink: 0;

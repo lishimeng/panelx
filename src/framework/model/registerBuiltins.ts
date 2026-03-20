@@ -3,6 +3,7 @@ import type { ModelRegistryCreateConfig } from './ModelRegistry'
 import { RightHandAxes } from '../models/RightHandAxes'
 import { InfoBoxModel } from '../models/InfoBoxModel'
 import { SpriteInfoBoxModel } from '../models/SpriteInfoBoxModel'
+import { ExpandingRingModel } from '../models/ExpandingRingModel'
 import {
   IndustrialFloor,
   SingleDoor,
@@ -59,6 +60,18 @@ function registerBuiltins(): void {
     create(config: ModelRegistryCreateConfig) {
       const name = config.name ?? config.id ?? 'SpriteInfoBox'
       return new SpriteInfoBoxModel(name)
+    }
+  })
+
+  modelRegistry.register({
+    id: 'expanding-ring',
+    label: 'Expanding Ring',
+    category: 'builtin',
+    group: 'decoration',
+    supportedProps: ExpandingRingModel.supportedProps,
+    create(config: ModelRegistryCreateConfig) {
+      const name = config.name ?? config.id ?? 'ExpandingRing'
+      return new ExpandingRingModel(name)
     }
   })
 

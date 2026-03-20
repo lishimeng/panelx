@@ -64,23 +64,6 @@
 
       <div v-if="rightGroups.transformOpen" class="panelx-editor3d-scale-editor">
         <div class="panelx-editor3d-pos-row">
-          <span class="panelx-editor3d-size-label">Layer</span>
-          <div class="panelx-editor3d-size-inputs">
-            <label>
-              L
-              <input
-                v-model="selectedLayerText"
-                type="text"
-                class="panelx-editor3d-props-value"
-                placeholder="如 0 或 0,32"
-                @change="onLayerInputChange"
-                @keydown.enter="onLayerInputChange"
-              />
-            </label>
-            <span class="panelx-editor3d-size-value">{{ layerHint }}</span>
-          </div>
-        </div>
-        <div class="panelx-editor3d-pos-row">
           <span class="panelx-editor3d-size-label">统一缩放</span>
           <div class="panelx-editor3d-size-inputs">
             <label>
@@ -198,16 +181,32 @@
               <span class="panelx-editor3d-props-key">{{ prop.label ?? prop.key }}</span>
               <select
                 v-if="prop.enum?.length"
-                :value="String(selectedWidgetCustomProps[prop.key] ?? '')"
+                :value="String(selectedWidgetCustomProps[prop.key] ?? prop.default ?? prop.enum?.[0] ?? '')"
                 class="panelx-editor3d-props-value panelx-editor3d-props-select"
                 @change="setCustomPropValue(prop.key, ($event.target as HTMLSelectElement).value)"
               >
                 <option value="">—</option>
                 <option v-for="opt in prop.enum" :key="String(opt)" :value="String(opt)">{{ opt }}</option>
               </select>
+              <div v-else-if="prop.type === 'color'" class="panelx-editor3d-size-inputs">
+                <input
+                  type="color"
+                  class="panelx-editor3d-props-value panelx-editor3d-color-picker"
+                  :value="toColorInputValue(selectedWidgetCustomProps[prop.key] ?? prop.default)"
+                  @input="setCustomPropValue(prop.key, ($event.target as HTMLInputElement).value)"
+                />
+                <input
+                  type="text"
+                  class="panelx-editor3d-props-value panelx-editor3d-color-hex"
+                  :value="String(selectedWidgetCustomProps[prop.key] ?? prop.default ?? '')"
+                  placeholder="例如 222630 或 #222630"
+                  @change="setCustomPropValue(prop.key, ($event.target as HTMLInputElement).value)"
+                  @keydown.enter="setCustomPropValue(prop.key, ($event.target as HTMLInputElement).value)"
+                />
+              </div>
               <input
                 v-else
-                :value="selectedWidgetCustomProps[prop.key] ?? ''"
+                :value="String(selectedWidgetCustomProps[prop.key] ?? prop.default ?? '')"
                 type="text"
                 class="panelx-editor3d-props-value"
                 :placeholder="prop.key"
@@ -322,7 +321,6 @@ const selectedPosition = defineModel<any>('selectedPosition', { required: true }
 const selectedScale = defineModel<any>('selectedScale', { required: true })
 const selectedScaleUniform = defineModel<any>('selectedScaleUniform', { required: true })
 const selectedRotation = defineModel<any>('selectedRotation', { required: true })
-const selectedLayerText = defineModel<any>('selectedLayerText', { required: true })
 const axisLock = defineModel<any>('axisLock', { required: true })
 const rotateCmd = defineModel<any>('rotateCmd', { required: true })
 const moveCmd = defineModel<any>('moveCmd', { required: true })
@@ -338,8 +336,6 @@ defineProps({
   onScaleUniformChange: { type: Function as PropType<() => void>, required: true },
   onScaleAxisChange: { type: Function as PropType<(axis: 'x' | 'y' | 'z') => void>, required: true },
   onRotationAxisChange: { type: Function as PropType<(axis: 'x' | 'y' | 'z') => void>, required: true },
-  onLayerInputChange: { type: Function as PropType<() => void>, required: true },
-  layerHint: { type: String, required: true },
   getMaskSettings: { type: Function as PropType<(id: string) => { color: string; opacity: number; radiusWorld: number }>, required: true },
   onMaskColorInput: { type: Function as PropType<(v: string) => void>, required: true },
   onMaskOpacityInput: { type: Function as PropType<(v: number) => void>, required: true },
@@ -351,5 +347,15 @@ defineProps({
   runMoveToOnce: { type: Function as PropType<() => void>, required: true },
   applyAutoRotate: { type: Function as PropType<() => void>, required: true }
 })
+
+function toColorInputValue(v: unknown, fallback = '#38bdf8'): string {
+  const s = typeof v === 'string' ? v.trim() : ''
+  if (/^#[0-9a-fA-F]{6}$/.test(s)) return s
+
+  const noHash = s.startsWith('#') ? s.slice(1) : s
+  if (/^[0-9a-fA-F]{6}$/.test(noHash)) return `#${noHash}`
+
+  return fallback
+}
 </script>
 
