@@ -4,6 +4,7 @@ import { RightHandAxes } from '../models/RightHandAxes'
 import { InfoBoxModel } from '../models/InfoBoxModel'
 import { SpriteInfoBoxModel } from '../models/SpriteInfoBoxModel'
 import { ExpandingRingModel } from '../models/ExpandingRingModel'
+import { TechPedestalModel } from '../models/TechPedestalModel'
 import {
   IndustrialFloor,
   SingleDoor,
@@ -72,6 +73,18 @@ function registerBuiltins(): void {
     create(config: ModelRegistryCreateConfig) {
       const name = config.name ?? config.id ?? 'ExpandingRing'
       return new ExpandingRingModel(name)
+    }
+  })
+
+  modelRegistry.register({
+    id: 'tech-pedestal',
+    label: '科技底座',
+    category: 'builtin',
+    group: 'decoration',
+    supportedProps: TechPedestalModel.supportedProps,
+    create(config: ModelRegistryCreateConfig) {
+      const name = config.name ?? config.id ?? 'TechPedestal'
+      return new TechPedestalModel(name)
     }
   })
 

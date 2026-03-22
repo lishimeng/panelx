@@ -8,12 +8,14 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
+import type { CanvasTexture } from 'three'
 import { AdditiveBlending, BufferGeometry, Color, Float32BufferAttribute, OrthographicCamera, PerspectiveCamera, Points, PointsMaterial, Vector3 } from 'three'
-import { setup3D, ControlsStoryBoard, LayerDef, ModelLoadable, SimpleModel, modelRegistry } from '../framework'
+import { setup3D, ControlsStoryBoard, LayerDef, ModelLoadable, ORTHOGRAPHIC_FRUSTUM_SCALE, SimpleModel, modelRegistry } from '../framework'
 import type { World } from '../framework'
 import type { Model } from '../framework'
 import { createScene3DInfoBox, createScene3DSpriteInfoBox } from '../framework/Scene3DInfoBox'
 import type { Scene3DConfig, Model3DItemConfig, WidgetConfig3D } from '../types/dashboard'
+import { createStarPointSpriteTexture, startStarFieldXZAnimation } from '../utils/starFieldXZ'
 
 const props = defineProps<{
   /** 3D 场景配置（模型列表、statsStyle 等），由 App 或外部传入 */
@@ -24,6 +26,10 @@ const containerRef = ref<HTMLElement | null>(null)
 const containerId = computed(() => `panelx-3d-framework-${Math.random().toString(36).slice(2, 10)}`)
 let worldInstance: World | null = null
 let resizeObserver: ResizeObserver | null = null
+/** starField 粒子 rAF 动画，卸载时 cancel */
+let disposeStarFieldAnim: (() => void) | null = null
+/** 圆形光点贴图，卸载时 dispose */
+let starFieldPointTexture: CanvasTexture | null = null
 const CUSTOM_PROPS_KEY = 'custom'
 const MASK_COLOR_KEY = 'maskColor'
 const MASK_OPACITY_KEY = 'maskOpacity'
@@ -173,7 +179,8 @@ onMounted(() => {
         useWidgets3DRuntime && widgets3DConfig[0]?.worldSize?.y
           ? Math.max(0.0001, Number(widgets3DConfig[0].worldSize!.y) / 2)
           : 5
-      const orthographicSize = cameraConfig?.orthographicSize ?? fallbackOrthographicSize
+      const orthographicSize =
+        (cameraConfig?.orthographicSize ?? fallbackOrthographicSize) * ORTHOGRAPHIC_FRUSTUM_SCALE
 
       const camera = isOrthographic
         ? new OrthographicCamera(
@@ -194,59 +201,115 @@ onMounted(() => {
       }
       const storyBoard = new ControlsStoryBoard('main', camera, sceneOptions)
 
-      // 星空粒子背景：用 THREE.Points 生成远处散点
-      // 让它们落在默认 layer，避免引入新的 layer 规则；camera.layers 开关关闭默认层时也会一起隐藏。
-      const STAR_COUNT = 1800
-      // 让星星分布别太远，保证在相机视野内更容易看到
-      const STAR_MIN_RADIUS = 25
-      const STAR_MAX_RADIUS = 140
-      const STAR_COLOR = new Color(0x38bdf8)
-      const starPositions = new Float32Array(STAR_COUNT * 3)
-      const starColors = new Float32Array(STAR_COUNT * 3)
-      for (let i = 0; i < STAR_COUNT; i++) {
-        // 球面随机分布（避免“平面一条带”的感觉）
-        const u = Math.random()
-        const v = Math.random()
-        const theta = 2 * Math.PI * u
-        const phi = Math.acos(2 * v - 1)
+      // 星空粒子：仅当 scene3D.starField === true 时启用（默认关闭以省资源）
+      if (props.config?.starField === true) {
+        // 仅在 XZ 平面分布（固定 Y）；大:小数量 ≈ 1:6（两套 Points，因 PointsMaterial.size 为全局 uniform）
+        const STAR_COUNT_TOTAL = 80
+        const STAR_LARGE_COUNT = Math.max(1, Math.round(STAR_COUNT_TOTAL / 7))
+        const STAR_SMALL_COUNT = STAR_COUNT_TOTAL - STAR_LARGE_COUNT
+        /** 粒子所在水平面高度（Y 向上）；与场景地面重合，必要时可微调避免与模型 z-fight */
+        const STAR_PLANE_Y = 0
+        const STAR_COLOR = new Color(0x38bdf8)
+        const ext = Math.max(orthographicSize * aspect, orthographicSize)
+        const pad = 1.12
+        const halfW = isOrthographic ? ext * pad : 112
+        const halfD = isOrthographic ? ext * pad : 112
 
-        const r = STAR_MIN_RADIUS + Math.random() * (STAR_MAX_RADIUS - STAR_MIN_RADIUS)
-        const sinPhi = Math.sin(phi)
+        function fillStarBuffer(count: number): { pos: Float32Array; col: Float32Array } {
+          const starPositions = new Float32Array(count * 3)
+          const starColors = new Float32Array(count * 3)
+          for (let i = 0; i < count; i++) {
+            let x: number
+            let z: number
+            if (isOrthographic) {
+              x = (Math.random() * 2 - 1) * halfW
+              z = (Math.random() * 2 - 1) * halfD
+            } else {
+              const theta = Math.random() * Math.PI * 2
+              const r = 18 + Math.random() * 92
+              x = Math.cos(theta) * r
+              z = Math.sin(theta) * r
+            }
 
-        const x = r * sinPhi * Math.cos(theta)
-        const y = r * Math.cos(phi)
-        const z = r * sinPhi * Math.sin(theta)
+            starPositions[i * 3 + 0] = x
+            starPositions[i * 3 + 1] = STAR_PLANE_Y
+            starPositions[i * 3 + 2] = z
 
-        starPositions[i * 3 + 0] = x
-        starPositions[i * 3 + 1] = y
-        starPositions[i * 3 + 2] = z
+            // 亮:暗 ≈ 1:6（大多数为暗点，少数较亮）
+            const isBright = Math.random() < 1 / 7
+            const brightness = isBright ? 0.52 + Math.random() * 0.48 : 0.04 + Math.random() * 0.22
+            const isWhite = isBright && Math.random() < 0.2
+            const c = isWhite ? new Color(0xffffff) : STAR_COLOR
+            const final = c.clone().multiplyScalar(brightness)
+            starColors[i * 3 + 0] = final.r
+            starColors[i * 3 + 1] = final.g
+            starColors[i * 3 + 2] = final.b
+          }
+          return { pos: starPositions, col: starColors }
+        }
 
-        // 少量白色更亮，形成“星星”层次
-        const brightness = 0.25 + Math.random() * 0.75
-        const isWhite = Math.random() < 0.18
-        const c = isWhite ? new Color(0xffffff) : STAR_COLOR
-        const final = c.clone().multiplyScalar(brightness)
-        starColors[i * 3 + 0] = final.r
-        starColors[i * 3 + 1] = final.g
-        starColors[i * 3 + 2] = final.b
+        const smallBuf = fillStarBuffer(STAR_SMALL_COUNT)
+        const largeBuf = fillStarBuffer(STAR_LARGE_COUNT)
+
+        starFieldPointTexture?.dispose()
+        starFieldPointTexture = createStarPointSpriteTexture(64)
+
+        const pointSizeSmall = isOrthographic
+          ? Math.max(4, Math.min(15, 3.4 + ext * 0.62))
+          : Math.max(10, 18)
+        const pointSizeLarge = isOrthographic
+          ? Math.max(9, Math.min(26, 5.6 + ext * 1.05))
+          : Math.max(20, 32)
+
+        const matShared = {
+          map: starFieldPointTexture,
+          vertexColors: true,
+          color: 0xffffff,
+          transparent: true,
+          opacity: 1,
+          depthWrite: false,
+          blending: AdditiveBlending,
+          sizeAttenuation: !isOrthographic
+        } as const
+
+        const geoSmall = new BufferGeometry()
+        geoSmall.setAttribute('position', new Float32BufferAttribute(smallBuf.pos, 3))
+        geoSmall.setAttribute('color', new Float32BufferAttribute(smallBuf.col, 3))
+        const starFieldSmall = new Points(geoSmall, new PointsMaterial({ ...matShared, size: pointSizeSmall }))
+        starFieldSmall.layers.enableAll()
+        storyBoard.scene.add(starFieldSmall)
+
+        const geoLarge = new BufferGeometry()
+        geoLarge.setAttribute('position', new Float32BufferAttribute(largeBuf.pos, 3))
+        geoLarge.setAttribute('color', new Float32BufferAttribute(largeBuf.col, 3))
+        const starFieldLarge = new Points(geoLarge, new PointsMaterial({ ...matShared, size: pointSizeLarge }))
+        starFieldLarge.layers.enableAll()
+        storyBoard.scene.add(starFieldLarge)
+
+        disposeStarFieldAnim?.()
+        const stopSmall = startStarFieldXZAnimation(starFieldSmall, {
+          count: STAR_SMALL_COUNT,
+          halfW,
+          halfD,
+          planeY: STAR_PLANE_Y,
+          twinkleRatio: 0.2,
+          speedMin: 0.015,
+          speedMax: 0.05
+        })
+        const stopLarge = startStarFieldXZAnimation(starFieldLarge, {
+          count: STAR_LARGE_COUNT,
+          halfW,
+          halfD,
+          planeY: STAR_PLANE_Y,
+          twinkleRatio: 0.2,
+          speedMin: 0.015,
+          speedMax: 0.05
+        })
+        disposeStarFieldAnim = () => {
+          stopSmall()
+          stopLarge()
+        }
       }
-
-      const starGeometry = new BufferGeometry()
-      starGeometry.setAttribute('position', new Float32BufferAttribute(starPositions, 3))
-      starGeometry.setAttribute('color', new Float32BufferAttribute(starColors, 3))
-      const starMaterial = new PointsMaterial({
-        size: 0.12,
-        vertexColors: true,
-        color: 0xffffff,
-        transparent: true,
-        opacity: 0.98,
-        depthWrite: false,
-        blending: AdditiveBlending
-      })
-      const starField = new Points(starGeometry, starMaterial)
-      // 星空背景希望不受 camera.layers 开关误伤：允许在任意相机层可见
-      starField.layers.enableAll()
-      storyBoard.scene.add(starField)
 
       camera.layers.disableAll()
       const cameraLayers = cameraConfig?.layers
@@ -413,6 +476,10 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  disposeStarFieldAnim?.()
+  disposeStarFieldAnim = null
+  starFieldPointTexture?.dispose()
+  starFieldPointTexture = null
   resizeObserver?.disconnect()
   resizeObserver = null
   if (worldInstance) {

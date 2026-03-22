@@ -15,11 +15,48 @@ pnpm build
 
 ## 前置规则（后续所有代码编写须遵守）
 
-- **设计稿尺寸（px）**：以下尺寸**必须使用 px**，用于与屏幕尺寸一起计算真实的控件尺寸与位置：
-  - Dashboard 的设计尺寸（`config.design.width / height`）
-  - 3D 场景的设计/世界尺寸
-  - Editor 中设计稿的尺寸（画布宽高）
-- **其余单位禁止 px**：除上述“设计尺寸”外，**所有**样式与布局单位**不得使用 px**，统一使用相对单位（**rem**、**vh**、**vw** 等），以达到比例尺效果（随视口缩放）。
+- **设计稿尺寸（px）**：凡用于「设计坐标 ↔ 屏幕/容器实际像素」换算的基准尺寸，在配置里**使用 px**（见下节 **Dashboard 尺寸与坐标系**）。不要把业务样式里的随意数值写成 px（见下一条）。
+- **其余单位禁止 px**：除上述“设计尺寸基准”外，**所有**样式与布局单位**不得使用 px**，统一使用相对单位（**rem**、**vh**、**vw** 等），以达到比例尺效果（随视口缩放）。
+
+## Dashboard 尺寸与坐标系（2D / 3D）
+
+本节对应代码中的约定，避免把「大屏设计稿」「3D 世界单位」「Editor 画布」混为一谈。
+
+### 1. 2D 部分（`widgets2D` / Editor2D）
+
+- **设计稿尺寸**：`config.design.width` / `config.design.height`（如 1920×1080），与 **2D 组件** 的 `layout` 处于**同一设计坐标系**（见 `src/types/dashboard.ts` 中 `WidgetConfig2D` 注释）。
+- **渲染到屏幕**：根容器按设计宽高比占位；`SizeManager2D`（`src/core/size/SizeManager2D.ts`）用 `scale = actualWidth / designWidth` 把设计稿矩形换算为实际像素；位置/尺寸再经 `pxToVw` / `pxToVh` / `pxToRem`（`src/utils/viewport.ts`、`src/core/size`）落到样式。
+- **要点**：2D 的目标是**保持相对位置与比例**，小屏下整体等比缩小，而不是单独拉伸某轴破坏版式。
+
+### 2. 3D 部分（背景层 Scene3D / `widgets3D` / Editor3D）
+
+- **画布像素 vs 大屏 design**：3D 渲染区域（`Scene3DFramework`、Editor3D 主区域 canvas）**只依赖父容器的实际 CSS 像素**：铺满父容器，并用该宽高比设置相机 aspect。**不参与**用 `config.design` 去“规定”Three.js 视口分辨率。  
+  `config.design` 服务于 **2D 组件** 的 layout 与整屏比例尺；整屏布局完成后，背景层 3D 所在 div 会分到一块**实际像素区域**——这是**布局结果**，不是 Three.js 读取 `config.design` 作为输入。
+- **定位与尺度（重要）**：模型在世界中的位置、比例尺、`worldSize`、`designSize3D`（3D 设计稿尺寸）、**3D设计稿坐标系** 与 `origin` 等，才是 **3D 语义**下的关键数据；**不要**用 Dashboard 的 `config.design` 代替 3D 设计稿尺寸去做定位换算。
+- **Editor3D**：侧栏只维护 **3D 设计**尺寸与比例尺等；**不展示、不编辑** Dashboard 的 `design`，也不展示 Viewport/DPR/Canvas 像素（避免与「3D 只跟父容器有关」混淆）。导入 JSON 时若含 `design`，仅写入 `config.design` 供导出/大屏 2D 兼容，**不会**用其覆盖侧栏中的 3D 设计稿尺寸。
+- **场景世界单位（Three.js）**：**Y 轴向上**，**水平面为 XZ**。**世界原点** `(0,0,0)`；模型 `position`、相机均在**世界坐标**下理解。
+- **设计坐标 → 世界 XZ**：Editor3D 用「以左上角为 (0,0) 的输入坐标」映射到世界 **X、Z**（`src/utils/coord3d.ts`），并按 **worldScale**（`world = 3D设计稿尺寸 × scale`）换算。**不是**把 `config.design` 直接当成 Three 里的米制场景尺寸。
+- **场景范围 / 相机**：`WidgetConfig3D.worldSize` 描述 3D 设计空间对应的 **世界范围**（正交相机可视等）。与 **`config.design`（2D 大屏）语义不同**。
+
+### 3. 「3D设计稿坐标系」与 Three.js 世界坐标（两套原点）
+
+为避免与 Three.js **世界坐标**（world space，原点在 `(0,0,0)`）混淆，本仓库对「平面/厂区/小区总图上**左上角为 0**」这一套单独命名：**3D设计稿坐标系**（仅指水平面上的布局基准，Y 仍表示高度；水平方向由 XZ 表达）。
+
+- **典型场景**：把一张工厂或住宅小区的**平面图**当作 3D 里摆放设备/标注的参考——图上 **左上角为 (0,0)**，向右、向下为增大；导入 Three.js 后，场景往往以 **世界原点为场景中心**，于是出现 **两套原点**，必须通过 **原点偏移**（Editor3D / `src/utils/coord3d.ts` 中的 `originX`、`originY` 与世界比例尺）做互转。
+- **命名约定**：文档与讨论中说到「设计稿上的坐标」「平面左上角为 0」时，优先使用 **3D设计稿坐标系**；说到模型 `position`、相机、物理单位时，指 **Three.js 世界坐标**。
+- **换算示例（减少歧义）**：若配置中将 **3D设计稿坐标系的原点**（即平面图左上角 `(0,0)` 落在世界中的位置）设为 **`(-20, 0, -20)`**（世界坐标），则在同一比例尺下，Three.js 世界点 **`(0, 0, 0)`** 对应到 **3D设计稿坐标系**中的 **`(20, 0, 20)`**（即相对「平面图左上角」在水平面上偏移 +20、+20；Y 为高度轴，此处为 0）。  
+  直观理解：世界原点相对「左上角锚点」平移了 `(+20, 0, +20)`，故在「以左上角为 0」的读数下记为 `(20, 0, 20)`。
+
+实现上，`designInputToWorldXZ` / `worldXZToDesignInput` 中的 `originX`、`originY` 即参与上述「锚点」换算；具体数值以导出配置与 Editor3D 当前设置为准。
+
+### 4. 与旧版 README 表述的关系
+
+原先「3D 场景的设计/世界尺寸」容易误解成「和 `config.design` 是同一个东西」。实际上：
+
+- **2D**：几乎总是 `config.design` + `SizeManager2D`。
+- **3D**：世界坐标 +（可选）Editor3D 的 3D 设计尺寸与 `worldScale` + `widgets3D[].worldSize`。
+
+若新增功能，请先区分改的是 **2D 设计稿坐标**、**3D设计稿坐标系**（平面左上角为 0）还是 **Three.js 世界坐标**，再选对应工具类与字段。
 
 ## 规范
 
@@ -43,6 +80,14 @@ grid-template-columns: 25% 50% 25%;
 /* 示例：左侧更窄、主区域更宽 */
 grid-template-columns: 20% 60% 20%;
 ```
+
+### Editor2D 与 Editor3D 分工及合并导出（低代码衔接）
+
+- **分工**：2D 与 3D **各自独立编辑**（`Editor.vue` / `Editor3D.vue`）。运行时大屏上 3D 作为 **Dashboard 背景层**（由 `widgets3D` + `scene3D` 等驱动），与 2D 组件叠放；未来可在 2D 画布中为「某父容器」嵌入 3D 预览，仍复用同一份 `DashboardConfig`。
+- **草稿**：在 **Editor3D** 侧栏点击 **「保存草稿」**，将当前 3D 相关配置写入 **`localStorage`**，键名 **`EDITOR_3D_DRAFT`**（见 `src/utils/editor3dDraft.ts`），内容与「导出 JSON」一致（`widgets3D`、`scene3D`、`background` 等）。
+- **合并**：在 **Editor2D** 侧栏勾选 **「导出/预览合并 3D 草稿」**（持久化键 `PanelX_EDITOR_ENABLE_3D_MERGE`）。勾选后，**导出配置**与 **预览**会以当前 2D 配置为底，再合并草稿中的 `widgets3D` / `scene3D`（及非空的根 `background`、`debug`）。合并后侧栏会短暂显示**文字提示**（成功/未读到草稿/草稿无实例）。**详细合并日志**（`[Editor2D][merge3D]`）仅在 **`config.debug` 或 `PanelX_DEBUG`** 开启时输出到控制台。
+- **与 `backgroundLayer` 的关系**：`Dashboard` 若配置了 **`backgroundLayer`（如图片背景）**，会优先使用该层，**不会**再使用 `widgets3D` 生成的 3D 背景。合并时若草稿里带有 3D 实例（`widgets3D.length > 0`），会**清除**合并结果中的 `backgroundLayer`，以保证 3D 场景能作为背景显示。若你需要「图片叠在 3D 上」等组合，需另行扩展分层策略。
+- **典型流程**：Editor3D 调场景 → **保存草稿** → 打开 Editor2D 排 2D → 勾选合并 → **导出** 得到完整 `dashboard-config.json`。
 
 ## 编辑器 Widget 默认配置
 
@@ -153,6 +198,12 @@ export class SomeModel extends Model {
 ```
 
 然后在 `src/framework/model/registerBuiltins.ts` 注册时把 `supportedProps` 传进去（编辑器用于生成右侧字段列表）。
+
+内置示例：**`tech-pedestal`（科技底座）** — 下层半透明平面 + 上层薄立方体台面、亮蓝线框边，配色与透明度可调（实现见 `src/framework/models/TechPedestalModel.ts`）。
+
+**性能（Configurable vs Editor3D）**：大屏 `Scene3DFramework` 曾默认带「星空粒子」装饰，而 Editor3D 无此层，导致可配置运行时 GPU/CPU 反而更高。现已改为仅在 `scene3D.starField === true` 时启用；默认与编辑器一致（不启用）。粒子仅在 **XZ 平面**（固定 `Y`，约 **80** 个 `Points`），带固定方向缓慢漂移与少数闪烁；初始亮度按约 **亮:暗 = 1:6** 随机（多数为暗点）；尺寸按 **大:小数量 ≈ 1:6** 分两套 `Points`（大点与小点不同像素 `size`），不占满 Y 向体积。`statsStyle === 0` 时不再每帧执行 Stats 面板内部计时，降低默认开销。
+
+**为何以前也看不到星空**：导出场景多为**正交相机**，可视范围只有约 `worldSize` 量级；旧版粒子在半径 25～140 的球壳上，**几乎全部落在视锥外**，所以画面上往往只有模型、没有粒子。开启 `starField` 后，正交模式在 **XZ 可视矩形** 内铺粒子；若仍要关闭以省资源，保持默认不写 `starField` 或设为 `false` 即可。`PointsMaterial.size` 在 Three.js 里对应 **屏幕像素**（正交下不会按深度放大），勿用小于 1 的“世界单位”当 size，否则会变成亚像素几乎不可见。星空粒子使用 **径向渐变圆形贴图** 作为 `map`，避免默认的方形点块观感。
 
 ### 2. Editor3D 如何渲染 Props UI
 

@@ -32,6 +32,21 @@
         <span class="panelx-editor-widget-label">{{ item.label }}</span>
       </div>
       <h3 class="mt-4">操作</h3>
+      <label class="panelx-editor-merge-3d">
+        <input v-model="enable3DMerge" type="checkbox" />
+        <span>导出/预览合并 3D 草稿</span>
+      </label>
+      <p class="panelx-editor-merge-3d-hint">
+        请先在 Editor3D 点击「保存草稿」（键 {{ EDITOR_3D_DRAFT_KEY }}）
+      </p>
+      <div
+        v-if="mergeToast"
+        class="panelx-editor-merge-toast"
+        :class="{ 'panelx-editor-merge-toast--warn': mergeToast.kind === 'warn' }"
+        role="status"
+      >
+        {{ mergeToast.text }}
+      </div>
       <button type="button" class="panelx-editor-btn" @click="exportConfig">
         导出配置
       </button>
@@ -262,6 +277,13 @@ import { getWidgetSampleImageUrl } from '../assets/editor-samples'
 import { getWidgetDefaultProps, getWidgetPropConfig } from '../widgets/widgetRegistry'
 import type { WidgetPropDef } from '../types/widgets'
 import SizeSettingsDialog from './SizeSettingsDialog.vue'
+import {
+  EDITOR_3D_DRAFT_KEY,
+  loadEditor3DDraft,
+  loadEnable3DMergeFromStorage,
+  mergeDashboardWith3DDraft,
+  saveEnable3DMergeToStorage
+} from '../utils/editor3dDraft'
 
 const router = useRouter()
 
@@ -314,6 +336,120 @@ const config = reactive<DashboardConfig>({
   design: { ...(getDesignSizeFromStorage() ?? DESIGN) },
   widgets2D: []
 })
+
+/** 为 true 时，导出/预览会在 localStorage `EDITOR_3D_DRAFT` 有值时合并 widgets3D / scene3D（由 Editor3D「保存草稿」写入） */
+const enable3DMerge = ref(loadEnable3DMergeFromStorage())
+watch(enable3DMerge, (v) => saveEnable3DMergeToStorage(v))
+
+/** 仅当 `isDebugEnabled()` 时输出合并过程的详细日志 */
+function logMerge3DDraft(draft: DashboardConfig | null, merged: DashboardConfig | null, plain: DashboardConfig): void {
+  if (!isDebugEnabled()) return
+  const tag = '[Editor2D][merge3D]'
+  let rawLen = 0
+  let rawPreview = ''
+  if (typeof localStorage !== 'undefined') {
+    try {
+      const raw = localStorage.getItem(EDITOR_3D_DRAFT_KEY)
+      rawLen = raw?.length ?? 0
+      rawPreview = raw ? raw.slice(0, 160) + (raw.length > 160 ? '…' : '') : ''
+    } catch {
+      rawLen = -1
+    }
+  }
+  console.info(`${tag} enable3DMerge=${enable3DMerge.value} localStorage键=${EDITOR_3D_DRAFT_KEY} 原始字符串长度=${rawLen}`)
+
+  if (!draft) {
+    console.warn(
+      `${tag} 解析后 draft 为空（可能 JSON 无效或键不存在）。请确认与 Editor3D 同源、且已点击「保存草稿」。`
+    )
+    return
+  }
+
+  const w3 = draft.widgets3D
+  const summary = {
+    design: draft.design,
+    widgets3D条数: Array.isArray(w3) ? w3.length : '非数组',
+    widgets3D摘要:
+      Array.isArray(w3) && w3.length
+        ? w3.map((w) => ({
+            id: w.id,
+            typeId: (w.props as Record<string, unknown> | undefined)?.typeId
+          }))
+        : [],
+    hasScene3D: Boolean(draft.scene3D),
+    scene3DKeys: draft.scene3D ? Object.keys(draft.scene3D) : [],
+    background: draft.background,
+    rawPreview
+  }
+  console.info(`${tag} 已读出 draft 摘要`, summary)
+
+  if (merged) {
+    console.info(`${tag} 合并结果`, {
+      合并后widgets3D条数: merged.widgets3D?.length ?? 0,
+      合并后hasScene3D: Boolean(merged.scene3D),
+      合并后background: merged.background,
+      合并前2D有backgroundLayer: Boolean(plain.backgroundLayer),
+      合并后backgroundLayer: merged.backgroundLayer
+    })
+    try {
+      console.log(`${tag}[debug] draft 完整对象`, draft)
+      console.log(`${tag}[debug] merged 完整对象`, merged)
+    } catch {
+      // ignore
+    }
+  }
+}
+
+/** 最近一次 buildExportPayload 的合并结果，供导出/预览后显示侧栏提示 */
+const lastMerge3DStats = ref<{ merged: boolean; widgets3DCount: number } | null>(null)
+
+const mergeToast = ref<{ text: string; kind: 'ok' | 'warn' } | null>(null)
+let mergeToastTimer: ReturnType<typeof setTimeout> | null = null
+
+function showMergeToastFromStats(): void {
+  if (mergeToastTimer) {
+    clearTimeout(mergeToastTimer)
+    mergeToastTimer = null
+  }
+  if (!enable3DMerge.value) {
+    mergeToast.value = null
+    return
+  }
+  const s = lastMerge3DStats.value
+  if (!s) {
+    mergeToast.value = null
+    return
+  }
+  if (s.merged && s.widgets3DCount > 0) {
+    mergeToast.value = { kind: 'ok', text: `已合并 3D 草稿（${s.widgets3DCount} 个实例）` }
+  } else if (!s.merged) {
+    mergeToast.value = { kind: 'warn', text: '未找到有效 3D 草稿，已仅使用当前 2D 配置' }
+  } else {
+    mergeToast.value = { kind: 'warn', text: '3D 草稿中无实例，已导出当前配置' }
+  }
+  mergeToastTimer = setTimeout(() => {
+    mergeToast.value = null
+    mergeToastTimer = null
+  }, 5000)
+}
+
+function buildExportPayload(): DashboardConfig {
+  const plain = JSON.parse(JSON.stringify(config)) as DashboardConfig
+  lastMerge3DStats.value = null
+  if (!enable3DMerge.value) return plain
+
+  const draft = loadEditor3DDraft()
+  if (!draft) {
+    lastMerge3DStats.value = { merged: false, widgets3DCount: 0 }
+    logMerge3DDraft(null, null, plain)
+    return plain
+  }
+
+  const merged = mergeDashboardWith3DDraft(plain, draft)
+  lastMerge3DStats.value = { merged: true, widgets3DCount: merged.widgets3D?.length ?? 0 }
+  logMerge3DDraft(draft, merged, plain)
+  return merged
+}
 
 const showSizeDialog = ref(false)
 /** 尺寸展示单位（仅展示，与对话框同步） */
@@ -705,10 +841,15 @@ function onEditorKeydown(e: KeyboardEvent) {
 
 onUnmounted(() => {
   document.removeEventListener('keydown', onEditorKeydown)
+  if (mergeToastTimer) {
+    clearTimeout(mergeToastTimer)
+    mergeToastTimer = null
+  }
 })
 
 function exportConfig() {
-  const json = JSON.stringify(config, null, 2)
+  const payload = buildExportPayload()
+  const json = JSON.stringify(payload, null, 2)
   const blob = new Blob([json], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -716,15 +857,17 @@ function exportConfig() {
   a.download = 'dashboard-config.json'
   a.click()
   URL.revokeObjectURL(url)
+  showMergeToastFromStats()
 }
 
 function previewDashboard() {
   try {
-    const plain = JSON.parse(JSON.stringify(config)) as DashboardConfig
+    const plain = buildExportPayload()
     localStorage.setItem(PREVIEW_STORAGE_KEY, JSON.stringify(plain))
   } catch {
     // ignore
   }
+  showMergeToastFromStats()
   const href = router.resolve({ name: 'configurable', query: { source: 'local' } }).href
   window.open(href, '_blank', 'noopener')
 }
@@ -886,6 +1029,36 @@ async function loadWorkshopConfig() {
 }
 .mt-4 {
   margin-top: 1rem;
+}
+.panelx-editor-merge-3d {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.35rem;
+  font-size: 0.75rem;
+  margin-bottom: 0.25rem;
+  cursor: pointer;
+  color: #333;
+}
+.panelx-editor-merge-3d-hint {
+  font-size: 0.65rem;
+  color: #888;
+  margin: 0 0 0.5rem 0;
+  line-height: 1.35;
+}
+.panelx-editor-merge-toast {
+  font-size: 0.75rem;
+  padding: 0.5rem 0.6rem;
+  margin-bottom: 0.5rem;
+  border-radius: 0.25rem;
+  line-height: 1.35;
+  background: #ecfdf5;
+  color: #065f46;
+  border: 0.0625rem solid #a7f3d0;
+}
+.panelx-editor-merge-toast--warn {
+  background: #fffbeb;
+  color: #92400e;
+  border-color: #fde68a;
 }
 .panelx-editor-size-display {
   margin-bottom: 0.5rem;

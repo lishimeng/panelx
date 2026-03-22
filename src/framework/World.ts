@@ -142,7 +142,8 @@ export class World {
         console.log('THREE.REVISION:', REVISION);
 
         console.log('WebGL支持级别:', this.renderer.getContext().getParameter(this.renderer.getContext().VERSION))
-        this.renderer.debug.checkShaderErrors = true; // 启用着色器错误检查
+        // 生产构建关闭着色器错误检查，减轻驱动侧开销；开发时便于发现问题
+        this.renderer.debug.checkShaderErrors = import.meta.env.DEV
         this.renderer.shadowMap.type = PCFSoftShadowMap; // 激活高级渲染特性
 
         // post-processing: bloom（仅对高亮像素生效）

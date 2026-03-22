@@ -5,18 +5,6 @@
       <span class="panelx-editor3d-group-toggle">{{ leftGroups.sceneOpen ? '−' : '+' }}</span>
     </button>
     <div v-if="leftGroups.sceneOpen" class="panelx-editor3d-size-display">
-      <div class="panelx-editor3d-size-row">
-        <span class="panelx-editor3d-size-label">Dashboard</span>
-        <span class="panelx-editor3d-size-value">{{ designSize.width }} × {{ designSize.height }}</span>
-      </div>
-      <div class="panelx-editor3d-size-row">
-        <span class="panelx-editor3d-size-label">Viewport</span>
-        <span class="panelx-editor3d-size-value">{{ viewportSize.x }} × {{ viewportSize.y }} (DPR {{ dpr }})</span>
-      </div>
-      <div class="panelx-editor3d-size-row">
-        <span class="panelx-editor3d-size-label">Canvas</span>
-        <span class="panelx-editor3d-size-value">{{ canvasPixelSize.x }} × {{ canvasPixelSize.y }} px</span>
-      </div>
       <div class="panelx-editor3d-size-row panelx-editor3d-size-row-inputs">
         <span class="panelx-editor3d-size-label">3D设计</span>
         <div class="panelx-editor3d-size-inputs">
@@ -171,6 +159,9 @@
       <span class="panelx-editor3d-group-toggle">{{ leftGroups.opsOpen ? '−' : '+' }}</span>
     </button>
     <button type="button" class="panelx-editor3d-btn" @click="exportConfig">导出配置</button>
+    <button type="button" class="panelx-editor3d-btn" title="写入 localStorage 键 EDITOR_3D_DRAFT，供 Editor2D 合并导出" @click="saveDraftToLocalStorage">
+      保存草稿
+    </button>
     <button type="button" class="panelx-editor3d-btn" @click="triggerImportConfig">导入配置</button>
     <button type="button" class="panelx-editor3d-btn" @click="createRobotDemoScene">生成 Robot 示例</button>
   </aside>
@@ -185,7 +176,6 @@ import type { Scene3DCameraLayerItem } from '../../../types/dashboard'
 
 // 双向绑定：保留原 Editor3D 的 v-model 行为（避免 prop 只读问题）
 const leftGroups = defineModel<any>('leftGroups', { required: true })
-const designSize = defineModel<any>('designSize', { required: true })
 const designSize3D = defineModel<any>('designSize3D', { required: true })
 const worldScale = defineModel<any>('worldScale', { required: true })
 const worldSizeZ = defineModel<any>('worldSizeZ', { required: true })
@@ -210,9 +200,6 @@ function onCameraLayerChange(item: Scene3DCameraLayerItem, e: Event): void {
 }
 
 defineProps({
-  dpr: { type: Number, required: true },
-  viewportSize: { type: Object as PropType<{ x: number; y: number }>, required: true },
-  canvasPixelSize: { type: Object as PropType<{ x: number; y: number }>, required: true },
   sceneWorldSize: { type: Object as PropType<{ x: number; y: number; z: number }>, required: true },
   worldOuterStyle: { type: Object as PropType<StyleValue>, required: true },
   modelTypesByGroup: {
@@ -226,6 +213,7 @@ defineProps({
     required: true
   },
   exportConfig: { type: Function as PropType<() => void>, required: true },
+  saveDraftToLocalStorage: { type: Function as PropType<() => void>, required: true },
   triggerImportConfig: { type: Function as PropType<() => void>, required: true },
   createRobotDemoScene: { type: Function as PropType<() => void>, required: true }
 })

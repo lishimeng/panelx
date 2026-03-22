@@ -148,6 +148,7 @@ export function widgets3DToScene3DConfig(
     background: options?.background ?? undefined,
     lights,
     bloom,
+    ...(scene?.starField != null ? { starField: Boolean(scene.starField) } : {}),
     camera:
       cameraType != null || cameraLayers != null
         ? {

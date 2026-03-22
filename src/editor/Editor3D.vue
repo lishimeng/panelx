@@ -2,7 +2,6 @@
   <div class="panelx-editor3d">
     <LeftSidebar
       v-model:leftGroups="leftGroups"
-      v-model:designSize="designSize"
       v-model:designSize3D="designSize3D"
       v-model:worldScale="worldScale"
       v-model:worldSizeZ="worldSizeZ"
@@ -14,9 +13,6 @@
       v-model:editorBackgroundColor="editorBackgroundColor"
       v-model:cameraLayers="cameraLayers"
       @camera-layer-change="applyCameraLayers"
-      :dpr="dpr"
-      :viewport-size="viewportSize"
-      :canvas-pixel-size="canvasPixelSize"
       :scene-world-size="sceneWorldSize"
       :world-outer-style="worldOuterStyle"
       :model-types-by-group="modelTypesByGroup"
@@ -24,6 +20,7 @@
       :on-drag-start-type="onDragStartType"
       :on-drag-start-preset="onDragStartPreset"
       :export-config="exportConfig"
+      :save-draft-to-local-storage="saveDraftToLocalStorage"
       :trigger-import-config="triggerImportConfig"
       :create-robot-demo-scene="createRobotDemoScene"
     />
@@ -115,7 +112,7 @@ import { reactive, computed, ref, watch, onMounted, onUnmounted, nextTick } from
 import LeftSidebar from './editor3d/ui/LeftSidebar.vue'
 import MainArea from './editor3d/ui/MainArea.vue'
 import RightSidebar from './editor3d/ui/RightSidebar.vue'
-import { LayerDef, modelRegistry, setup3D } from '../framework'
+import { LayerDef, modelRegistry, ORTHOGRAPHIC_FRUSTUM_SCALE, setup3D } from '../framework'
 import type { DashboardConfig, WidgetConfig3D, Scene3DCameraLayerItem } from '../types/dashboard'
 import type { ModelTypeDefinition, PropDefinition } from '../framework'
 import type { Loader } from '../framework'
@@ -132,33 +129,15 @@ import { useModelTypesByGroup } from './editor3d/useModelTypesByGroup'
 import { useViewportLayout } from './editor3d/useViewportLayout'
 import { createScene3DInfoBox } from '../framework/Scene3DInfoBox'
 import type { Scene3DInfoBoxConfig } from '../types/dashboard'
+import { saveEditor3DDraft } from '../utils/editor3dDraft'
 
 /** 预设模型列表（由 examples 等注入），在侧栏「可用模型」中展示 */
 defineProps<{
   presetModels?: Array<{ id: string; label: string; typeId: string; source?: string; name?: string }>
 }>()
 
-const DESIGN_SIZE_STORAGE_KEY = 'PanelX_DESIGN_SIZE'
-
-function getDesignSizeFromStorage(): { width: number; height: number } | null {
-  if (typeof localStorage === 'undefined') return null
-  try {
-    const raw = localStorage.getItem(DESIGN_SIZE_STORAGE_KEY)
-    if (!raw) return null
-    const o = JSON.parse(raw) as { width?: unknown; height?: unknown }
-    const w = Number(o?.width)
-    const h = Number(o?.height)
-    if (!Number.isFinite(w) || !Number.isFinite(h) || w < 1 || h < 1) return null
-    return { width: Math.floor(w), height: Math.floor(h) }
-  } catch {
-    return null
-  }
-}
-
-const initialDesign = getDesignSizeFromStorage() ?? { width: 1920, height: 1080 }
-const designSize = reactive({ width: initialDesign.width, height: initialDesign.height })
-/** 3D 设计尺寸（用于按比例尺换算世界尺寸），默认沿用 Dashboard 尺寸 */
-const designSize3D = reactive({ width: initialDesign.width, height: initialDesign.height })
+/** 3D 设计稿尺寸（与 Dashboard `config.design` 无关；用于 worldScale / 定位换算） */
+const designSize3D = reactive({ width: 1920, height: 1080 })
 /** 比例尺：world = design3D * scale。默认 0.01（将 1920 缩到 19.2，适配模型单位） */
 const worldScale = ref(0.01)
 /** world Z 尺寸：当前仅用于配置导出/展示（x/y 由设计尺寸与比例尺换算） */
@@ -209,8 +188,8 @@ type WorldLike = {
 }
 const worldRef = ref<WorldLike | null>(null)
 
-/** 父容器尺寸（跟随 dashboard 设计尺寸，只控制宽高比，不影响 3D 世界坐标系） */
-const { dpr, viewportSize, canvasPixelSize, worldOuterStyle } = useViewportLayout(designSize, worldRef)
+/** 父容器实际像素（仅影响视口/相机 aspect；3D 世界坐标由 designSize3D + worldScale 等决定） */
+const { viewportSize, worldOuterStyle } = useViewportLayout(worldRef)
 
 /**
  * 3D Editor 坐标系（用于 XZ 转换）：
@@ -525,10 +504,13 @@ async function onImportConfigFile(e: Event): Promise<void> {
     for (const w of existing) deleteWidget(w)
 
     // 2) 应用基础配置
+    // 仅写入 Dashboard 级 `design`（供导出/大屏 2D 使用）；不在此编辑器内编辑，也不参与 3D 画布尺寸
     if (payload.design?.width && payload.design?.height) {
-      designSize.width = Number(payload.design.width) || designSize.width
-      designSize.height = Number(payload.design.height) || designSize.height
-      config.design = { width: designSize.width, height: designSize.height }
+      const w = Number(payload.design.width)
+      const h = Number(payload.design.height)
+      if (Number.isFinite(w) && Number.isFinite(h) && w > 0 && h > 0) {
+        config.design = { width: Math.floor(w), height: Math.floor(h) }
+      }
     }
     if (typeof payload.background === 'string' && payload.background.trim() !== '') {
       editorBackgroundColor.value = payload.background
@@ -553,10 +535,6 @@ async function onImportConfigFile(e: Event): Promise<void> {
       const derived = Number.isFinite(sx as number) ? (sx as number) : Number.isFinite(sy as number) ? (sy as number) : undefined
       if (derived != null) worldScale.value = derived
       worldSizeZ.value = importedWorldSize.z
-    } else {
-      // 无 worldSize 时，默认 3D 设计尺寸沿用 Dashboard
-      designSize3D.width = designSize.width
-      designSize3D.height = designSize.height
     }
 
     // 4) 从 payload.scene3D 恢复灯光/Bloom/相机图层；不存在则兼容旧结构（第一个 widget.props）
@@ -1123,10 +1101,16 @@ function onFrameworkLoaded(loader: Loader, world: World): void {
   world.setBloom(true, { strength: bloomStrength.value, radius: bloomRadius.value, threshold: bloomThreshold.value })
 
   if (!storyboardRef.value) {
-    const aspect = designSize.height > 0 ? designSize.width / designSize.height : 1
+    const wp = worldRef.value?.getSize() ?? { x: 0, y: 0 }
+    const aspect =
+      wp.y > 0
+        ? wp.x / wp.y
+        : designSize3D.height > 0
+          ? designSize3D.width / designSize3D.height
+          : 1
     // 先用当前 worldSize.y 推出正交相机可视高度，之后会由 applyOrthographicByWorldSize() 实时更新
     const worldH = Math.max(0.0001, sceneWorldSize.value.y)
-    const halfH = worldH / 2
+    const halfH = (worldH / 2) * ORTHOGRAPHIC_FRUSTUM_SCALE
     const cam = new OrthographicCamera(
       -halfH * aspect,
       halfH * aspect,
@@ -1394,7 +1378,8 @@ onUnmounted(() => {
   storyboardRef.value = null
 })
 
-function exportConfig() {
+/** 构建与「导出 JSON」一致的 Dashboard 片段（仅含 3D 相关字段 + design 供对齐），供文件下载与 localStorage 草稿共用 */
+function buildDashboardExportPayload(): DashboardConfig {
   const store = loaderRef.value?.getStore()
   const payload: DashboardConfig = {
     design: { ...config.design },
@@ -1447,6 +1432,11 @@ function exportConfig() {
   }
   payload.background = editorBackgroundColor.value
   if (config.debug != null) payload.debug = config.debug
+  return payload
+}
+
+function exportConfig() {
+  const payload = buildDashboardExportPayload()
   const json = JSON.stringify(payload, null, 2)
   const blob = new Blob([json], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -1455,6 +1445,11 @@ function exportConfig() {
   a.download = 'dashboard-config-3d.json'
   a.click()
   URL.revokeObjectURL(url)
+}
+
+/** 保存当前 3D 配置到 localStorage，供 Editor2D 在「合并 3D」导出时使用 */
+function saveDraftToLocalStorage() {
+  saveEditor3DDraft(buildDashboardExportPayload())
 }
 </script>
 

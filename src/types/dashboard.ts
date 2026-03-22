@@ -262,6 +262,12 @@ export interface Scene3DConfig {
   bloom?: Scene3DBloomConfig
   /** 相机配置：类型（透视/正交）及正交时的 size */
   camera?: Scene3DCameraConfig
+  /**
+   * 是否启用「星空粒子」背景装饰（仅 Configurable / Dashboard 的 Scene3DFramework 路径）。
+   * 默认不启用，与 Editor3D 行为一致（编辑器无该装饰），避免大屏运行时 CPU/GPU 高于编辑器。
+   * 需要科技感背景时再设为 `true`。
+   */
+  starField?: boolean
 }
 
 /** Dashboard 级别的 3D 场景参数（用于由编辑器统一控制） */
@@ -269,4 +275,6 @@ export interface DashboardScene3DConfig {
   camera?: Scene3DCameraConfig
   lights?: Scene3DLightConfig
   bloom?: Scene3DBloomConfig
+  /** 见 `Scene3DConfig.starField` */
+  starField?: boolean
 }

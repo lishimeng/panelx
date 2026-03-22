@@ -1,4 +1,4 @@
-import { AdditiveBlending, Color, DoubleSide, Mesh, PlaneGeometry, ShaderMaterial, Scene } from 'three'
+import { Color, DoubleSide, Mesh, NormalBlending, PlaneGeometry, ShaderMaterial, Scene } from 'three'
 import { Model } from '../model/Model'
 import type { PropDefinition } from '../model/ModelRegistry'
 
@@ -124,14 +124,16 @@ export class ExpandingRingModel extends Model {
       }
     `
 
+    // 使用常规 alpha 混合 + 深度测试：避免加法混合把颜色叠在后方模型上、也避免“看穿/透视”感
+    // 半透明边缘不写深度，减少与同类透明物体的排序毛边
     const mat = new ShaderMaterial({
       uniforms,
       vertexShader,
       fragmentShader,
       transparent: true,
-      depthTest: false,
+      depthTest: true,
       depthWrite: false,
-      blending: AdditiveBlending,
+      blending: NormalBlending,
       side: DoubleSide
     })
 
