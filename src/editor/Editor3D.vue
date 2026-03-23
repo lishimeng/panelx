@@ -59,11 +59,13 @@
       v-model:selectedScaleUniform="selectedScaleUniform"
       v-model:selectedScale="selectedScale"
       v-model:selectedRotation="selectedRotation"
+      v-model:anchorWidgetId="anchorWidgetId"
       v-model:rotateCmd="rotateCmd"
       v-model:moveCmd="moveCmd"
       v-model:autoRotateCmd="autoRotateCmd"
       v-model:newPropKey="newPropKey"
       v-model:newPropValue="newPropValue"
+      :widgets3D="widgets3D"
       :selected-widget-supported-props="selectedWidgetSupportedProps"
       :selected-widget-custom-props="selectedWidgetCustomProps"
       :custom-only-prop-entries="customOnlyPropEntries as any"
@@ -78,9 +80,7 @@
       :set-custom-prop-value="setCustomPropValue as any"
       :remove-custom-prop="removeCustomProp"
       :add-custom-prop="addCustomProp"
-      :run-rotate-to-once="runRotateToOnce"
-      :run-move-to-once="runMoveToOnce"
-      :apply-auto-rotate="applyAutoRotateToSelected"
+      :execute-command="executeCommand"
     />
 
     <!-- 放下后弹出的位置/缩放对话框 -->
@@ -130,6 +130,13 @@ import { useViewportLayout } from './editor3d/useViewportLayout'
 import { createScene3DInfoBox } from '../framework/Scene3DInfoBox'
 import type { Scene3DInfoBoxConfig } from '../types/dashboard'
 import { saveEditor3DDraft } from '../utils/editor3dDraft'
+import { CommandManager } from '../utils/CommandManager'
+import {
+  applyAutoRotateToSelectedCommand,
+  runMoveToAnchorOnceCommand,
+  runMoveToOnceCommand,
+  runRotateToOnceCommand
+} from '../utils/editor3dCommands'
 
 /** 预设模型列表（由 examples 等注入），在侧栏「可用模型」中展示 */
 defineProps<{
@@ -310,6 +317,7 @@ const pendingTransforms = new Map<
 const addedModelNodes = new Map<string, Object3D>()
 
 const selectedWidgetId = ref<string | null>(null)
+const anchorWidgetId = ref<string | null>(null)
 const selectedPosition = reactive<{ x: number; y: number; z: number }>({ x: 0, y: 0, z: 0 })
 const selectedScale = reactive<{ x: number; y: number; z: number }>({ x: 1, y: 1, z: 1 })
 const selectedScaleUniform = ref(1)
@@ -636,17 +644,6 @@ const autoRotateCmd = reactive({
 const DEMO_ROBOT_ID = 'demo-robot'
 let demoInfoBoxes: Object3D[] = []
 
-function runRotateToOnce(): void {
-  const id = selectedWidgetId.value
-  if (!id) return
-  const sb = storyboardRef.value as BaseStoryBoard | null
-  const model = sb?.getModelByName(id)
-  if (!model) return
-  model.setRotateSpeed(Number.isFinite(rotateCmd.speed) ? rotateCmd.speed : Math.PI)
-  // Editor 输入为“角度”，Model 内部使用“弧度”
-  model.rotateTo(new Vector3(degToRad(rotateCmd.x || 0), degToRad(rotateCmd.y || 0), degToRad(rotateCmd.z || 0)))
-}
-
 const moveCmd = reactive({
   x: 0,
   y: 0,
@@ -654,24 +651,80 @@ const moveCmd = reactive({
   speed: 1
 })
 
-function applyAutoRotateToSelected(): void {
-  const id = selectedWidgetId.value
-  if (!id) return
-  const sb = storyboardRef.value as BaseStoryBoard | null
-  const model = sb?.getModelByName(id)
-  if (!model) return
-  const axis = autoRotateCmd.axis
-  const axisVec = axis === 'x' ? new Vector3(1, 0, 0) : axis === 'y' ? new Vector3(0, 1, 0) : new Vector3(0, 0, 1)
-  model.setAutoRotateAxis(axisVec)
-  model.setAutoRotateSpeed(degToRad(autoRotateCmd.speedDeg || 0))
-  model.setAutoRotateEnabled(Boolean(autoRotateCmd.enabled))
+/** 右侧命令区：把 UI 点击事件转为 JSON，再由 CommandManager 执行对应逻辑 */
+const commandManager = new CommandManager()
 
-  setAutoRotateSettingsToCustom(id, {
-    enabled: Boolean(autoRotateCmd.enabled),
-    axis,
-    speedDeg: autoRotateCmd.speedDeg
-  })
+function executeCommand(req: { key: string; params?: unknown }): void {
+  commandManager.execute(req)
 }
+
+function toFiniteNumber(v: unknown, fallback: number): number {
+  const n = Number(v)
+  return Number.isFinite(n) ? n : fallback
+}
+
+commandManager.register('editor3d.rotateToOnce', (params?: unknown) => {
+  const p = (params ?? {}) as Record<string, unknown>
+  runRotateToOnceCommand({
+    selectedWidgetId: selectedWidgetId.value,
+    storyboard: storyboardRef.value as BaseStoryBoard | null,
+    rotateCmd: {
+      x: toFiniteNumber(p.x, 0),
+      y: toFiniteNumber(p.y, 0),
+      z: toFiniteNumber(p.z, 0),
+      speed: toFiniteNumber(p.speed, Math.PI)
+    }
+  })
+})
+
+commandManager.register('editor3d.moveToOnce', (params?: unknown) => {
+  const p = (params ?? {}) as Record<string, unknown>
+  runMoveToOnceCommand({
+    selectedWidgetId: selectedWidgetId.value,
+    storyboard: storyboardRef.value as BaseStoryBoard | null,
+    moveCmd: {
+      x: toFiniteNumber(p.x, 0),
+      y: toFiniteNumber(p.y, 0),
+      z: toFiniteNumber(p.z, 0),
+      speed: toFiniteNumber(p.speed, 1)
+    },
+    designCoord,
+    worldScale: worldScale.value
+  })
+})
+
+commandManager.register('editor3d.moveToAnchorOnce', (params?: unknown) => {
+  const p = (params ?? {}) as Record<string, unknown>
+  const anchorWidgetId = typeof p.anchorWidgetId === 'string' ? p.anchorWidgetId : null
+  runMoveToAnchorOnceCommand({
+    selectedWidgetId: selectedWidgetId.value,
+    anchorWidgetId,
+    storyboard: storyboardRef.value as BaseStoryBoard | null,
+    moveCmd: {
+      x: toFiniteNumber(p.x, 0),
+      y: toFiniteNumber(p.y, 0),
+      z: toFiniteNumber(p.z, 0),
+      speed: toFiniteNumber(p.speed, 1)
+    },
+    designCoord,
+    worldScale: worldScale.value
+  })
+})
+
+commandManager.register('editor3d.applyAutoRotateToSelected', (params?: unknown) => {
+  const p = (params ?? {}) as Record<string, unknown>
+  const axis = (p.axis === 'x' || p.axis === 'y' || p.axis === 'z' ? p.axis : 'y') as 'x' | 'y' | 'z'
+  applyAutoRotateToSelectedCommand({
+    selectedWidgetId: selectedWidgetId.value,
+    storyboard: storyboardRef.value as BaseStoryBoard | null,
+    autoRotateCmd: {
+      enabled: Boolean(p.enabled),
+      axis,
+      speedDeg: toFiniteNumber(p.speedDeg, 30)
+    },
+    setAutoRotateSettingsToCustom
+  })
+})
 
 function clearDemoInfoBoxes(): void {
   const sb = storyboardRef.value as BaseStoryBoard | null
@@ -756,21 +809,6 @@ async function createRobotDemoScene(): Promise<void> {
     sb.scene.add(css3d)
     sb.css3dManager.register(css3d)
     demoInfoBoxes.push(css3d)
-  }
-}
-
-function runMoveToOnce(): void {
-  const id = selectedWidgetId.value
-  if (!id) return
-  const sb = storyboardRef.value as BaseStoryBoard | null
-  const model = sb?.getModelByName(id)
-  if (!model) return
-  model.setMoveSpeed(Number.isFinite(moveCmd.speed) ? moveCmd.speed : 1)
-  if (designCoord.enabled) {
-    const xz = designInputToWorldXZ(moveCmd.x || 0, moveCmd.z || 0, designCoord.originX, designCoord.originY, worldScale.value)
-    model.moveTo(new Vector3(xz.x, moveCmd.y || 0, xz.z))
-  } else {
-    model.moveTo(new Vector3(moveCmd.x || 0, moveCmd.y || 0, moveCmd.z || 0))
   }
 }
 

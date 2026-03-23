@@ -255,12 +255,20 @@
             <span class="panelx-editor3d-size-label">自旋转</span>
             <div class="panelx-editor3d-size-inputs">
               <label class="panelx-editor3d-checkbox">
-                <input v-model="autoRotateCmd.enabled" type="checkbox" @change="applyAutoRotate()" />
+                <input
+                  v-model="autoRotateCmd.enabled"
+                  type="checkbox"
+                  @change="executeCommand({ key: 'editor3d.applyAutoRotateToSelected', params: { enabled: autoRotateCmd.enabled, axis: autoRotateCmd.axis, speedDeg: autoRotateCmd.speedDeg } })"
+                />
                 启用
               </label>
               <label>
                 轴
-                <select v-model="autoRotateCmd.axis" class="panelx-editor3d-props-value panelx-editor3d-props-select" @change="applyAutoRotate()">
+                <select
+                  v-model="autoRotateCmd.axis"
+                  class="panelx-editor3d-props-value panelx-editor3d-props-select"
+                  @change="executeCommand({ key: 'editor3d.applyAutoRotateToSelected', params: { enabled: autoRotateCmd.enabled, axis: autoRotateCmd.axis, speedDeg: autoRotateCmd.speedDeg } })"
+                >
                   <option value="x">X</option>
                   <option value="y">Y</option>
                   <option value="z">Z</option>
@@ -268,7 +276,12 @@
               </label>
               <label>
                 速度(度/秒)
-                <input v-model.number="autoRotateCmd.speedDeg" type="number" step="any" @change="applyAutoRotate()" />
+                <input
+                  v-model.number="autoRotateCmd.speedDeg"
+                  type="number"
+                  step="any"
+                  @change="executeCommand({ key: 'editor3d.applyAutoRotateToSelected', params: { enabled: autoRotateCmd.enabled, axis: autoRotateCmd.axis, speedDeg: autoRotateCmd.speedDeg } })"
+                />
               </label>
             </div>
           </div>
@@ -285,7 +298,13 @@
             <span class="panelx-editor3d-size-label">旋转速度 (弧度/秒)</span>
             <div class="panelx-editor3d-size-inputs">
               <label>S <input v-model.number="rotateCmd.speed" type="number" step="any" min="0" /></label>
-              <button type="button" class="panelx-editor3d-btn panelx-editor3d-btn-inline" @click="runRotateToOnce">执行一次</button>
+              <button
+                type="button"
+                class="panelx-editor3d-btn panelx-editor3d-btn-inline"
+                @click="executeCommand({ key: 'editor3d.rotateToOnce', params: { x: rotateCmd.x, y: rotateCmd.y, z: rotateCmd.z, speed: rotateCmd.speed } })"
+              >
+                执行一次
+              </button>
             </div>
           </div>
 
@@ -301,7 +320,38 @@
             <span class="panelx-editor3d-size-label">移动速度 (单位/秒)</span>
             <div class="panelx-editor3d-size-inputs">
               <label>S <input v-model.number="moveCmd.speed" type="number" step="any" min="0" /></label>
-              <button type="button" class="panelx-editor3d-btn panelx-editor3d-btn-inline" @click="runMoveToOnce">执行一次</button>
+              <button
+                type="button"
+                class="panelx-editor3d-btn panelx-editor3d-btn-inline"
+                @click="executeCommand({ key: 'editor3d.moveToOnce', params: { x: moveCmd.x, y: moveCmd.y, z: moveCmd.z, speed: moveCmd.speed } })"
+              >
+                执行一次
+              </button>
+            </div>
+          </div>
+
+          <div class="panelx-editor3d-pos-row">
+            <span class="panelx-editor3d-size-label">移动到锚点</span>
+            <div class="panelx-editor3d-size-inputs">
+              <label>
+                目标
+                <select
+                  v-model="anchorWidgetId"
+                  class="panelx-editor3d-props-value panelx-editor3d-props-select"
+                >
+                  <option :value="null">—</option>
+                  <option v-for="w in widgets3D" :key="w.id" :value="w.id">
+                    {{ (w.props as any)?.name ? (w.props as any).name : w.id }}
+                  </option>
+                </select>
+              </label>
+              <button
+                type="button"
+                class="panelx-editor3d-btn panelx-editor3d-btn-inline"
+                @click="executeCommand({ key: 'editor3d.moveToAnchorOnce', params: { anchorWidgetId, x: moveCmd.x, y: moveCmd.y, z: moveCmd.z, speed: moveCmd.speed } })"
+              >
+                移动
+              </button>
             </div>
           </div>
         </div>
@@ -324,11 +374,13 @@ const selectedRotation = defineModel<any>('selectedRotation', { required: true }
 const axisLock = defineModel<any>('axisLock', { required: true })
 const rotateCmd = defineModel<any>('rotateCmd', { required: true })
 const moveCmd = defineModel<any>('moveCmd', { required: true })
+const anchorWidgetId = defineModel<any>('anchorWidgetId', { required: true })
 const autoRotateCmd = defineModel<any>('autoRotateCmd', { required: true })
 const newPropKey = defineModel<any>('newPropKey', { required: true })
 const newPropValue = defineModel<any>('newPropValue', { required: true })
 
 defineProps({
+  widgets3D: { type: Array as PropType<any[]>, required: true },
   selectedWidgetSupportedProps: { type: Array as PropType<PropDefinition[]>, required: true },
   selectedWidgetCustomProps: { type: Object as PropType<Record<string, unknown>>, required: true },
   customOnlyPropEntries: { type: Array as PropType<Array<[string, string | number]>>, required: true },
@@ -343,9 +395,7 @@ defineProps({
   setCustomPropValue: { type: Function as PropType<(key: string, v: string) => void>, required: true },
   removeCustomProp: { type: Function as PropType<(key: string) => void>, required: true },
   addCustomProp: { type: Function as PropType<() => void>, required: true },
-  runRotateToOnce: { type: Function as PropType<() => void>, required: true },
-  runMoveToOnce: { type: Function as PropType<() => void>, required: true },
-  applyAutoRotate: { type: Function as PropType<() => void>, required: true }
+  executeCommand: { type: Function as PropType<(req: { key: string; params?: unknown }) => void>, required: true }
 })
 
 function toColorInputValue(v: unknown, fallback = '#38bdf8'): string {

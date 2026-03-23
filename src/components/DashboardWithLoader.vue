@@ -22,7 +22,7 @@
       </div>
     </template>
     <div v-else class="panelx-dashboard-with-loader-wrap">
-      <Dashboard :config="runtimeConfig" :datasources="editorDatasources" />
+      <Dashboard ref="dashboardRef" :config="runtimeConfig" :datasources="editorDatasources" />
     </div>
   </div>
 </template>
@@ -34,6 +34,7 @@ import { convertDashboardConfigPxToPercent } from '../core/size'
 import { setDebugFromConfig } from '../utils/logManager'
 import type { DashboardConfig } from '../types/dashboard'
 import type { DataSourceConfig } from '../types/comm'
+import type { CommandRequest } from '../utils/CommandManager'
 
 const props = withDefaults(
   defineProps<{
@@ -69,6 +70,8 @@ const dashboardConfig = ref<DashboardConfig>({
   design: { width: 1920, height: 1080 },
   widgets2D: []
 })
+
+const dashboardRef = ref<any>(null)
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
 
@@ -142,7 +145,8 @@ const runtimeConfig = computed(() =>
 defineExpose({
   loadWorkshopConfig,
   configLoaded,
-  applyConfig
+  applyConfig,
+  executeCommand: (req: CommandRequest) => dashboardRef.value?.executeCommand?.(req)
 })
 </script>
 

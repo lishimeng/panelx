@@ -17,6 +17,7 @@
       <Scene3DFramework
         v-else-if="effectiveBackgroundLayer.type === 'scene3d'"
         :config="effectiveBackgroundLayer.config"
+        ref="scene3dBgRef"
         class="panelx-dashboard-bg-scene3d"
       />
     </div>
@@ -63,7 +64,10 @@ import { dataChainLog } from '../core/comm/dataChainLog'
 import Scene3DFramework from './Scene3DFramework.vue'
 import { getWidgetComponent } from '../widgets'
 import { widgets3DToScene3DConfig } from '../utils/widgets3DToScene3D'
+import type { CommandRequest } from '../utils/CommandManager'
 import type { BackgroundLayerConfig } from '../types/dashboard'
+
+const scene3dBgRef = ref<any>(null)
 
 const props = defineProps<{
   config: DashboardConfig
@@ -388,6 +392,14 @@ onUnmounted(() => {
   dataSourceInstances.value.clear()
   ro?.disconnect()
   roParent?.disconnect()
+})
+
+function executeCommand(req: CommandRequest): void {
+  scene3dBgRef.value?.executeCommand?.(req)
+}
+
+defineExpose({
+  executeCommand
 })
 </script>
 
