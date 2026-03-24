@@ -1,16 +1,9 @@
 import type { PropertyRequest } from '../types'
 import type { Model } from '../framework'
+import { degToRad } from './angle'
+import { toFiniteNumber, toPositiveNumber } from './number'
 
 type ModelGetter = (id: string) => Model | null | undefined
-
-function toFiniteNumber(v: unknown, fallback: number): number {
-  const n = Number(v)
-  return Number.isFinite(n) ? n : fallback
-}
-
-function degToRad(deg: number): number {
-  return (deg * Math.PI) / 180
-}
 
 export function create3DPropertyHandlers(getModelById: ModelGetter): {
   propUpdate: (req: PropertyRequest) => void
@@ -54,9 +47,9 @@ export function create3DPropertyHandlers(getModelById: ModelGetter): {
     const model = getModelById(req.id)
     if (!model?.scene) return
 
-    const s = Number(p.scale)
-    if (Number.isFinite(s) && s > 0) {
-      model.scene.scale.setScalar(s)
+    const scalar = toPositiveNumber(p.scale, -1)
+    if (scalar > 0) {
+      model.scene.scale.setScalar(scalar)
       return
     }
     model.scene.scale.set(

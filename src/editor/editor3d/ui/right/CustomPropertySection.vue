@@ -72,6 +72,7 @@
 <script setup lang="ts">
 import type { PropType } from 'vue'
 import type { PropDefinition } from '../../../../framework'
+import { normalizeHexColor } from '../../../../utils/color'
 
 type RightGroups = { propsOpen: boolean }
 
@@ -88,12 +89,6 @@ defineProps({
   onAddCustomProp: { type: Function as PropType<() => void>, required: true }
 })
 
-function toColorInputValue(v: unknown, fallback = '#38bdf8'): string {
-  const s = typeof v === 'string' ? v.trim() : ''
-  if (/^#[0-9a-fA-F]{6}$/.test(s)) return s
-  const noHash = s.startsWith('#') ? s.slice(1) : s
-  if (/^[0-9a-fA-F]{6}$/.test(noHash)) return `#${noHash}`
-  return fallback
-}
+const toColorInputValue = normalizeHexColor
 </script>
 

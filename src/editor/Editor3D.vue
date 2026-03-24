@@ -115,18 +115,14 @@ import { reactive, computed, ref, watch, onMounted, onUnmounted, nextTick } from
 import LeftSidebar from './editor3d/ui/LeftSidebar.vue'
 import MainArea from './editor3d/ui/MainArea.vue'
 import RightSidebar from './editor3d/ui/RightSidebar.vue'
-import { LayerDef, modelRegistry, ORTHOGRAPHIC_FRUSTUM_SCALE, setup3D } from '../framework'
+import { LayerDef, modelRegistry, setup3D } from '../framework'
 import type { DashboardConfig, WidgetConfig3D, Scene3DCameraLayerItem } from '../types/dashboard'
 import type { PropDefinition } from '../framework'
 import type { Loader } from '../framework'
-import type { World } from '../framework'
 import { Object3D, OrthographicCamera, Vector3 } from 'three'
 import { BaseStoryBoard } from '../framework/storyboard/BaseStoryBoard'
-import { ControlsStoryBoard } from '../framework/storyboard/ControlsStoryBoard'
 import type { StoryBoard } from '../framework'
 import type { Model } from '../framework'
-import { ModelLoadable } from '../framework/model/ModelLoadable'
-import { SimpleModel } from '../framework/model/SimpleModel'
 import { designInputToWorldXZ, worldXZToDesignInput } from '../utils/coord3d'
 import { useModelTypesByGroup } from './editor3d/useModelTypesByGroup'
 import { useViewportLayout } from './editor3d/useViewportLayout'
@@ -134,6 +130,12 @@ import { saveEditor3DDraft } from '../utils/editor3dDraft'
 import { useEditor3DManagers } from './editor3d/useEditor3DManagers'
 import { useEditor3DDemoScene } from './editor3d/useEditor3DDemoScene'
 import { useEditor3DDragDrop } from './editor3d/useEditor3DDragDrop'
+import { useEditor3DSelectionTransform } from './editor3d/useEditor3DSelectionTransform'
+import { useEditor3DSceneBinding } from './editor3d/useEditor3DSceneBinding'
+import { useEditor3DCustomProps } from './editor3d/useEditor3DCustomProps'
+import { degToRad } from '../utils/angle'
+import { normalizeHexColor } from '../utils/color'
+import { clamp01, percentToOpacityUnit, toFiniteNumber, toPositiveNumber } from '../utils/number'
 
 /** 预设模型列表（由 examples 等注入），在侧栏「可用模型」中展示 */
 defineProps<{
@@ -295,14 +297,27 @@ const pendingTransforms = new Map<
 >()
 /** widget id -> 已加入场景的 Object3D（用于删除时从 scene 移除） */
 const addedModelNodes = new Map<string, Object3D>()
-
-const selectedWidgetId = ref<string | null>(null)
-const anchorWidgetId = ref<string | null>(null)
-const selectedPosition = reactive<{ x: number; y: number; z: number }>({ x: 0, y: 0, z: 0 })
-const selectedScale = reactive<{ x: number; y: number; z: number }>({ x: 1, y: 1, z: 1 })
-const selectedScaleUniform = ref(1)
-const selectedRotation = reactive<{ x: number; y: number; z: number }>({ x: 0, y: 0, z: 0 })
-const axisLock = reactive<{ x: boolean; y: boolean; z: boolean }>({ x: false, y: false, z: false })
+const {
+  selectedWidgetId,
+  anchorWidgetId,
+  selectedPosition,
+  selectedScale,
+  selectedScaleUniform,
+  selectedRotation,
+  axisLock,
+  onSelectWidget,
+  onPositionInputChange,
+  onScaleUniformChange,
+  onScaleAxisChange,
+  onRotationAxisChange
+} = useEditor3DSelectionTransform({
+  config,
+  storyboardRef,
+  addedModelNodes,
+  pendingTransforms,
+  designCoord,
+  worldScale
+})
 
 const selectedWidgetName = computed<string>({
   get() {
@@ -324,6 +339,7 @@ const selectedWidgetName = computed<string>({
   }
 })
 
+/** 实例显示名：优先 props.name，回退到 widget.id。 */
 function getWidgetDisplayName(w: WidgetConfig3D): string {
   const name = (w.props as Record<string, unknown> | undefined)?.name
   if (typeof name === 'string' && name.trim() !== '') return name.trim()
@@ -361,40 +377,34 @@ const AUTO_ROTATE_ENABLED_KEY = 'autoRotateEnabled'
 const AUTO_ROTATE_AXIS_KEY = 'autoRotateAxis' // 'x'|'y'|'z'
 const AUTO_ROTATE_SPEED_DEG_KEY = 'autoRotateSpeedDeg' // 度/秒（editor UI 单位）
 
-function toHexColorString(v: unknown, fallback = '#38bdf8'): string {
-  if (typeof v !== 'string') return fallback
-  const s = v.trim()
-  if (/^#[0-9a-fA-F]{6}$/.test(s)) return s
-  if (/^[0-9a-fA-F]{6}$/.test(s)) return `#${s}`
-  return fallback
-}
-
+/** 根据 id 查找 widgets3D 中的实例配置。 */
 function getWidgetById(id: string): WidgetConfig3D | undefined {
   return config.widgets3D?.find((w) => w.id === id)
 }
 
+/** 读取并归一化遮罩配置（颜色/透明度/半径）。 */
 function getMaskSettings(id: string): { color: string; opacity: number; radiusWorld: number } {
   const w = getWidgetById(id)
   const custom = (w?.props as Record<string, unknown> | undefined)?.[CUSTOM_PROPS_KEY] as Record<string, unknown> | undefined
-  const color = toHexColorString(custom?.[MASK_COLOR_KEY], '#38bdf8')
+  const color = normalizeHexColor(custom?.[MASK_COLOR_KEY], '#38bdf8')
   const op = Number(custom?.[MASK_OPACITY_KEY])
-  const opacity = Number.isFinite(op) ? Math.min(1, Math.max(0, op)) : 1
-  const r = Number(custom?.[MASK_RADIUS_KEY])
-  const radiusWorld = Number.isFinite(r) && r > 0 ? r : 3
+  const opacity = Number.isFinite(op) ? clamp01(op) : 1
+  const radiusWorld = toPositiveNumber(custom?.[MASK_RADIUS_KEY], 3)
   return { color, opacity, radiusWorld }
 }
 
+/** 读取并归一化自旋转配置（enabled/axis/speedDeg）。 */
 function getAutoRotateSettings(id: string): { enabled: boolean; axis: 'x' | 'y' | 'z'; speedDeg: number } {
   const w = getWidgetById(id)
   const custom = (w?.props as Record<string, unknown> | undefined)?.[CUSTOM_PROPS_KEY] as Record<string, unknown> | undefined
   const enabled = Boolean(custom?.[AUTO_ROTATE_ENABLED_KEY])
   const axisRaw = custom?.[AUTO_ROTATE_AXIS_KEY]
   const axis = axisRaw === 'x' || axisRaw === 'y' || axisRaw === 'z' ? axisRaw : ('y' as const)
-  const speedDegRaw = Number(custom?.[AUTO_ROTATE_SPEED_DEG_KEY])
-  const speedDeg = Number.isFinite(speedDegRaw) ? speedDegRaw : 30
+  const speedDeg = toFiniteNumber(custom?.[AUTO_ROTATE_SPEED_DEG_KEY], 30)
   return { enabled, axis, speedDeg }
 }
 
+/** 将自旋转配置持久化到 widget.props.custom。 */
 function setAutoRotateSettingsToCustom(id: string, next: { enabled?: boolean; axis?: 'x' | 'y' | 'z'; speedDeg?: number }): void {
   const w = getWidgetById(id)
   if (!w) return
@@ -407,6 +417,7 @@ function setAutoRotateSettingsToCustom(id: string, next: { enabled?: boolean; ax
   if (next.speedDeg != null && Number.isFinite(next.speedDeg)) custom[AUTO_ROTATE_SPEED_DEG_KEY] = next.speedDeg
 }
 
+/** 将遮罩配置持久化到 widget.props.custom。 */
 function setMaskSettingsToCustom(id: string, next: { color?: string; opacity?: number; radiusWorld?: number }): void {
   const w = getWidgetById(id)
   if (!w) return
@@ -414,11 +425,15 @@ function setMaskSettingsToCustom(id: string, next: { color?: string; opacity?: n
   const props = w.props as Record<string, unknown>
   if (typeof props[CUSTOM_PROPS_KEY] !== 'object' || props[CUSTOM_PROPS_KEY] === null) props[CUSTOM_PROPS_KEY] = {}
   const custom = props[CUSTOM_PROPS_KEY] as Record<string, unknown>
-  if (next.color != null) custom[MASK_COLOR_KEY] = toHexColorString(next.color)
-  if (next.opacity != null && Number.isFinite(next.opacity)) custom[MASK_OPACITY_KEY] = Math.min(1, Math.max(0, next.opacity))
-  if (next.radiusWorld != null && Number.isFinite(next.radiusWorld) && next.radiusWorld > 0) custom[MASK_RADIUS_KEY] = next.radiusWorld
+  if (next.color != null) custom[MASK_COLOR_KEY] = normalizeHexColor(next.color)
+  if (next.opacity != null && Number.isFinite(next.opacity)) custom[MASK_OPACITY_KEY] = clamp01(next.opacity)
+  if (next.radiusWorld != null) {
+    const radiusWorld = toPositiveNumber(next.radiusWorld, -1)
+    if (radiusWorld > 0) custom[MASK_RADIUS_KEY] = radiusWorld
+  }
 }
 
+/** 把当前遮罩配置应用到对应模型实例。 */
 function applyMaskToModel(id: string, opts: { selected: boolean }): void {
   const sb = storyboardRef.value as BaseStoryBoard | null
   const model = sb?.getModelByName(id)
@@ -445,6 +460,7 @@ watch(
   }
 )
 
+/** 右侧遮罩颜色输入回调。 */
 function onMaskColorInput(v: string): void {
   const id = selectedWidgetId.value
   if (!id) return
@@ -452,26 +468,29 @@ function onMaskColorInput(v: string): void {
   applyMaskToModel(id, { selected: true })
 }
 
+/** 右侧遮罩透明度输入回调（百分比）。 */
 function onMaskOpacityInput(percent: number): void {
   const id = selectedWidgetId.value
   if (!id) return
   const p = Number(percent)
-  const opacity = Number.isFinite(p) ? Math.min(1, Math.max(0, p / 100)) : 1
+  const opacity = percentToOpacityUnit(p, 1)
   setMaskSettingsToCustom(id, { opacity })
   applyMaskToModel(id, { selected: true })
 }
 
+/** 右侧遮罩半径输入回调（world 单位）。 */
 function onMaskRadiusInput(radiusWorld: number): void {
   const id = selectedWidgetId.value
   if (!id) return
-  const r = Number(radiusWorld)
-  if (!Number.isFinite(r) || r <= 0) return
+  const r = toPositiveNumber(radiusWorld, -1)
+  if (r <= 0) return
   setMaskSettingsToCustom(id, { radiusWorld: r })
   applyMaskToModel(id, { selected: true })
 }
 
 const importInputRef = ref<HTMLInputElement | null>(null)
 
+/** 打开导入文件对话框。 */
 function triggerImportConfig(): void {
   importInputRef.value?.click()
 }
@@ -627,6 +646,7 @@ const moveCmd = reactive({
   z: 0,
   speed: 1
 })
+/** 通过 model id 获取 storyboard 中的实例（非 store clone）。 */
 function getEditorModelById(id: string): Model | null {
   const sb = storyboardRef.value as BaseStoryBoard | null
   if (!sb) return null
@@ -642,9 +662,9 @@ const {
 } = useEditor3DManagers({
   getModelById: getEditorModelById,
   mapMoveParamsToWorld: (params) => {
-    const x = Number.isFinite(Number(params.x)) ? Number(params.x) : 0
-    const y = Number.isFinite(Number(params.y)) ? Number(params.y) : 0
-    const z = Number.isFinite(Number(params.z)) ? Number(params.z) : 0
+    const x = toFiniteNumber(params.x, 0)
+    const y = toFiniteNumber(params.y, 0)
+    const z = toFiniteNumber(params.z, 0)
     if (!designCoord.enabled) return new Vector3(x, y, z)
     const xz = designInputToWorldXZ(x, z, designCoord.originX, designCoord.originY, worldScale.value)
     return new Vector3(xz.x, y, xz.z)
@@ -667,30 +687,6 @@ const {
   }
 })
 
-const { createRobotDemoScene, clearDemoInfoBoxes } = useEditor3DDemoScene({
-  getStoryboard: () => (storyboardRef.value as BaseStoryBoard | null),
-  widgets3D: () => config.widgets3D,
-  ensureWidgets3D: () => {
-    if (!config.widgets3D) config.widgets3D = []
-    return config.widgets3D
-  },
-  addWidgetModelToScene,
-  onSelectWidget
-})
-
-/** 当前选中 widget 的 custom 对象（用于右侧栏 Props 配置），保证存在且可写 */
-const selectedWidgetCustomProps = computed(() => {
-  const id = selectedWidgetId.value
-  if (!id) return {}
-  const w = config.widgets3D?.find((item) => item.id === id)
-  if (!w) return {}
-  if (!w.props) w.props = {}
-  if (typeof (w.props as Record<string, unknown>)[CUSTOM_PROPS_KEY] !== 'object' || (w.props as Record<string, unknown>)[CUSTOM_PROPS_KEY] === null) {
-    (w.props as Record<string, unknown>)[CUSTOM_PROPS_KEY] = {}
-  }
-  return (w.props as Record<string, unknown>)[CUSTOM_PROPS_KEY] as Record<string, string | number>
-})
-
 /** 当前选中模型类型支持的 prop 列表（注册时配置），有 enum 的用下拉，无则自由输入 */
 const selectedWidgetSupportedProps = computed((): PropDefinition[] => {
   const id = selectedWidgetId.value
@@ -702,19 +698,62 @@ const selectedWidgetSupportedProps = computed((): PropDefinition[] => {
   return def?.supportedProps ?? []
 })
 
-/** 仅「非支持列表」中的 custom 键值，用于「其他属性」展示与编辑 */
-const customOnlyPropEntries = computed(() => {
-  const supportedKeys = new Set(selectedWidgetSupportedProps.value.map((p) => p.key))
-  return Object.entries(selectedWidgetCustomProps.value).filter(([k]) => !supportedKeys.has(k))
+const {
+  selectedWidgetCustomProps,
+  customOnlyPropEntries,
+  newPropKey,
+  newPropValue,
+  addCustomProp,
+  setCustomPropValue,
+  removeCustomProp
+} = useEditor3DCustomProps({
+  config,
+  selectedWidgetId,
+  storyboardRef,
+  customPropsKey: CUSTOM_PROPS_KEY,
+  selectedWidgetSupportedProps
 })
 
-const newPropKey = ref('')
-const newPropValue = ref('')
+/** 度转弧度。 */
+const { addWidgetModelToScene, onFrameworkLoaded } = useEditor3DSceneBinding({
+  loaderRef,
+  worldRef,
+  storyboardRef,
+  addedModelNames,
+  pendingTransforms,
+  addedModelNodes,
+  sceneWorldSize,
+  sceneLights,
+  designSize3D,
+  bloomStrength,
+  bloomRadius,
+  bloomThreshold,
+  customPropsKey: CUSTOM_PROPS_KEY,
+  maskColorKey: MASK_COLOR_KEY,
+  maskOpacityKey: MASK_OPACITY_KEY,
+  maskRadiusKey: MASK_RADIUS_KEY,
+  autoRotateEnabledKey: AUTO_ROTATE_ENABLED_KEY,
+  autoRotateAxisKey: AUTO_ROTATE_AXIS_KEY,
+  autoRotateSpeedDegKey: AUTO_ROTATE_SPEED_DEG_KEY,
+  getAutoRotateSettings,
+  normalizeLayerValues,
+  applyLayersToObject,
+  degToRad,
+  applyCameraLayers
+})
 
-function degToRad(deg: number): number {
-  return (deg * Math.PI) / 180
-}
+const { createRobotDemoScene, clearDemoInfoBoxes } = useEditor3DDemoScene({
+  getStoryboard: () => (storyboardRef.value as BaseStoryBoard | null),
+  widgets3D: () => config.widgets3D,
+  ensureWidgets3D: () => {
+    if (!config.widgets3D) config.widgets3D = []
+    return config.widgets3D
+  },
+  addWidgetModelToScene,
+  onSelectWidget
+})
 
+/** 归一化 layer 输入，过滤非法值并保证有默认层。 */
 function normalizeLayerValues(layer: unknown): number[] {
   const valid = new Set(LayerDef.getAllLayers())
   const src = Array.isArray(layer) ? layer : [layer]
@@ -727,6 +766,7 @@ function normalizeLayerValues(layer: unknown): number[] {
   return uniq.length ? uniq : [LayerDef.default]
 }
 
+/** 将 layer 集合应用到对象及其子对象。 */
 function applyLayersToObject(obj: Object3D, values: number[]): void {
   const first = values[0] ?? LayerDef.default
   obj.traverse((child) => {
@@ -738,39 +778,6 @@ function applyLayersToObject(obj: Object3D, values: number[]): void {
 /** 主区域是否处于拖拽悬停 */
 const isDragOver = ref(false)
 
-function onSelectWidget(w: WidgetConfig3D): void {
-  selectedWidgetId.value = w.id
-  const pos = (w.props?.position as [number, number, number] | undefined) ?? [0, 0, 0]
-  if (designCoord.enabled) {
-    const ui = worldXZToDesignInput(pos[0] ?? 0, pos[2] ?? 0, designCoord.originX, designCoord.originY, worldScale.value)
-    selectedPosition.x = ui.x
-    selectedPosition.z = ui.y
-  } else {
-    selectedPosition.x = pos[0] ?? 0
-    selectedPosition.z = pos[2] ?? 0
-  }
-  selectedPosition.y = pos[1] ?? 0
-  const rawScale = (w.props?.scale as unknown) ?? 1
-  let sx = 1
-  let sy = 1
-  let sz = 1
-  if (Array.isArray(rawScale)) {
-    sx = Number(rawScale[0]) || 1
-    sy = Number(rawScale[1]) || 1
-    sz = Number(rawScale[2]) || 1
-  } else if (typeof rawScale === 'number') {
-    sx = sy = sz = Number.isFinite(rawScale) && rawScale > 0 ? rawScale : 1
-  }
-  selectedScale.x = sx
-  selectedScale.y = sy
-  selectedScale.z = sz
-  selectedScaleUniform.value = sx
-
-  const rot = (w.props?.rotation as [number, number, number] | undefined) ?? [0, 0, 0]
-  selectedRotation.x = rot[0] ?? 0
-  selectedRotation.y = rot[1] ?? 0
-  selectedRotation.z = rot[2] ?? 0
-}
 
 const {
   pendingDrop,
@@ -794,187 +801,10 @@ const {
   addWidgetModelToScene
 })
 
+/** 主区域 drop 包装：先清理拖拽态，再委托到 drag-drop composable。 */
 function onDrop(e: DragEvent) {
   isDragOver.value = false
   onDropInternal(e)
-}
-
-/** 解析为绝对 URL，避免请求落到 SPA 路由返回 index.html（导致 GLTFLoader 报 "Unexpected token '<'"） */
-function resolveModelUrl(source: string | undefined): string | undefined {
-  if (source == null || source === '') return undefined
-  if (source.startsWith('http://') || source.startsWith('https://')) return source
-  const base = (import.meta as unknown as { env?: { BASE_URL?: string } }).env?.BASE_URL ?? '/'
-  const path = source.startsWith('/') ? source.slice(1) : source
-  const fullPath = base.endsWith('/') ? base + path : base + '/' + path
-  try {
-    return new URL(fullPath, window.location.origin).href
-  } catch {
-    return undefined
-  }
-}
-
-/** gltf/fbx/simple 不进入模型注册表，由此处直接创建；其余类型走注册表 */
-function createModelByTypeId(typeId: string, name: string, source?: string): Model | null {
-  if (typeId === 'gltf') return new ModelLoadable(name, 'gltf', source ?? '') as unknown as Model
-  if (typeId === 'fbx') return new ModelLoadable(name, 'fbx', source ?? '') as unknown as Model
-  if (typeId === 'simple') return new SimpleModel(name) as unknown as Model
-  return modelRegistry.createModel(typeId, { name, source })
-}
-
-function addWidgetModelToScene(w: WidgetConfig3D): void {
-  const loader = loaderRef.value
-  const sb = storyboardRef.value
-  if (!loader || !sb) return
-
-  const props = (w.props ?? {}) as Record<string, unknown>
-  const typeId = String(props.typeId ?? '')
-  if (!typeId) return
-
-  const rawSource = props.source != null ? String(props.source) : undefined
-  const source = resolveModelUrl(rawSource)
-  if ((typeId === 'gltf' || typeId === 'fbx') && !source) return
-  const modelName = w.id
-  const model = createModelByTypeId(typeId, modelName, source)
-  if (!model) return
-  model.layer = normalizeLayerValues(w.layer)
-
-  // 初始化同步 custom props（让新建实例就能体现配置）
-  const custom = props[CUSTOM_PROPS_KEY]
-  if (custom && typeof custom === 'object') {
-    for (const [k, v] of Object.entries(custom as Record<string, unknown>)) {
-      // 自旋转/遮罩等“引擎级状态”由 setAutoRotate/Mask 在运行时直接生效
-      if (k === MASK_COLOR_KEY || k === MASK_OPACITY_KEY || k === MASK_RADIUS_KEY) continue
-      if (k === AUTO_ROTATE_ENABLED_KEY || k === AUTO_ROTATE_AXIS_KEY || k === AUTO_ROTATE_SPEED_DEG_KEY) continue
-      try {
-        model.propUpdate(k, v)
-      } catch {
-        // ignore
-      }
-    }
-  }
-
-  // 自旋转：从配置读取并写入 Model（保证导入配置后也能立即生效）
-  const ar = getAutoRotateSettings(w.id)
-  const axisVec = ar.axis === 'x' ? new Vector3(1, 0, 0) : ar.axis === 'y' ? new Vector3(0, 1, 0) : new Vector3(0, 0, 1)
-  model.setAutoRotateAxis(axisVec)
-  model.setAutoRotateSpeed(degToRad(ar.speedDeg || 0))
-  model.setAutoRotateEnabled(Boolean(ar.enabled))
-
-  const pos = (props.position as [number, number, number] | undefined) ?? [0, 0, 0]
-  const rawScale = props.scale
-  const rawRotation = (props.rotation as [number, number, number] | undefined) ?? [0, 0, 0]
-  let sx = 1
-  let sy = 1
-  let sz = 1
-  if (Array.isArray(rawScale)) {
-    sx = Number(rawScale[0]) || 1
-    sy = Number(rawScale[1]) || 1
-    sz = Number(rawScale[2]) || 1
-  } else if (typeof rawScale === 'number') {
-    const v = Number.isFinite(rawScale) && rawScale > 0 ? rawScale : 1
-    sx = sy = sz = v
-  }
-  pendingTransforms.set(modelName, {
-    position: [pos[0] ?? 0, pos[1] ?? 0, pos[2] ?? 0],
-    scale: [sx, sy, sz],
-    rotation: [
-      Number(rawRotation[0]) || 0,
-      Number(rawRotation[1]) || 0,
-      Number(rawRotation[2]) || 0
-    ]
-  })
-
-  loader.getStore().addModel(modelName, model as unknown as Model)
-  if (model instanceof ModelLoadable) {
-    // 需要异步加载资源的模型（gltf/fbx 等），交给 Loader，加载完成后在 onFrameworkLoaded 中统一加入场景
-    loader.load(model as unknown as Model)
-  } else {
-    // 内置/简单模型（如坐标轴）已经有 scene，直接同步加入当前 storyboard
-    const tf = pendingTransforms.get(modelName)
-    const inst = model as unknown as Model
-    const isCss3d = Boolean((inst as unknown as { isCss3d?: boolean }).isCss3d)
-    // InfoBoxModel 内部的 CSS3DObject 已经设置了默认 scale(0.01)，这里不要再乘一层 0.01
-    const cssScaleMul = isCss3d ? 1 : 1
-    if (inst.scene && tf) {
-      inst.scene.position.set(tf.position[0], tf.position[1], tf.position[2])
-      // InfoBoxModel 内部的 CSS3DObject 已有默认 scale（0.01）
-      // 此处用相对缩放，避免把默认值覆盖为 1
-      inst.scene.scale.multiply(new Vector3(tf.scale[0] * cssScaleMul, tf.scale[1] * cssScaleMul, tf.scale[2] * cssScaleMul))
-      inst.scene.rotation.set(degToRad(tf.rotation[0]), degToRad(tf.rotation[1]), degToRad(tf.rotation[2]))
-      applyLayersToObject(inst.scene, model.layer)
-    }
-    ;(sb as BaseStoryBoard).addModel(inst)
-    addedModelNames.add(modelName)
-    if (inst.scene) {
-      addedModelNodes.set(modelName, inst.scene as unknown as Object3D)
-    }
-  }
-}
-
-function onFrameworkLoaded(loader: Loader, world: World): void {
-  loaderRef.value = loader
-  worldRef.value = world
-  // 默认收敛参数：仅高亮 emissive（如叶轮）触发明显 bloom，避免整体过曝
-  world.setBloom(true, { strength: bloomStrength.value, radius: bloomRadius.value, threshold: bloomThreshold.value })
-
-  if (!storyboardRef.value) {
-    const wp = worldRef.value?.getSize() ?? { x: 0, y: 0 }
-    const aspect =
-      wp.y > 0
-        ? wp.x / wp.y
-        : designSize3D.height > 0
-          ? designSize3D.width / designSize3D.height
-          : 1
-    // 先用当前 worldSize.y 推出正交相机可视高度，之后会由 applyOrthographicByWorldSize() 实时更新
-    const worldH = Math.max(0.0001, sceneWorldSize.value.y)
-    const halfH = (worldH / 2) * ORTHOGRAPHIC_FRUSTUM_SCALE
-    const cam = new OrthographicCamera(
-      -halfH * aspect,
-      halfH * aspect,
-      halfH,
-      -halfH,
-      0.1,
-      1000
-    )
-    cam.position.set(6, 6, 6)
-    const sb = new ControlsStoryBoard('Editor3D', cam, {
-      background: null,
-      orthographicSize: halfH,
-      lights: {
-        ambient: sceneLights.ambient,
-        hemisphere: sceneLights.hemisphere,
-        point: sceneLights.point
-      }
-    })
-    sb.enableControls(world.getRendererDom())
-    if (sb.controls) {
-      sb.controls.target.set(0, 0, 0)
-      sb.controls.enableDamping = true
-      sb.controls.dampingFactor = 0.05
-    }
-    storyboardRef.value = sb
-    applyCameraLayers()
-    world.sceneTo(sb)
-    nextTick(() => world.notifyResize())
-  }
-
-  // 将已加载的模型加入 storyBoard（避免重复加入）
-  const sb = storyboardRef.value
-  if (!sb) return
-  for (const [name] of loader.getStore().getModels().entries()) {
-    if (addedModelNames.has(name)) continue
-    const inst = loader.getStore().getModel(name)
-    if (!inst || !inst.scene) continue
-    const tf = pendingTransforms.get(name)
-    if (tf) {
-      inst.scene.position.set(tf.position[0], tf.position[1], tf.position[2])
-      inst.scene.scale.set(tf.scale[0], tf.scale[1], tf.scale[2])
-      inst.scene.rotation.set(degToRad(tf.rotation[0]), degToRad(tf.rotation[1]), degToRad(tf.rotation[2]))
-    }
-    ;(sb as BaseStoryBoard).addModel(inst as unknown as Model)
-    addedModelNames.add(name)
-    addedModelNodes.set(name, inst.scene!)
-  }
 }
 
 /** 从主区域删除模型实例：从配置与场景中移除 */
@@ -997,6 +827,7 @@ function deleteWidget(w: WidgetConfig3D): void {
   }
 }
 
+/** 克隆当前实例配置并立即加入场景。 */
 function cloneWidget(source: WidgetConfig3D): void {
   const props = (source.props ? { ...(source.props as Record<string, unknown>) } : {}) as Record<string, unknown>
   const typeId = String(props.typeId ?? '')
@@ -1021,114 +852,8 @@ function cloneWidget(source: WidgetConfig3D): void {
   onSelectWidget(w)
 }
 
-function onPositionInputChange(axis: 'x' | 'y' | 'z'): void {
-  const id = selectedWidgetId.value
-  if (!id) return
-  if (axisLock[axis]) return
-  const arr = config.widgets3D
-  const w = arr?.find((item) => item.id === id)
-  if (!w) return
-  if (!w.props) w.props = {}
-  const pos = (w.props.position as [number, number, number] | undefined) ?? [0, 0, 0]
-  const currentWorld: [number, number, number] = [pos[0] ?? 0, pos[1] ?? 0, pos[2] ?? 0]
 
-  let nextWorld: [number, number, number] = [...currentWorld] as [number, number, number]
-  if (designCoord.enabled) {
-    // X/Z 输入按“设计坐标系”解释：先换算到 3D 设计坐标，再按比例尺得到 world
-    const xz = designInputToWorldXZ(Number(selectedPosition.x) || 0, Number(selectedPosition.z) || 0, designCoord.originX, designCoord.originY, worldScale.value)
-    nextWorld = [xz.x, Number(selectedPosition.y) || 0, xz.z]
-  } else {
-    const idx = axis === 'x' ? 0 : axis === 'y' ? 1 : 2
-    const value = axis === 'x' ? selectedPosition.x : axis === 'y' ? selectedPosition.y : selectedPosition.z
-    nextWorld[idx] = Number(value) || 0
-  }
-
-  w.props.position = nextWorld
-  const obj = addedModelNodes.get(id)
-  if (obj) {
-    obj.position.set(nextWorld[0], nextWorld[1], nextWorld[2])
-  }
-}
-
-function updateSelectedWidgetScale(scaleVec: [number, number, number]): void {
-  const id = selectedWidgetId.value
-  if (!id) return
-  const arr = config.widgets3D
-  const w = arr?.find((item) => item.id === id)
-  if (!w) return
-  if (!w.props) w.props = {}
-  w.props.scale = scaleVec
-  const obj = addedModelNodes.get(id)
-  if (obj) {
-    const sb = storyboardRef.value as BaseStoryBoard | null
-    const model = sb?.getModelByName(id) as unknown as { isCss3d?: boolean } | undefined
-    const mul = model?.isCss3d ? 0.01 : 1
-    obj.scale.set(scaleVec[0] * mul, scaleVec[1] * mul, scaleVec[2] * mul)
-  }
-  const tf = pendingTransforms.get(id)
-  if (tf) {
-    tf.scale = scaleVec
-  }
-}
-
-function onScaleUniformChange(): void {
-  const v = Number(selectedScaleUniform.value)
-  const s = Number.isFinite(v) && v > 0 ? v : 1
-  selectedScale.x = s
-  selectedScale.y = s
-  selectedScale.z = s
-  selectedScaleUniform.value = s
-  updateSelectedWidgetScale([s, s, s])
-}
-
-function onScaleAxisChange(axis: 'x' | 'y' | 'z'): void {
-  const sx = Number(selectedScale.x) || 1
-  const sy = Number(selectedScale.y) || 1
-  const sz = Number(selectedScale.z) || 1
-  const vec: [number, number, number] = [sx, sy, sz]
-  if (axis === 'x') {
-    vec[0] = sx
-  } else if (axis === 'y') {
-    vec[1] = sy
-  } else {
-    vec[2] = sz
-  }
-  updateSelectedWidgetScale(vec)
-}
-
-function updateSelectedWidgetRotation(rotVec: [number, number, number]): void {
-  const id = selectedWidgetId.value
-  if (!id) return
-  const arr = config.widgets3D
-  const w = arr?.find((item) => item.id === id)
-  if (!w) return
-  if (!w.props) w.props = {}
-  w.props.rotation = rotVec
-  const obj = addedModelNodes.get(id)
-  if (obj) {
-    obj.rotation.set(degToRad(rotVec[0]), degToRad(rotVec[1]), degToRad(rotVec[2]))
-  }
-  const tf = pendingTransforms.get(id)
-  if (tf) {
-    tf.rotation = rotVec
-  }
-}
-
-function onRotationAxisChange(axis: 'x' | 'y' | 'z'): void {
-  const rx = Number(selectedRotation.x) || 0
-  const ry = Number(selectedRotation.y) || 0
-  const rz = Number(selectedRotation.z) || 0
-  const vec: [number, number, number] = [rx, ry, rz]
-  if (axis === 'x') {
-    vec[0] = rx
-  } else if (axis === 'y') {
-    vec[1] = ry
-  } else {
-    vec[2] = rz
-  }
-  updateSelectedWidgetRotation(vec)
-}
-
+/** 将 scale 格式化为面板展示字符串。 */
 function formatWidgetScale(scale: unknown): string {
   if (Array.isArray(scale)) {
     const [sx, sy, sz] = scale as unknown[]
@@ -1140,42 +865,6 @@ function formatWidgetScale(scale: unknown): string {
     return String(scale)
   }
   return '-'
-}
-
-/** 将当前选中模型的 prop 变更通知到 Model 实例（必须用 storyboard 里已加入的实例，不能用 store.getModel 的 clone） */
-function notifyModelPropUpdate(key: string, value: unknown): void {
-  const id = selectedWidgetId.value
-  if (!id) return
-  const sb = storyboardRef.value as BaseStoryBoard | null
-  const model = sb?.getModelByName(id)
-  if (model) model.propUpdate(key, value)
-}
-
-function addCustomProp(): void {
-  const key = String(newPropKey.value ?? '').trim()
-  if (!key) return
-  const obj = selectedWidgetCustomProps.value
-  const val = newPropValue.value
-  const num = Number(val)
-  const value = Number.isFinite(num) ? num : String(val ?? '')
-  obj[key] = value
-  newPropKey.value = ''
-  newPropValue.value = ''
-  notifyModelPropUpdate(key, value)
-}
-
-function setCustomPropValue(key: string, value: string): void {
-  const obj = selectedWidgetCustomProps.value
-  const num = Number(value)
-  const parsed = Number.isFinite(num) ? num : value
-  obj[key] = parsed
-  notifyModelPropUpdate(key, parsed)
-}
-
-function removeCustomProp(key: string): void {
-  const obj = selectedWidgetCustomProps.value
-  delete obj[key]
-  notifyModelPropUpdate(key, undefined)
 }
 
 onMounted(async () => {
@@ -1254,6 +943,7 @@ function buildDashboardExportPayload(): DashboardConfig {
   return payload
 }
 
+/** 下载导出当前配置（dashboard-config-3d.json）。 */
 function exportConfig() {
   const payload = buildDashboardExportPayload()
   const json = JSON.stringify(payload, null, 2)

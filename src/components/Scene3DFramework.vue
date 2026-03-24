@@ -16,6 +16,8 @@ import type { Model } from '../framework'
 import { createScene3DInfoBox, createScene3DSpriteInfoBox } from '../framework/Scene3DInfoBox'
 import type { Scene3DConfig, Model3DItemConfig, WidgetConfig3D } from '../types/dashboard'
 import { createStarPointSpriteTexture, startStarFieldXZAnimation } from '../utils/starFieldXZ'
+import { degToRad } from '../utils/angle'
+import { clamp01, toFiniteNumber, toPositiveNumber } from '../utils/number'
 import { CommandManager } from '../utils/CommandManager'
 import { PropertyManager } from '../utils/PropertyManager'
 import type { CommandRequest, PropertyRequest } from '../types'
@@ -59,10 +61,6 @@ function toLayerArray(layer?: number | number[]): number[] {
   if (layer === undefined) return [LayerDef.default]
   const arr = Array.isArray(layer) ? layer : [layer]
   return arr.map((v) => LayerDef.normalize(v))
-}
-
-function degToRad(deg: number): number {
-  return (deg * Math.PI) / 180
 }
 
 function resolveModelUrl(source: string | undefined): string | undefined {
@@ -109,9 +107,8 @@ function applyInstanceExtrasFromCustom(model: Model, props: Record<string, unkno
   // 遮罩（运行时默认不显示；仅应用颜色/透明度/半径用于后续可能的显示逻辑）
   const maskColor = typeof c[MASK_COLOR_KEY] === 'string' ? c[MASK_COLOR_KEY] : '#38bdf8'
   const maskOpacityRaw = Number(c[MASK_OPACITY_KEY])
-  const maskOpacity = Number.isFinite(maskOpacityRaw) ? Math.min(1, Math.max(0, maskOpacityRaw)) : 1
-  const maskRadiusWorldRaw = Number(c[MASK_RADIUS_KEY])
-  const maskRadiusWorld = Number.isFinite(maskRadiusWorldRaw) && maskRadiusWorldRaw > 0 ? maskRadiusWorldRaw : 3
+  const maskOpacity = Number.isFinite(maskOpacityRaw) ? clamp01(maskOpacityRaw) : 1
+  const maskRadiusWorld = toPositiveNumber(c[MASK_RADIUS_KEY], 3)
 
   model.setMaskColor(maskColor)
   // 不处于“选中”态：沿用 editor 里的 unselected 逻辑 opacity * 0.5
@@ -123,8 +120,7 @@ function applyInstanceExtrasFromCustom(model: Model, props: Record<string, unkno
   const enabled = Boolean(c[AUTO_ROTATE_ENABLED_KEY])
   const axisRaw = c[AUTO_ROTATE_AXIS_KEY]
   const axis = axisRaw === 'x' || axisRaw === 'y' || axisRaw === 'z' ? axisRaw : 'y'
-  const speedDegRaw = Number(c[AUTO_ROTATE_SPEED_DEG_KEY])
-  const speedDeg = Number.isFinite(speedDegRaw) ? speedDegRaw : 30
+  const speedDeg = toFiniteNumber(c[AUTO_ROTATE_SPEED_DEG_KEY], 30)
 
   const axisVec = axis === 'x' ? new Vector3(1, 0, 0) : axis === 'y' ? new Vector3(0, 1, 0) : new Vector3(0, 0, 1)
   model.setAutoRotateAxis(axisVec)
@@ -468,8 +464,8 @@ onMounted(() => {
         const rawScale = p.scale
         const rawRotation = (p.rotation as [number, number, number] | undefined) ?? [0, 0, 0]
         let scale = 1
-        if (typeof rawScale === 'number') scale = Number.isFinite(rawScale) && rawScale > 0 ? rawScale : 1
-        else if (Array.isArray(rawScale)) scale = Number(rawScale[0]) || 1
+        if (typeof rawScale === 'number') scale = toPositiveNumber(rawScale, 1)
+        else if (Array.isArray(rawScale)) scale = toPositiveNumber(rawScale[0], 1)
         widgetPropsMap.set(w.id, p)
         widgetTransformMap.set(w.id, {
           position: [pos[0] ?? 0, pos[1] ?? 0, pos[2] ?? 0],

@@ -1,5 +1,6 @@
 import { reactive, ref, type Ref } from 'vue'
 import type { WidgetConfig3D } from '../../types/dashboard'
+import { toPositiveNumber } from '../../utils/number'
 
 type ModelTypeLike = { id: string; label: string }
 type PresetLike = { id: string; label: string; typeId: string; source?: string; name?: string }
@@ -79,8 +80,7 @@ export function useEditor3DDragDrop(options: UseEditor3DDragDropOptions) {
     }
     const id = `model-${payload.id}-${Date.now()}`
     const position: [number, number, number] = [Number(dropForm.posX) || 0, Number(dropForm.posY) || 0, Number(dropForm.posZ) || 0]
-    const scale = Number(dropForm.scale)
-    const scaleVal = Number.isFinite(scale) && scale > 0 ? scale : 1
+    const scaleVal = toPositiveNumber(dropForm.scale, 1)
     const w: WidgetConfig3D = {
       id,
       type: 'model3d',

@@ -283,6 +283,74 @@ export class SomeModel extends Model {
 - **统一命令 handler 实现**：`src/utils/manager3DCommandHandlers.ts`（通过注入 `getModelById`，在 editor/runtime 复用 `rotateTo` / `moveTo` / `moveToAnchor` / `applyAutoRotate`）
 - **说明**：旧的 `src/utils/editor3dCommands.ts` 已移除，避免与共享实现并存造成维护分叉
 
+### Editor3D 模块边界（拆分后）
+
+`Editor3D.vue` 现在主要做“编排层”，核心逻辑拆到以下 composable：
+
+- `src/editor/editor3d/useEditor3DManagers.ts`  
+  负责 command/property manager 初始化、统一注册入口接线、`executeCommand/executeProperty` 与属性 JSON 校验。
+- `src/editor/editor3d/useEditor3DSelectionTransform.ts`  
+  负责选中模型的 position/scale/rotation 状态同步与输入回写（含 design/world 坐标换算）。
+- `src/editor/editor3d/useEditor3DCustomProps.ts`  
+  负责自定义 `prop` 的增删改与 `model.propUpdate` 通知。
+- `src/editor/editor3d/useEditor3DDragDrop.ts`  
+  负责模型拖拽放置、确认弹窗与新建 widget 数据组装。
+- `src/editor/editor3d/useEditor3DDemoScene.ts`  
+  负责 demo robot 与 info box 的创建/清理。
+- `src/editor/editor3d/useEditor3DSceneBinding.ts`  
+  负责模型实例创建、加入 loader/store/storyboard、以及 `onFrameworkLoaded` 挂接流程。
+
+统一原则：
+
+- **主依赖注入点**：`getModelById(id)` 由 editor/runtime 各自提供。
+- **共享逻辑优先**：key 清单在 `manager3DRegistry.ts`，command/property handler 在共享模块维护。
+- **Editor3D 角色**：以装配与状态编排为主，避免再回到“大而全”单文件实现。
+
+### 通用归一化工具（utils）
+
+为了避免在 `Editor3D`、`Scene3DFramework`、`manager3D*` 中重复写输入兜底函数，统一约定优先复用：
+
+- `src/utils/angle.ts`
+  - `degToRad(deg)`：角度转弧度
+- `src/utils/color.ts`
+  - `normalizeHexColor(v, fallback)`：归一化颜色到 `#RRGGBB`
+- `src/utils/number.ts`
+  - `toFiniteNumber(v, fallback)`：有限数兜底
+  - `clamp01(v)`：限制到 `0~1`
+  - `percentToOpacityUnit(v, fallback)`：百分比转透明度 `0~1`
+  - `toPositiveNumber(v, fallback, min)`：正值约束（不满足回退）
+  - `toPositiveNumberOrUndefined(v, min)`：正值约束（不满足返回 `undefined`）
+
+实践建议：
+
+- 新增 command/property handler 时，先在以上工具中找可复用函数，再写局部逻辑。
+- 若发现新的归一化模式被 2 处以上重复使用，优先抽到 `src/utils/*`。
+- `Editor3D.vue` 只保留业务编排，尽量不再新增无依赖通用函数。
+
+### 新增能力标准步骤（建议流程）
+
+#### 新增一个 Command
+
+1. 在 `src/utils/manager3DRegistry.ts` 增加 `COMMAND_KEYS.xxx`，并把它接入 `register3DCommandHandlers(...)`。
+2. 优先在 `src/utils/manager3DCommandHandlers.ts` 增加/扩展共享逻辑；若仅 editor 端有差异，走注入参数（不要在两端复制粘贴）。
+3. 在 `src/editor/editor3d/ui/right/CommandSection.vue`（或其他调用入口）使用 `COMMAND_KEYS.xxx` 发请求。
+4. 如有对外调用，确认 `Dashboard -> Scene3DFramework` 透传链路无需额外改动（通常不需要）。
+5. 补最小测试（至少 1 条关键路径），并跑 `vue-tsc` + 相关测试。
+
+#### 新增一个 Property
+
+1. 在 `src/utils/manager3DRegistry.ts` 增加 `PROPERTY_KEYS.xxx`，并接入 `register3DPropertyHandlers(...)`。
+2. 在 `src/utils/manager3DHandlers.ts` 增加共享属性处理逻辑（输入校验、fallback、边界值）。
+3. 在 editor UI 或 JSON 调试入口按 `{ key, id, params }` 发请求。
+4. 若涉及导出/导入持久化，确认 `buildDashboardExportPayload()` 与导入流程字段一致。
+5. 补最小测试并跑 `vue-tsc`。
+
+通用检查清单：
+
+- key 命名遵循约定（command 不带 `Once`，`prop` 仅指自定义属性）。
+- 请求必须带顶层 `id`。
+- editor 与 runtime 行为一致（至少手测一次两端）。
+
 命名约束（统一）：
 
 - `prop` 专指“自定义 property”

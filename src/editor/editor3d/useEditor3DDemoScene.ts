@@ -3,6 +3,7 @@ import { Object3D, Vector3 } from 'three'
 import type { BaseStoryBoard } from '../../framework/storyboard/BaseStoryBoard'
 import { createScene3DInfoBox } from '../../framework/Scene3DInfoBox'
 import type { Scene3DInfoBoxConfig, WidgetConfig3D } from '../../types/dashboard'
+import { degToRad } from '../../utils/angle'
 
 type UseEditor3DDemoSceneOptions = {
   getStoryboard: () => BaseStoryBoard | null
@@ -10,10 +11,6 @@ type UseEditor3DDemoSceneOptions = {
   ensureWidgets3D: () => WidgetConfig3D[]
   addWidgetModelToScene: (w: WidgetConfig3D) => void
   onSelectWidget: (w: WidgetConfig3D) => void
-}
-
-function degToRad(deg: number): number {
-  return (deg * Math.PI) / 180
 }
 
 export function useEditor3DDemoScene(options: UseEditor3DDemoSceneOptions) {

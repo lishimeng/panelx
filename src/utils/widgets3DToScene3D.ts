@@ -15,6 +15,8 @@ import type {
 } from '../types/dashboard'
 
 import { LayerDef } from '../framework/LayerDef'
+import { degToRad } from './angle'
+import { toPositiveNumberOrUndefined } from './number'
 
 const CUSTOM_PROPS_KEY = 'custom'
 const BUILTIN_SOURCE_PREFIX = 'builtin:'
@@ -24,15 +26,10 @@ const TYPE_ID_SOURCE_FALLBACK: Record<string, string> = {
   'drying-machine': '/models/product-line.glb'
 }
 
-function degToRad(deg: number): number {
-  return (deg * Math.PI) / 180
-}
-
 function scaleToUniform(raw: unknown): number | undefined {
-  if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return raw
+  if (typeof raw === 'number') return toPositiveNumberOrUndefined(raw)
   if (Array.isArray(raw) && raw.length > 0) {
-    const v = Number(raw[0])
-    if (Number.isFinite(v) && v > 0) return v
+    return toPositiveNumberOrUndefined(raw[0])
   }
   return undefined
 }

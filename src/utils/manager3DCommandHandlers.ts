@@ -1,6 +1,8 @@
 import { Vector3 } from 'three'
 import type { Model } from '../framework'
 import type { CommandRequest } from '../types'
+import { degToRad } from './angle'
+import { toFiniteNumber } from './number'
 
 type ModelGetter = (id: string) => Model | null | undefined
 
@@ -10,15 +12,6 @@ type Create3DCommandHandlersOptions = {
   resolveAnchorId?: (params: Record<string, unknown>) => string
   onAnchorResolved?: (targetWorld: Vector3) => void
   onApplyAutoRotate?: (id: string, next: { enabled: boolean; axis: 'x' | 'y' | 'z'; speedDeg: number }) => void
-}
-
-function toFiniteNumber(v: unknown, fallback: number): number {
-  const n = Number(v)
-  return Number.isFinite(n) ? n : fallback
-}
-
-function degToRad(deg: number): number {
-  return (deg * Math.PI) / 180
 }
 
 function defaultResolveAnchorId(params: Record<string, unknown>): string {
