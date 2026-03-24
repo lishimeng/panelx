@@ -1,6 +1,13 @@
 import { nextTick, type Ref } from 'vue'
 import { Object3D, OrthographicCamera, Vector3 } from 'three'
-import { ORTHOGRAPHIC_FRUSTUM_SCALE, modelRegistry } from '../../framework'
+import {
+  ORTHOGRAPHIC_FRUSTUM_SCALE,
+  ORTHOGRAPHIC_F_CLIP,
+  ORTHOGRAPHIC_N_CLIP,
+  modelRegistry,
+  minOrthographicOrbitDistanceFromWorldSize,
+  orthographicHalfFromWorldSize
+} from '../../framework'
 import type { Model } from '../../framework'
 import { BaseStoryBoard } from '../../framework/storyboard/BaseStoryBoard'
 import { ControlsStoryBoard } from '../../framework/storyboard/ControlsStoryBoard'
@@ -39,6 +46,8 @@ type UseEditor3DSceneBindingOptions = {
 }
 
 export function useEditor3DSceneBinding(options: UseEditor3DSceneBindingOptions) {
+  const ORBIT_MIN_DISTANCE = 0.1
+
   function resolveModelUrl(source: string | undefined): string | undefined {
     if (source == null || source === '') return undefined
     if (source.startsWith('http://') || source.startsWith('https://')) return source
@@ -148,10 +157,11 @@ export function useEditor3DSceneBinding(options: UseEditor3DSceneBindingOptions)
     if (!options.storyboardRef.value) {
       const wp = options.worldRef.value?.getSize() ?? { x: 0, y: 0 }
       const aspect = wp.y > 0 ? wp.x / wp.y : options.designSize3D.height > 0 ? options.designSize3D.width / options.designSize3D.height : 1
-      const worldH = Math.max(0.0001, options.sceneWorldSize.value.y)
-      const halfH = (worldH / 2) * ORTHOGRAPHIC_FRUSTUM_SCALE
-      const cam = new OrthographicCamera(-halfH * aspect, halfH * aspect, halfH, -halfH, 0.1, 1000)
-      cam.position.set(6, 6, 6)
+      const halfH = orthographicHalfFromWorldSize(options.sceneWorldSize.value) * ORTHOGRAPHIC_FRUSTUM_SCALE
+      const cam = new OrthographicCamera(-halfH * aspect, halfH * aspect, halfH, -halfH, ORTHOGRAPHIC_N_CLIP, ORTHOGRAPHIC_F_CLIP)
+      const orbitDist = minOrthographicOrbitDistanceFromWorldSize(options.sceneWorldSize.value)
+      const ORBIT_MAX_DISTANCE = Math.max(orbitDist * 20, 50000)
+      cam.position.copy(new Vector3(1, 1, 1).normalize().multiplyScalar(orbitDist))
       const sb = new ControlsStoryBoard('Editor3D', cam, {
         background: null,
         orthographicSize: halfH,
@@ -162,6 +172,8 @@ export function useEditor3DSceneBinding(options: UseEditor3DSceneBindingOptions)
         sb.controls.target.set(0, 0, 0)
         sb.controls.enableDamping = true
         sb.controls.dampingFactor = 0.05
+        sb.controls.minDistance = Math.max(ORBIT_MIN_DISTANCE, orbitDist * 0.98)
+        sb.controls.maxDistance = ORBIT_MAX_DISTANCE
       }
       options.storyboardRef.value = sb
       options.applyCameraLayers()

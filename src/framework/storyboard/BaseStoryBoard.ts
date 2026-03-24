@@ -96,6 +96,14 @@ export abstract class BaseStoryBoard implements StoryBoard {
     get camera(): Camera {
         return this._camera
     }
+
+    /**
+     * 与 Editor3D 的 worldSize 联动：更新内部记录的 orthographicSize，
+     * 避免 onWindowResize 仍用创建相机时的半高覆盖当前 frustum。
+     */
+    syncOrthographicReferenceSize(orthographicSize: number): void {
+        if (this._sceneOptions) this._sceneOptions.orthographicSize = orthographicSize
+    }
     get fullScreen(): boolean {
         return this._fullScreen
     }

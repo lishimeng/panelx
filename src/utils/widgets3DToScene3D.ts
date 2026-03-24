@@ -15,6 +15,7 @@ import type {
 } from '../types/dashboard'
 
 import { LayerDef } from '../framework/LayerDef'
+import { orthographicHalfFromWorldSize, worldSizeHasPositiveExtent } from '../framework/orthographicView'
 import { degToRad } from './angle'
 import { toPositiveNumberOrUndefined } from './number'
 
@@ -116,8 +117,8 @@ export function widgets3DToScene3DConfig(
       }
     }
     if (orthographicSize == null && w.worldSize && typeof w.worldSize === 'object') {
-      const wy = (w.worldSize as { y?: number }).y
-      if (typeof wy === 'number' && wy > 0) orthographicSize = wy / 2
+      const ws = w.worldSize as { x?: number; y?: number; z?: number }
+      if (worldSizeHasPositiveExtent(ws)) orthographicSize = orthographicHalfFromWorldSize(ws)
     }
     if (!bloom && props.sceneBloom && typeof props.sceneBloom === 'object') {
       const sb = props.sceneBloom as Record<string, unknown>

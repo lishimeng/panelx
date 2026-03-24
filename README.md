@@ -36,7 +36,7 @@ pnpm build
 - **Editor3D**：侧栏只维护 **3D 设计**尺寸与比例尺等；**不展示、不编辑** Dashboard 的 `design`，也不展示 Viewport/DPR/Canvas 像素（避免与「3D 只跟父容器有关」混淆）。导入 JSON 时若含 `design`，仅写入 `config.design` 供导出/大屏 2D 兼容，**不会**用其覆盖侧栏中的 3D 设计稿尺寸。
 - **场景世界单位（Three.js）**：**Y 轴向上**，**水平面为 XZ**。**世界原点** `(0,0,0)`；模型 `position`、相机均在**世界坐标**下理解。
 - **设计坐标 → 世界 XZ**：Editor3D 用「以左上角为 (0,0) 的输入坐标」映射到世界 **X、Z**（`src/utils/coord3d.ts`），并按 **worldScale**（`world = 3D设计稿尺寸 × scale`）换算。**不是**把 `config.design` 直接当成 Three 里的米制场景尺寸。
-- **场景范围 / 相机**：`WidgetConfig3D.worldSize` 描述 3D 设计空间对应的 **世界范围**（正交相机可视等）。与 **`config.design`（2D 大屏）语义不同**。
+- **场景范围 / 相机**：`WidgetConfig3D.worldSize` 描述 3D 设计空间对应的 **世界范围**（正交相机可视等）。正交可视半高由 **sqrt(x²+y²+z²)/2**（包围盒外接球半径）推导，再乘 `ORTHOGRAPHIC_FRUSTUM_SCALE`；轨道相机初始距离取 `minOrthographicOrbitDistanceFromWorldSize`（须大于外接球半径，避免相机落在球内导致近/远裁切）。与 **`config.design`（2D 大屏）语义不同**。
 
 ### 3. 「3D设计稿坐标系」与 Three.js 世界坐标（两套原点）
 

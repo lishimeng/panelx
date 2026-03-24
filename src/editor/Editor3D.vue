@@ -115,7 +115,14 @@ import { reactive, computed, ref, watch, onMounted, onUnmounted, nextTick } from
 import LeftSidebar from './editor3d/ui/LeftSidebar.vue'
 import MainArea from './editor3d/ui/MainArea.vue'
 import RightSidebar from './editor3d/ui/RightSidebar.vue'
-import { LayerDef, modelRegistry, setup3D } from '../framework'
+import {
+  LayerDef,
+  modelRegistry,
+  minOrthographicOrbitDistanceFromWorldSize,
+  ORTHOGRAPHIC_FRUSTUM_SCALE,
+  orthographicHalfFromWorldSize,
+  setup3D
+} from '../framework'
 import type { DashboardConfig, WidgetConfig3D, Scene3DCameraLayerItem } from '../types/dashboard'
 import type { PropDefinition } from '../framework'
 import type { Loader } from '../framework'
@@ -219,14 +226,30 @@ function applyOrthographicByWorldSize(): void {
 
   const size = viewportSize.value
   const aspect = size.y > 0 ? size.x / size.y : 1
-  // 约定：WorldSize.y 表示可视高度（世界单位）
-  const worldH = Math.max(0.0001, sceneWorldSize.value.y)
-  const halfH = worldH / 2
+  // 与 useEditor3DSceneBinding 一致：半高含 FRUSTUM_SCALE；相机须在包围球外，否则近裁会切入几何体
+  const halfH = orthographicHalfFromWorldSize(sceneWorldSize.value) * ORTHOGRAPHIC_FRUSTUM_SCALE
   cam.top = halfH
   cam.bottom = -halfH
   cam.left = -halfH * aspect
   cam.right = halfH * aspect
   cam.updateProjectionMatrix()
+  sb.syncOrthographicReferenceSize(halfH)
+
+  const controls = (sb as unknown as { controls?: { target: Vector3; update: () => void; minDistance?: number; maxDistance?: number } }).controls
+  if (controls) {
+    const minD = minOrthographicOrbitDistanceFromWorldSize(sceneWorldSize.value)
+    const target = controls.target
+    const dist = cam.position.distanceTo(target)
+    if (dist < minD) {
+      let dir = cam.position.clone().sub(target)
+      if (dir.lengthSq() < 1e-6) dir.set(1, 1, 1)
+      dir.normalize()
+      cam.position.copy(target.clone().add(dir.multiplyScalar(minD)))
+      controls.update()
+    }
+    controls.minDistance = Math.max(0.1, minD * 0.98)
+    controls.maxDistance = Math.max(minD * 20, 50000)
+  }
 }
 
 watch(

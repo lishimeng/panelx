@@ -10,7 +10,20 @@
 import { ref, onMounted, onUnmounted, computed, nextTick } from 'vue'
 import type { CanvasTexture } from 'three'
 import { AdditiveBlending, BufferGeometry, Color, Float32BufferAttribute, OrthographicCamera, PerspectiveCamera, Points, PointsMaterial, Vector3 } from 'three'
-import { setup3D, ControlsStoryBoard, LayerDef, ModelLoadable, ORTHOGRAPHIC_FRUSTUM_SCALE, SimpleModel, modelRegistry } from '../framework'
+import {
+  setup3D,
+  ControlsStoryBoard,
+  LayerDef,
+  ModelLoadable,
+  ORTHOGRAPHIC_FRUSTUM_SCALE,
+  ORTHOGRAPHIC_F_CLIP,
+  ORTHOGRAPHIC_N_CLIP,
+  orthographicHalfFromWorldSize,
+  minOrthographicOrbitDistanceFromWorldSize,
+  worldSizeHasPositiveExtent,
+  SimpleModel,
+  modelRegistry
+} from '../framework'
 import type { World } from '../framework'
 import type { Model } from '../framework'
 import { createScene3DInfoBox, createScene3DSpriteInfoBox } from '../framework/Scene3DInfoBox'
@@ -48,6 +61,10 @@ const AUTO_ROTATE_AXIS_KEY = 'autoRotateAxis'
 const AUTO_ROTATE_SPEED_DEG_KEY = 'autoRotateSpeedDeg'
 
 const UNSELECTED_OPACITY_MULTIPLIER = 0.5
+const PERSPECTIVE_NEAR = 0.01
+const PERSPECTIVE_FAR = 10000
+const ORBIT_MIN_DISTANCE = 0.1
+const ORBIT_MAX_DISTANCE = 5000
 
 function getModelsConfig(): Model3DItemConfig[] {
   return props.config?.models ?? []
@@ -178,9 +195,10 @@ onMounted(() => {
         })
       }
       const isOrthographic = cameraConfig?.type === 'orthographic'
+      const ws0 = widgets3DConfig[0]?.worldSize
       const fallbackOrthographicSize =
-        useWidgets3DRuntime && widgets3DConfig[0]?.worldSize?.y
-          ? Math.max(0.0001, Number(widgets3DConfig[0].worldSize!.y) / 2)
+        useWidgets3DRuntime && ws0 && worldSizeHasPositiveExtent(ws0)
+          ? orthographicHalfFromWorldSize(ws0)
           : 5
       const orthographicSize =
         (cameraConfig?.orthographicSize ?? fallbackOrthographicSize) * ORTHOGRAPHIC_FRUSTUM_SCALE
@@ -191,11 +209,16 @@ onMounted(() => {
             orthographicSize * aspect,
             orthographicSize,
             -orthographicSize,
-            0.1,
-            1000
+            ORTHOGRAPHIC_N_CLIP,
+            ORTHOGRAPHIC_F_CLIP
           )
-        : new PerspectiveCamera(120, aspect, 0.1, 1000)
-      camera.position.set(2, 1.5, 2)
+        : new PerspectiveCamera(120, aspect, PERSPECTIVE_NEAR, PERSPECTIVE_FAR)
+      if (isOrthographic) {
+        const od = minOrthographicOrbitDistanceFromWorldSize(ws0 && worldSizeHasPositiveExtent(ws0) ? ws0 : undefined)
+        camera.position.copy(new Vector3(1, 1, 1).normalize().multiplyScalar(od))
+      } else {
+        camera.position.set(2, 1.5, 2)
+      }
 
       const sceneOptions = {
         background: props.config?.background,
@@ -418,6 +441,16 @@ onMounted(() => {
         storyBoard.scene.add(obj)
       }
       storyBoard.enableControls(world.getRendererDom())
+      if (storyBoard.controls) {
+        if (isOrthographic) {
+          const od = minOrthographicOrbitDistanceFromWorldSize(ws0 && worldSizeHasPositiveExtent(ws0) ? ws0 : undefined)
+          storyBoard.controls.minDistance = Math.max(ORBIT_MIN_DISTANCE, od * 0.98)
+          storyBoard.controls.maxDistance = Math.max(od * 20, 50000)
+        } else {
+          storyBoard.controls.minDistance = ORBIT_MIN_DISTANCE
+          storyBoard.controls.maxDistance = ORBIT_MAX_DISTANCE
+        }
+      }
       world.sceneTo(storyBoard)
       nextTick(() => world.notifyResize())
       if (el) {

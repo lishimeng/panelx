@@ -19,7 +19,15 @@ export { ModelRegistry, modelRegistry } from './model/ModelRegistry'
 export type { ModelTypeDefinition, ModelRegistryCreateConfig, PropDefinition } from './model/ModelRegistry'
 import './model/registerBuiltins'
 export { LayerDef } from './LayerDef'
-export { ORTHOGRAPHIC_FRUSTUM_SCALE } from './orthographicView'
+export {
+  ORTHOGRAPHIC_FRUSTUM_SCALE,
+  orthographicHalfFromWorldSize,
+  minOrthographicOrbitDistanceFromWorldSize,
+  worldSizeHasPositiveExtent,
+  ORTHOGRAPHIC_N_CLIP,
+  ORTHOGRAPHIC_F_CLIP,
+  type WorldSizeLike
+} from './orthographicView'
 export { FrequencyManager } from './FrequencyManager'
 export { StatsWrapper } from './StatsWrapper'
 export { genOrthographicCamera } from './Cameras'

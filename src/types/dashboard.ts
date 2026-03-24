@@ -238,7 +238,7 @@ export interface Scene3DCameraLayerItem {
 export interface Scene3DCameraConfig {
   /** 相机类型，默认 perspective */
   type?: Scene3DCameraType
-  /** 正交相机时可见高度的一半（世界单位），默认 5 */
+  /** 正交相机时可视半高（世界单位，对应 Three.js orthographic 的 top 值），默认 5；从 worldSize 推断时取 sqrt(x²+y²+z²)/2，便于轨道旋转时少裁切 */
   orthographicSize?: number
   /** 相机各图层的显示配置，完全覆盖默认。不填时默认仅 layer=0 可显示 */
   layers?: Scene3DCameraLayerItem[]
