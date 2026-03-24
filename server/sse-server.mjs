@@ -1,26 +1,118 @@
 /**
- * 测试用 SSE 服务：与 editor_config 中 datasources 的 sse_realtime 对应
+ * 测试用 SSE 服务：读取 server/data/*.json 后按策略推送。
  * 启动：pnpm run sse
  * 前端 /api/sse 通过 Vite proxy 转发到本服务
  */
 
 import { createServer } from 'http'
+import { readdirSync, readFileSync, existsSync } from 'fs'
+import { join, extname, basename } from 'path'
+import { fileURLToPath } from 'url'
 
 const PORT = Number(process.env.SSE_PORT) || 3001
-
-/** 示例事件名 */
-const CHART_EVENT = 'chart_data'
-const TABLE_EVENT = 'table_data'
-
 const LOG_PREFIX = '[DataChain]'
+const __dirname = fileURLToPath(new URL('.', import.meta.url))
+const DATA_DIR = join(__dirname, 'data')
+
+function toFinite(value, fallback) {
+  const n = Number(value)
+  return Number.isFinite(n) ? n : fallback
+}
+
+function resolveEventName(route) {
+  const domain = String(route?.domain ?? '').trim().toLowerCase()
+  const action = String(route?.action ?? '').trim().toLowerCase()
+  if (domain && action) return `${domain}_${action}`
+  return 'message'
+}
+
+function normalizeDataset(fileName, raw) {
+  const rec = raw && typeof raw === 'object' ? raw : {}
+  const header = rec.header && typeof rec.header === 'object' ? rec.header : {}
+  const strategy = header.strategy && typeof header.strategy === 'object' ? header.strategy : {}
+  const route = header.route && typeof header.route === 'object' ? header.route : {}
+  const payload = Array.isArray(rec.payload) ? rec.payload : []
+  return {
+    fileName,
+    event: resolveEventName(route),
+    header: {
+      route: {
+        domain: String(route.domain ?? '').trim() || '2d',
+        action: String(route.action ?? '').trim() || 'other'
+      },
+      strategy: {
+        intervalMs: Math.max(100, toFinite(strategy.intervalMs, 3000)),
+        emitMode: strategy.emitMode === 'all' ? 'all' : 'rotate',
+        startDelayMs: Math.max(0, toFinite(strategy.startDelayMs, 0))
+      }
+    },
+    payload
+  }
+}
+
+function loadDatasets() {
+  if (!existsSync(DATA_DIR)) return []
+  const files = readdirSync(DATA_DIR).filter((name) => extname(name).toLowerCase() === '.json')
+  const list = []
+  for (const file of files) {
+    const fullPath = join(DATA_DIR, file)
+    try {
+      const text = readFileSync(fullPath, 'utf8')
+      const parsed = JSON.parse(text)
+      list.push(normalizeDataset(file, parsed))
+    } catch (err) {
+      console.warn(`[SSE] Skip invalid json: ${file} (${String(err)})`)
+    }
+  }
+  return list
+}
+
+const datasets = loadDatasets()
 
 function sendSSE(res, event, data) {
-  const payload = JSON.stringify(data)
+  const encoded = JSON.stringify(data)
   if (process.env.DATA_CHAIN_LOG !== '0') {
-    console.log(`${LOG_PREFIX} SSE.send event=${event} dataLength=${payload.length}`)
+    console.log(`${LOG_PREFIX} SSE.send event=${event} dataLength=${encoded.length}`)
   }
   res.write(`event: ${event}\n`)
-  res.write(`data: ${payload}\n\n`)
+  res.write(`data: ${encoded}\n\n`)
+}
+
+function startDatasetStream(res, dataset) {
+  const { strategy } = dataset.header
+  let cursor = 0
+  const sendByStrategy = () => {
+    const sourcePayload = dataset.payload
+    const nextPayload =
+      strategy.emitMode === 'all'
+        ? sourcePayload
+        : sourcePayload.length > 0
+          ? [sourcePayload[cursor % sourcePayload.length]]
+          : []
+
+    sendSSE(res, dataset.event, {
+      header: {
+        route: dataset.header.route,
+        strategy: {
+          ...strategy,
+          source: basename(dataset.fileName),
+          cursor,
+          total: sourcePayload.length
+        }
+      },
+      payload: nextPayload
+    })
+    cursor += 1
+  }
+
+  const timeoutId = setTimeout(() => {
+    sendByStrategy()
+  }, strategy.startDelayMs)
+  const intervalId = setInterval(sendByStrategy, strategy.intervalMs)
+  return () => {
+    clearTimeout(timeoutId)
+    clearInterval(intervalId)
+  }
 }
 
 const server = createServer((req, res) => {
@@ -34,49 +126,42 @@ const server = createServer((req, res) => {
     if (process.env.DATA_CHAIN_LOG !== '0') {
       console.log(`${LOG_PREFIX} SSE.client connected`)
     }
-    sendSSE(res, 'open', { message: 'SSE connected', ts: Date.now() })
 
-    let chartTick = 0
-    let tableTick = 0
-    const chartInterval = setInterval(() => {
-      chartTick += 1
-      sendSSE(res, CHART_EVENT, {
-        widgetId: 'chart_1',
-        xAxis: { type: 'category', data: ['1月', '2月', '3月', '4月', '5月', '6月'] },
-        yAxis: { type: 'value' },
-        series: [
-          { name: '销量', data: [120 + chartTick, 132, 101, 134, 90, 230] },
-          { name: '产量', data: [80, 100 + chartTick, 121, 104, 105, 90] }
-        ]
-      })
-    }, 3000)
+    sendSSE(res, 'open', {
+      header: {
+        route: { domain: 'meta', action: 'connected' },
+        strategy: { datasetCount: datasets.length }
+      },
+      payload: [{ message: 'SSE connected', ts: Date.now() }]
+    })
 
-    const tableInterval = setInterval(() => {
-      tableTick += 1
-      sendSSE(res, TABLE_EVENT, {
-        widgetId: 'table_1',
-        columns: [{ key: 'name', title: '名称' }, { key: 'value', title: '数值' }],
-        data: [
-          { name: '项目A', value: 100 + tableTick },
-          { name: '项目B', value: 200 + tableTick },
-          { name: '项目C', value: 150 }
-        ]
-      })
-    }, 4000)
-
+    const stoppers = datasets.map((dataset) => startDatasetStream(res, dataset))
     req.on('close', () => {
       if (process.env.DATA_CHAIN_LOG !== '0') {
         console.log(`${LOG_PREFIX} SSE.client closed`)
       }
-      clearInterval(chartInterval)
-      clearInterval(tableInterval)
+      stoppers.forEach((stop) => stop())
     })
     return
   }
 
   if (req.url === '/api/sse' || req.url === '/') {
     res.writeHead(200, { 'Content-Type': 'application/json' })
-    res.end(JSON.stringify({ ok: true, sse: 'GET /api/sse for SSE stream' }))
+    res.end(
+      JSON.stringify({
+        ok: true,
+        sse: 'GET /api/sse for SSE stream',
+        dataDir: DATA_DIR,
+        datasetCount: datasets.length,
+        datasets: datasets.map((d) => ({
+          file: d.fileName,
+          event: d.event,
+          intervalMs: d.header.strategy.intervalMs,
+          emitMode: d.header.strategy.emitMode,
+          payloadSize: d.payload.length
+        }))
+      })
+    )
     return
   }
 
@@ -87,5 +172,6 @@ const server = createServer((req, res) => {
 server.listen(PORT, () => {
   console.log(`[SSE] Test server: http://localhost:${PORT}`)
   console.log(`[SSE] Stream: GET http://localhost:${PORT}/api/sse`)
-  console.log(`[SSE] Events: ${CHART_EVENT} (every 3s), ${TABLE_EVENT} (every 4s)`)
+  console.log(`[SSE] Data directory: ${DATA_DIR}`)
+  console.log(`[SSE] Loaded datasets: ${datasets.length}`)
 })
