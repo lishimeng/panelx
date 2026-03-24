@@ -10,352 +10,54 @@
     </button>
     <p v-if="!selectedWidgetId" class="panelx-editor3d-right-empty">在左侧列表中点击模型以编辑</p>
     <template v-else>
-      <div v-if="rightGroups.transformOpen" class="panelx-editor3d-pos-editor">
-        <div class="panelx-editor3d-pos-row">
-          <span class="panelx-editor3d-size-label">名称 (name)</span>
-          <div class="panelx-editor3d-size-inputs">
-            <input
-              v-model="selectedWidgetName"
-              type="text"
-              class="panelx-editor3d-props-value"
-              placeholder="可空，用于实例列表显示"
-            />
-          </div>
-        </div>
-        <div class="panelx-editor3d-pos-row">
-          <span class="panelx-editor3d-size-label">位置 (X/Y/Z)</span>
-          <div class="panelx-editor3d-size-inputs">
-            <label>
-              X
-              <input
-                v-model.number="selectedPosition.x"
-                type="number"
-                step="any"
-                :disabled="axisLock.x"
-                @change="onPositionInputChange('x')"
-              />
-              <input type="checkbox" v-model="axisLock.x" title="锁定 X" />
-            </label>
-            <label>
-              Y
-              <input
-                v-model.number="selectedPosition.y"
-                type="number"
-                step="any"
-                :disabled="axisLock.y"
-                @change="onPositionInputChange('y')"
-              />
-              <input type="checkbox" v-model="axisLock.y" title="锁定 Y" />
-            </label>
-            <label>
-              Z
-              <input
-                v-model.number="selectedPosition.z"
-                type="number"
-                step="any"
-                :disabled="axisLock.z"
-                @change="onPositionInputChange('z')"
-              />
-              <input type="checkbox" v-model="axisLock.z" title="锁定 Z" />
-            </label>
-          </div>
-        </div>
-      </div>
+      <Transform3DSection
+        v-if="rightGroups.transformOpen"
+        v-model:selectedWidgetName="selectedWidgetName"
+        v-model:selectedPosition="selectedPosition"
+        v-model:axisLock="axisLock"
+        v-model:selectedScaleUniform="selectedScaleUniform"
+        v-model:selectedScale="selectedScale"
+        v-model:selectedRotation="selectedRotation"
+        :on-position-input-change="onPositionInputChange"
+        :on-scale-uniform-change="onScaleUniformChange"
+        :on-scale-axis-change="onScaleAxisChange"
+        :on-rotation-axis-change="onRotationAxisChange"
+      />
 
-      <div v-if="rightGroups.transformOpen" class="panelx-editor3d-scale-editor">
-        <div class="panelx-editor3d-pos-row">
-          <span class="panelx-editor3d-size-label">统一缩放</span>
-          <div class="panelx-editor3d-size-inputs">
-            <label>
-              S
-              <input v-model.number="selectedScaleUniform" type="number" step="any" min="0.01" @change="onScaleUniformChange" />
-            </label>
-          </div>
-        </div>
-        <div class="panelx-editor3d-pos-row">
-          <span class="panelx-editor3d-size-label">缩放 Z/Y/X</span>
-          <div class="panelx-editor3d-size-inputs">
-            <label>
-              Z
-              <input v-model.number="selectedScale.z" type="number" step="any" min="0.01" @change="onScaleAxisChange('z')" />
-            </label>
-            <label>
-              Y
-              <input v-model.number="selectedScale.y" type="number" step="any" min="0.01" @change="onScaleAxisChange('y')" />
-            </label>
-            <label>
-              X
-              <input v-model.number="selectedScale.x" type="number" step="any" min="0.01" @change="onScaleAxisChange('x')" />
-            </label>
-          </div>
-        </div>
+      <MaskSection
+        v-model:rightGroups="rightGroups"
+        v-model:selectedWidgetId="selectedWidgetId"
+        :get-mask-settings="getMaskSettings"
+        :on-mask-color-input="onMaskColorInput"
+        :on-mask-opacity-input="onMaskOpacityInput"
+        :on-mask-radius-input="onMaskRadiusInput"
+      />
 
-        <div class="panelx-editor3d-pos-row">
-          <span class="panelx-editor3d-size-label">旋转 (度)</span>
-          <div class="panelx-editor3d-size-inputs">
-            <label>
-              X
-              <input v-model.number="selectedRotation.x" type="number" step="any" @change="onRotationAxisChange('x')" />
-            </label>
-            <label>
-              Y
-              <input v-model.number="selectedRotation.y" type="number" step="any" @change="onRotationAxisChange('y')" />
-            </label>
-            <label>
-              Z
-              <input v-model.number="selectedRotation.z" type="number" step="any" @change="onRotationAxisChange('z')" />
-            </label>
-          </div>
-        </div>
-      </div>
+      <CustomPropertySection
+        v-model:rightGroups="rightGroups"
+        v-model:newPropKey="newPropKey"
+        v-model:newPropValue="newPropValue"
+        :selected-widget-supported-props="selectedWidgetSupportedProps"
+        :selected-widget-custom-props="selectedWidgetCustomProps"
+        :custom-only-prop-entries="customOnlyPropEntries as any"
+        :on-set-custom-prop-value="setCustomPropValue"
+        :on-remove-custom-prop="removeCustomProp"
+        :on-add-custom-prop="addCustomProp"
+      />
 
-      <div class="panelx-editor3d-mask">
-        <button type="button" class="panelx-editor3d-group-header panelx-editor3d-section" @click="rightGroups.maskOpen = !rightGroups.maskOpen">
-          <span>遮罩</span>
-          <span class="panelx-editor3d-group-toggle">{{ rightGroups.maskOpen ? '−' : '+' }}</span>
-        </button>
-        <div v-if="rightGroups.maskOpen" class="panelx-editor3d-commands-body">
-            <div class="panelx-editor3d-pos-row">
-              <span class="panelx-editor3d-size-label">半径</span>
-              <div class="panelx-editor3d-size-inputs">
-                <label>
-                  R
-                  <input
-                    :value="getMaskSettings(selectedWidgetId!).radiusWorld"
-                    type="number"
-                    step="any"
-                    min="0.001"
-                    @input="onMaskRadiusInput(Number(($event.target as HTMLInputElement).value))"
-                  />
-                </label>
-                <span class="panelx-editor3d-size-value">World 单位</span>
-              </div>
-            </div>
-          <div class="panelx-editor3d-pos-row">
-            <span class="panelx-editor3d-size-label">颜色</span>
-            <div class="panelx-editor3d-size-inputs">
-              <input
-                :value="getMaskSettings(selectedWidgetId!).color"
-                type="color"
-                class="panelx-editor3d-color-picker"
-                title="选择遮罩颜色"
-                @input="onMaskColorInput(($event.target as HTMLInputElement).value)"
-              />
-              <input
-                :value="getMaskSettings(selectedWidgetId!).color"
-                type="text"
-                class="panelx-editor3d-color-hex"
-                placeholder="#38bdf8"
-                @input="onMaskColorInput(($event.target as HTMLInputElement).value)"
-              />
-            </div>
-          </div>
-          <div class="panelx-editor3d-pos-row">
-            <span class="panelx-editor3d-size-label">透明度</span>
-            <div class="panelx-editor3d-size-inputs">
-              <label>
-                %
-                <input
-                  :value="Math.round(getMaskSettings(selectedWidgetId!).opacity * 100)"
-                  type="number"
-                  step="1"
-                  min="0"
-                  max="100"
-                  @input="onMaskOpacityInput(Number(($event.target as HTMLInputElement).value))"
-                />
-              </label>
-              <span class="panelx-editor3d-size-value">选中时固定 75%</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="panelx-editor3d-props-editor">
-        <button type="button" class="panelx-editor3d-group-header panelx-editor3d-section" @click="rightGroups.propsOpen = !rightGroups.propsOpen">
-          <span>属性 (Props)</span>
-          <span class="panelx-editor3d-group-toggle">{{ rightGroups.propsOpen ? '−' : '+' }}</span>
-        </button>
-        <template v-if="rightGroups.propsOpen">
-          <div v-if="selectedWidgetSupportedProps.length" class="panelx-editor3d-props-list">
-            <div v-for="prop in selectedWidgetSupportedProps" :key="prop.key" class="panelx-editor3d-props-row">
-              <span class="panelx-editor3d-props-key">{{ prop.label ?? prop.key }}</span>
-              <select
-                v-if="prop.enum?.length"
-                :value="String(selectedWidgetCustomProps[prop.key] ?? prop.default ?? prop.enum?.[0] ?? '')"
-                class="panelx-editor3d-props-value panelx-editor3d-props-select"
-                @change="setCustomPropValue(prop.key, ($event.target as HTMLSelectElement).value)"
-              >
-                <option value="">—</option>
-                <option v-for="opt in prop.enum" :key="String(opt)" :value="String(opt)">{{ opt }}</option>
-              </select>
-              <div v-else-if="prop.type === 'color'" class="panelx-editor3d-size-inputs">
-                <input
-                  type="color"
-                  class="panelx-editor3d-props-value panelx-editor3d-color-picker"
-                  :value="toColorInputValue(selectedWidgetCustomProps[prop.key] ?? prop.default)"
-                  @input="setCustomPropValue(prop.key, ($event.target as HTMLInputElement).value)"
-                />
-                <input
-                  type="text"
-                  class="panelx-editor3d-props-value panelx-editor3d-color-hex"
-                  :value="String(selectedWidgetCustomProps[prop.key] ?? prop.default ?? '')"
-                  placeholder="例如 222630 或 #222630"
-                  @change="setCustomPropValue(prop.key, ($event.target as HTMLInputElement).value)"
-                  @keydown.enter="setCustomPropValue(prop.key, ($event.target as HTMLInputElement).value)"
-                />
-              </div>
-              <input
-                v-else
-                :value="String(selectedWidgetCustomProps[prop.key] ?? prop.default ?? '')"
-                type="text"
-                class="panelx-editor3d-props-value"
-                :placeholder="prop.key"
-                @change="setCustomPropValue(prop.key, ($event.target as HTMLInputElement).value)"
-                @keydown.enter="setCustomPropValue(prop.key, ($event.target as HTMLInputElement).value)"
-              />
-            </div>
-          </div>
-          <template v-if="customOnlyPropEntries.length">
-            <div class="panelx-editor3d-props-other-label">其他属性</div>
-            <div class="panelx-editor3d-props-list">
-              <div v-for="[key, val] in customOnlyPropEntries" :key="key" class="panelx-editor3d-props-row">
-                <span class="panelx-editor3d-props-key">{{ key }}</span>
-                <input
-                  :value="String(val)"
-                  type="text"
-                  class="panelx-editor3d-props-value"
-                  @change="setCustomPropValue(key, ($event.target as HTMLInputElement).value)"
-                  @keydown.enter="setCustomPropValue(key, ($event.target as HTMLInputElement).value)"
-                />
-                <button type="button" class="panelx-editor3d-props-remove" title="删除" @click="removeCustomProp(key)">×</button>
-              </div>
-            </div>
-          </template>
-          <div class="panelx-editor3d-props-add">
-            <input v-model="newPropKey" type="text" class="panelx-editor3d-props-key-in" placeholder="键名" />
-            <input
-              v-model="newPropValue"
-              type="text"
-              class="panelx-editor3d-props-value-in"
-              placeholder="值"
-              @keydown.enter="addCustomProp"
-            />
-            <button type="button" class="panelx-editor3d-btn panelx-editor3d-props-add-btn" @click="addCustomProp">添加</button>
-          </div>
-        </template>
-      </div>
-
-      <div class="panelx-editor3d-commands">
-        <button type="button" class="panelx-editor3d-group-header panelx-editor3d-section" @click="rightGroups.commandsOpen = !rightGroups.commandsOpen">
-          <span>命令</span>
-          <span class="panelx-editor3d-group-toggle">{{ rightGroups.commandsOpen ? '−' : '+' }}</span>
-        </button>
-        <div v-if="rightGroups.commandsOpen" class="panelx-editor3d-commands-body">
-          <div class="panelx-editor3d-pos-row">
-            <span class="panelx-editor3d-size-label">自旋转</span>
-            <div class="panelx-editor3d-size-inputs">
-              <label class="panelx-editor3d-checkbox">
-                <input
-                  v-model="autoRotateCmd.enabled"
-                  type="checkbox"
-                  @change="executeCommand({ key: 'editor3d.applyAutoRotateToSelected', params: { enabled: autoRotateCmd.enabled, axis: autoRotateCmd.axis, speedDeg: autoRotateCmd.speedDeg } })"
-                />
-                启用
-              </label>
-              <label>
-                轴
-                <select
-                  v-model="autoRotateCmd.axis"
-                  class="panelx-editor3d-props-value panelx-editor3d-props-select"
-                  @change="executeCommand({ key: 'editor3d.applyAutoRotateToSelected', params: { enabled: autoRotateCmd.enabled, axis: autoRotateCmd.axis, speedDeg: autoRotateCmd.speedDeg } })"
-                >
-                  <option value="x">X</option>
-                  <option value="y">Y</option>
-                  <option value="z">Z</option>
-                </select>
-              </label>
-              <label>
-                速度(度/秒)
-                <input
-                  v-model.number="autoRotateCmd.speedDeg"
-                  type="number"
-                  step="any"
-                  @change="executeCommand({ key: 'editor3d.applyAutoRotateToSelected', params: { enabled: autoRotateCmd.enabled, axis: autoRotateCmd.axis, speedDeg: autoRotateCmd.speedDeg } })"
-                />
-              </label>
-            </div>
-          </div>
-
-          <div class="panelx-editor3d-pos-row">
-            <span class="panelx-editor3d-size-label">旋转到 (度)</span>
-            <div class="panelx-editor3d-size-inputs">
-              <label>X <input v-model.number="rotateCmd.x" type="number" step="any" /></label>
-              <label>Y <input v-model.number="rotateCmd.y" type="number" step="any" /></label>
-              <label>Z <input v-model.number="rotateCmd.z" type="number" step="any" /></label>
-            </div>
-          </div>
-          <div class="panelx-editor3d-pos-row">
-            <span class="panelx-editor3d-size-label">旋转速度 (弧度/秒)</span>
-            <div class="panelx-editor3d-size-inputs">
-              <label>S <input v-model.number="rotateCmd.speed" type="number" step="any" min="0" /></label>
-              <button
-                type="button"
-                class="panelx-editor3d-btn panelx-editor3d-btn-inline"
-                @click="executeCommand({ key: 'editor3d.rotateToOnce', params: { x: rotateCmd.x, y: rotateCmd.y, z: rotateCmd.z, speed: rotateCmd.speed } })"
-              >
-                执行一次
-              </button>
-            </div>
-          </div>
-
-          <div class="panelx-editor3d-pos-row">
-            <span class="panelx-editor3d-size-label">移动到</span>
-            <div class="panelx-editor3d-size-inputs">
-              <label>X <input v-model.number="moveCmd.x" type="number" step="any" /></label>
-              <label>Y <input v-model.number="moveCmd.y" type="number" step="any" /></label>
-              <label>Z <input v-model.number="moveCmd.z" type="number" step="any" /></label>
-            </div>
-          </div>
-          <div class="panelx-editor3d-pos-row">
-            <span class="panelx-editor3d-size-label">移动速度 (单位/秒)</span>
-            <div class="panelx-editor3d-size-inputs">
-              <label>S <input v-model.number="moveCmd.speed" type="number" step="any" min="0" /></label>
-              <button
-                type="button"
-                class="panelx-editor3d-btn panelx-editor3d-btn-inline"
-                @click="executeCommand({ key: 'editor3d.moveToOnce', params: { x: moveCmd.x, y: moveCmd.y, z: moveCmd.z, speed: moveCmd.speed } })"
-              >
-                执行一次
-              </button>
-            </div>
-          </div>
-
-          <div class="panelx-editor3d-pos-row">
-            <span class="panelx-editor3d-size-label">移动到锚点</span>
-            <div class="panelx-editor3d-size-inputs">
-              <label>
-                目标
-                <select
-                  v-model="anchorWidgetId"
-                  class="panelx-editor3d-props-value panelx-editor3d-props-select"
-                >
-                  <option :value="null">—</option>
-                  <option v-for="w in widgets3D" :key="w.id" :value="w.id">
-                    {{ (w.props as any)?.name ? (w.props as any).name : w.id }}
-                  </option>
-                </select>
-              </label>
-              <button
-                type="button"
-                class="panelx-editor3d-btn panelx-editor3d-btn-inline"
-                @click="executeCommand({ key: 'editor3d.moveToAnchorOnce', params: { anchorWidgetId, x: moveCmd.x, y: moveCmd.y, z: moveCmd.z, speed: moveCmd.speed } })"
-              >
-                移动
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      <CommandSection
+        v-model:rightGroups="rightGroups"
+        v-model:selectedWidgetId="selectedWidgetId"
+        v-model:rotateCmd="rotateCmd"
+        v-model:moveCmd="moveCmd"
+        v-model:anchorWidgetId="anchorWidgetId"
+        v-model:autoRotateCmd="autoRotateCmd"
+        v-model:propertyRequestJson="propertyRequestJson"
+        v-model:propertyRequestError="propertyRequestError"
+        :widgets3D="widgets3D"
+        :on-execute-command="executeCommand"
+        :on-execute-property="executeProperty"
+      />
     </template>
   </aside>
 </template>
@@ -363,24 +65,39 @@
 <script setup lang="ts">
 import type { PropType } from 'vue'
 import type { PropDefinition } from '../../../framework'
+import type { CommandRequest, PropertyJsonExecuteRequest } from '../../../types'
+import Transform3DSection from './right/Transform3DSection.vue'
+import MaskSection from './right/MaskSection.vue'
+import CustomPropertySection from './right/CustomPropertySection.vue'
+import CommandSection from './right/CommandSection.vue'
 
-const rightGroups = defineModel<any>('rightGroups', { required: true })
-const selectedWidgetId = defineModel<any>('selectedWidgetId', { required: true })
-const selectedWidgetName = defineModel<any>('selectedWidgetName', { required: true })
-const selectedPosition = defineModel<any>('selectedPosition', { required: true })
-const selectedScale = defineModel<any>('selectedScale', { required: true })
-const selectedScaleUniform = defineModel<any>('selectedScaleUniform', { required: true })
-const selectedRotation = defineModel<any>('selectedRotation', { required: true })
-const axisLock = defineModel<any>('axisLock', { required: true })
-const rotateCmd = defineModel<any>('rotateCmd', { required: true })
-const moveCmd = defineModel<any>('moveCmd', { required: true })
-const anchorWidgetId = defineModel<any>('anchorWidgetId', { required: true })
-const autoRotateCmd = defineModel<any>('autoRotateCmd', { required: true })
-const newPropKey = defineModel<any>('newPropKey', { required: true })
-const newPropValue = defineModel<any>('newPropValue', { required: true })
+type Vec3 = { x: number; y: number; z: number }
+type AxisLock = { x: boolean; y: boolean; z: boolean }
+type RotateCmd = Vec3 & { speed: number }
+type MoveCmd = Vec3 & { speed: number }
+type AutoRotateCmd = { enabled: boolean; axis: 'x' | 'y' | 'z'; speedDeg: number }
+type RightGroups = { transformOpen: boolean; maskOpen: boolean; propsOpen: boolean; commandsOpen: boolean }
+type WidgetLike = { id: string; props?: Record<string, unknown> }
+
+const rightGroups = defineModel<RightGroups>('rightGroups', { required: true })
+const selectedWidgetId = defineModel<string | null>('selectedWidgetId', { required: true })
+const selectedWidgetName = defineModel<string>('selectedWidgetName', { required: true })
+const selectedPosition = defineModel<Vec3>('selectedPosition', { required: true })
+const selectedScale = defineModel<Vec3>('selectedScale', { required: true })
+const selectedScaleUniform = defineModel<number>('selectedScaleUniform', { required: true })
+const selectedRotation = defineModel<Vec3>('selectedRotation', { required: true })
+const axisLock = defineModel<AxisLock>('axisLock', { required: true })
+const rotateCmd = defineModel<RotateCmd>('rotateCmd', { required: true })
+const moveCmd = defineModel<MoveCmd>('moveCmd', { required: true })
+const anchorWidgetId = defineModel<string | null>('anchorWidgetId', { required: true })
+const autoRotateCmd = defineModel<AutoRotateCmd>('autoRotateCmd', { required: true })
+const propertyRequestJson = defineModel<string>('propertyRequestJson', { required: true })
+const propertyRequestError = defineModel<string>('propertyRequestError', { required: true })
+const newPropKey = defineModel<string>('newPropKey', { required: true })
+const newPropValue = defineModel<string>('newPropValue', { required: true })
 
 defineProps({
-  widgets3D: { type: Array as PropType<any[]>, required: true },
+  widgets3D: { type: Array as PropType<WidgetLike[]>, required: true },
   selectedWidgetSupportedProps: { type: Array as PropType<PropDefinition[]>, required: true },
   selectedWidgetCustomProps: { type: Object as PropType<Record<string, unknown>>, required: true },
   customOnlyPropEntries: { type: Array as PropType<Array<[string, string | number]>>, required: true },
@@ -395,17 +112,9 @@ defineProps({
   setCustomPropValue: { type: Function as PropType<(key: string, v: string) => void>, required: true },
   removeCustomProp: { type: Function as PropType<(key: string) => void>, required: true },
   addCustomProp: { type: Function as PropType<() => void>, required: true },
-  executeCommand: { type: Function as PropType<(req: { key: string; params?: unknown }) => void>, required: true }
+  executeCommand: { type: Function as PropType<(req: CommandRequest) => void>, required: true },
+  executeProperty: { type: Function as PropType<(req: PropertyJsonExecuteRequest) => void>, required: true }
 })
 
-function toColorInputValue(v: unknown, fallback = '#38bdf8'): string {
-  const s = typeof v === 'string' ? v.trim() : ''
-  if (/^#[0-9a-fA-F]{6}$/.test(s)) return s
-
-  const noHash = s.startsWith('#') ? s.slice(1) : s
-  if (/^[0-9a-fA-F]{6}$/.test(noHash)) return `#${noHash}`
-
-  return fallback
-}
 </script>
 

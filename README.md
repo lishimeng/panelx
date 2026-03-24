@@ -261,6 +261,134 @@ export class SomeModel extends Model {
 3. 避免在 `Scene3DFramework` 用 runtime 兜底“偷偷改模型参数”来掩盖此类问题；优先修复模型生命周期与克隆绑定逻辑。
 4. 排查这类问题优先检查：`store.getModel()` 克隆路径、`setScene` 是否触发、模型内部引用是否重绑。
 
+## 3D 控制入口总览
+
+这一节回答 3 个常见问题：
+
+1. **3D 部分的属性控制在哪里？**  
+   在 `PropertyManager`，主要 key 为：`model.position` / `model.scale` / `model.rotationDeg` / `model.visible`。
+2. **模型自定义属性控制在哪里？**  
+   同样在 `PropertyManager`，通过 `model.propUpdate`（`params: { propKey, value }`）写入模型自定义属性。
+3. **Command 执行在哪里？**  
+   在 `CommandManager`，由 `executeCommand(req)` 分发，例如 `editor3d.moveTo` / `editor3d.rotateTo`。
+
+当前接入链路如下：
+
+- **Editor 侧 UI**：`RightSidebar` 的 `Transform3DSection` / `CustomPropertySection` / `CommandSection`
+- **Editor 执行层**：`Editor3D`（内部持有 `CommandManager` + `PropertyManager` 实例）
+- **Runtime 执行层**：`Scene3DFramework`（内部也持有 `CommandManager` + `PropertyManager` 实例）
+- **外部透传层**：`Dashboard` / `DashboardWithLoader` 对外暴露并透传 `executeCommand` / `executeProperty`
+- **统一注册清单**：`src/utils/manager3DRegistry.ts`（新增 command 或 property key 时优先在这里维护，`Editor3D` 与 `Scene3DFramework` 共用）
+- **统一属性 handler 实现**：`src/utils/manager3DHandlers.ts`（`model.position` / `model.scale` / `model.rotationDeg` / `model.visible` / `model.propUpdate` 共用逻辑）
+- **统一命令 handler 实现**：`src/utils/manager3DCommandHandlers.ts`（通过注入 `getModelById`，在 editor/runtime 复用 `rotateTo` / `moveTo` / `moveToAnchor` / `applyAutoRotate`）
+- **说明**：旧的 `src/utils/editor3dCommands.ts` 已移除，避免与共享实现并存造成维护分叉
+
+命名约束（统一）：
+
+- `prop` 专指“自定义 property”
+- `position` / `scale` / `rotation` 专指“3D属性”
+- command key 不带 `Once` 后缀，默认语义即“执行一次”
+
+## CommandManager（命令分发）
+
+`CommandManager` 位于 `src/utils/CommandManager.ts`，用于把外部 JSON 命令分发到已注册函数。
+
+- **请求结构**：`CommandRequest = { key: string; id: string; params?: unknown }`
+- **关键约束**：`id` 必填，必须显式传入目标模型实例 id
+- **职责边界**：只负责分发与日志；具体控制逻辑由 handler 实现
+- **日志**：默认输出 `execute` / `missing_handler` / `execute_error`
+
+### 使用方式
+
+```ts
+const cm = new CommandManager()
+cm.register('editor3d.moveTo', (req) => {
+  const p = (req.params ?? {}) as Record<string, unknown>
+  // req.id: 目标模型实例 id
+})
+
+cm.execute({
+  key: 'editor3d.moveTo',
+  id: 'model-xxx',
+  params: { x: 1, y: 2, z: 3, speed: 1 }
+})
+```
+
+### 已接入位置
+
+- `Editor3D`：右侧命令区按钮转为 JSON 后交给 `CommandManager`
+- `Scene3DFramework`：支持 `executeCommand(req)` 外部调用
+- `Dashboard` / `DashboardWithLoader`：透传 `executeCommand(req)`
+
+## PropertyManager（属性设置）
+
+`PropertyManager` 位于 `src/utils/PropertyManager.ts`，用于按 JSON 设置模型实例属性。
+
+- **请求结构**：`PropertyRequest = { key: string; id: string; params?: unknown }`
+- **关键约束**：`id` 必填，必须显式传入目标模型实例 id
+- **职责边界**：只负责分发与日志；具体属性变更逻辑由 handler 实现
+- **日志**：默认输出 `execute` / `missing_handler` / `execute_error`
+
+### 使用方式
+
+```ts
+const pm = new PropertyManager()
+pm.register('model.propUpdate', (req) => {
+  const p = (req.params ?? {}) as Record<string, unknown>
+  // req.id: 目标模型
+  // p.propKey / p.value: 自定义属性键值
+})
+
+pm.execute({
+  key: 'model.propUpdate',
+  id: 'model-xxx',
+  params: { propKey: 'color', value: '#00d8ff' }
+})
+```
+
+### 内置 key（Editor3D / Scene3DFramework）
+
+- `model.propUpdate`：自定义属性（prop）
+- `model.position`：3D属性位置（`x/y/z`）
+- `model.rotationDeg`：3D属性旋转（角度，`x/y/z`）
+- `model.scale`：3D属性缩放（`scale` 或 `x/y/z`）
+- `model.visible`：3D属性可见性
+
+### 编辑器调试入口
+
+`Editor3D` 右侧「命令」区域提供属性 JSON 输入框，可直接粘贴执行：
+
+```json
+{"key":"model.visible","id":"model-xxx","params":{"visible":true}}
+```
+
+## 请求 Key 对照表（UI -> 执行）
+
+### Command（`executeCommand`）
+
+| UI 操作 | key | params 示例 | 执行位置 |
+| --- | --- | --- | --- |
+| 命令面板：旋转执行 | `editor3d.rotateTo` | `{ x, y, z, speed }` | `Editor3D` / `Scene3DFramework` |
+| 命令面板：移动执行 | `editor3d.moveTo` | `{ x, y, z, speed }` | `Editor3D` / `Scene3DFramework` |
+| 命令面板：移动到锚点 | `editor3d.moveToAnchor` | `{ anchorWidgetId, x, y, z, speed }` | `Editor3D` / `Scene3DFramework` |
+| 命令面板：自旋转开关/参数 | `editor3d.applyAutoRotateToSelected` | `{ enabled, axis, speedDeg }` | `Editor3D` / `Scene3DFramework` |
+
+### Property（`executeProperty`）
+
+| UI 操作 | key | params 示例 | 执行位置 |
+| --- | --- | --- | --- |
+| 3D 属性：位置 | `model.position` | `{ x, y, z }` | `Editor3D` / `Scene3DFramework` |
+| 3D 属性：旋转（角度） | `model.rotationDeg` | `{ x, y, z }` | `Editor3D` / `Scene3DFramework` |
+| 3D 属性：缩放 | `model.scale` | `{ scale }` 或 `{ x, y, z }` | `Editor3D` / `Scene3DFramework` |
+| 3D 属性：显示/隐藏 | `model.visible` | `{ visible }` | `Editor3D` / `Scene3DFramework` |
+| 自定义属性（prop）编辑 | `model.propUpdate` | `{ propKey, value }` | `Editor3D` / `Scene3DFramework` |
+
+补充说明：
+
+- 上表中的 `执行位置` 指 handler 注册位置；两端都注册了同名 key，便于 editor 与 runtime 行为一致。
+- 对外调用通常通过 `DashboardWithLoader -> Dashboard -> Scene3DFramework` 透传到 runtime 执行。
+- 所有请求统一要求顶层 `id`：`{ key, id, params }`。
+
 ## 调试开关（dashboard_config.debug）
 
 - **配置**：在 **dashboard_config**（或导出的 Dashboard JSON）中增加 **`debug: true | false`**。加载该配置后会自动同步到 **localStorage** 的 `PanelX_DEBUG`（`1`/`0`），从而控制全局调试日志。

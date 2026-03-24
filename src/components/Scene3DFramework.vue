@@ -16,7 +16,12 @@ import type { Model } from '../framework'
 import { createScene3DInfoBox, createScene3DSpriteInfoBox } from '../framework/Scene3DInfoBox'
 import type { Scene3DConfig, Model3DItemConfig, WidgetConfig3D } from '../types/dashboard'
 import { createStarPointSpriteTexture, startStarFieldXZAnimation } from '../utils/starFieldXZ'
-import { CommandManager, type CommandRequest } from '../utils/CommandManager'
+import { CommandManager } from '../utils/CommandManager'
+import { PropertyManager } from '../utils/PropertyManager'
+import type { CommandRequest, PropertyRequest } from '../types'
+import { register3DCommandHandlers, register3DPropertyHandlers } from '../utils/manager3DRegistry'
+import { create3DPropertyHandlers } from '../utils/manager3DHandlers'
+import { create3DCommandHandlers } from '../utils/manager3DCommandHandlers'
 
 const props = defineProps<{
   /** 3D 场景配置（模型列表、statsStyle 等），由 App 或外部传入 */
@@ -483,93 +488,39 @@ onMounted(() => {
  * 用法：外部调用 `executeCommand({ key, params })`。
  */
 const commandManager = new CommandManager()
+const propertyManager = new PropertyManager()
 
-function toFiniteNumber(v: unknown, fallback: number): number {
-  const n = Number(v)
-  return Number.isFinite(n) ? n : fallback
-}
-
-commandManager.register('editor3d.rotateToOnce', (params?: unknown) => {
-  const p = (params ?? {}) as Record<string, unknown>
-  const id = typeof p.id === 'string' ? p.id : ''
-  if (!id) return
-  const store = loaderStore
-  if (!store) return
-  const model = store.getModel(id)
-  if (!model?.scene) return
-
-  const xDeg = toFiniteNumber(p.x, 0)
-  const yDeg = toFiniteNumber(p.y, 0)
-  const zDeg = toFiniteNumber(p.z, 0)
-  const speed = toFiniteNumber(p.speed, Math.PI)
-
-  model.setRotateSpeed(speed)
-  model.rotateTo(new Vector3(degToRad(xDeg), degToRad(yDeg), degToRad(zDeg)))
-})
-
-commandManager.register('editor3d.moveToOnce', (params?: unknown) => {
-  const p = (params ?? {}) as Record<string, unknown>
-  const id = typeof p.id === 'string' ? p.id : ''
-  if (!id) return
-  const store = loaderStore
-  if (!store) return
-  const model = store.getModel(id)
-  if (!model?.scene) return
-
-  const speed = toFiniteNumber(p.speed, 1)
-  const x = toFiniteNumber(p.x, 0)
-  const y = toFiniteNumber(p.y, 0)
-  const z = toFiniteNumber(p.z, 0)
-
-  model.setMoveSpeed(speed)
-  model.moveTo(new Vector3(x, y, z))
-})
-
-commandManager.register('editor3d.moveToAnchorOnce', (params?: unknown) => {
-  const p = (params ?? {}) as Record<string, unknown>
-  const id = typeof p.id === 'string' ? p.id : ''
-  const anchorId = typeof p.anchorId === 'string' ? p.anchorId : ''
-  if (!id || !anchorId) return
-  const store = loaderStore
-  if (!store) return
-
-  const model = store.getModel(id)
-  const anchorModel = store.getModel(anchorId)
-  if (!model?.scene || !anchorModel?.scene) return
-
-  const speed = toFiniteNumber(p.speed, 1)
-  const targetPos = anchorModel.scene.position
-  model.setMoveSpeed(speed)
-  model.moveTo(new Vector3(targetPos.x, targetPos.y, targetPos.z))
-})
-
-commandManager.register('editor3d.applyAutoRotateToSelected', (params?: unknown) => {
-  const p = (params ?? {}) as Record<string, unknown>
-  const id = typeof p.id === 'string' ? p.id : ''
-  if (!id) return
-  const store = loaderStore
-  if (!store) return
-
-  const model = store.getModel(id)
-  if (!model?.scene) return
-
-  const enabled = Boolean(p.enabled)
-  const axisRaw = p.axis
-  const axis = axisRaw === 'x' || axisRaw === 'y' || axisRaw === 'z' ? axisRaw : 'y'
-  const speedDeg = toFiniteNumber(p.speedDeg, 30)
-
-  const axisVec = axis === 'x' ? new Vector3(1, 0, 0) : axis === 'y' ? new Vector3(0, 1, 0) : new Vector3(0, 0, 1)
-  model.setAutoRotateEnabled(enabled)
-  model.setAutoRotateAxis(axisVec)
-  model.setAutoRotateSpeed(degToRad(speedDeg))
-})
+register3DCommandHandlers(
+  commandManager,
+  create3DCommandHandlers({
+    getModelById: (id: string) => {
+      const store = loaderStore
+      if (!store) return null
+      return store.getModel(id)
+    }
+  })
+)
 
 function executeCommand(req: CommandRequest): void {
   commandManager.execute(req)
 }
 
+register3DPropertyHandlers(
+  propertyManager,
+  create3DPropertyHandlers((id: string) => {
+    const store = loaderStore
+    if (!store) return null
+    return store.getModel(id)
+  })
+)
+
+function executeProperty(req: PropertyRequest): void {
+  propertyManager.execute(req)
+}
+
 defineExpose({
-  executeCommand
+  executeCommand,
+  executeProperty
 })
 
 onUnmounted(() => {

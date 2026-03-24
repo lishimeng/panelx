@@ -64,7 +64,7 @@ import { dataChainLog } from '../core/comm/dataChainLog'
 import Scene3DFramework from './Scene3DFramework.vue'
 import { getWidgetComponent } from '../widgets'
 import { widgets3DToScene3DConfig } from '../utils/widgets3DToScene3D'
-import type { CommandRequest } from '../utils/CommandManager'
+import type { CommandRequest, PropertyRequest } from '../types'
 import type { BackgroundLayerConfig } from '../types/dashboard'
 
 const scene3dBgRef = ref<any>(null)
@@ -398,8 +398,13 @@ function executeCommand(req: CommandRequest): void {
   scene3dBgRef.value?.executeCommand?.(req)
 }
 
+function executeProperty(req: PropertyRequest): void {
+  scene3dBgRef.value?.executeProperty?.(req)
+}
+
 defineExpose({
-  executeCommand
+  executeCommand,
+  executeProperty
 })
 </script>
 

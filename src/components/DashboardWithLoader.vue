@@ -34,7 +34,7 @@ import { convertDashboardConfigPxToPercent } from '../core/size'
 import { setDebugFromConfig } from '../utils/logManager'
 import type { DashboardConfig } from '../types/dashboard'
 import type { DataSourceConfig } from '../types/comm'
-import type { CommandRequest } from '../utils/CommandManager'
+import type { CommandRequest, PropertyRequest } from '../types'
 
 const props = withDefaults(
   defineProps<{
@@ -146,7 +146,8 @@ defineExpose({
   loadWorkshopConfig,
   configLoaded,
   applyConfig,
-  executeCommand: (req: CommandRequest) => dashboardRef.value?.executeCommand?.(req)
+  executeCommand: (req: CommandRequest) => dashboardRef.value?.executeCommand?.(req),
+  executeProperty: (req: PropertyRequest) => dashboardRef.value?.executeProperty?.(req)
 })
 </script>
 

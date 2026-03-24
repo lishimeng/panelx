@@ -63,6 +63,8 @@
       v-model:rotateCmd="rotateCmd"
       v-model:moveCmd="moveCmd"
       v-model:autoRotateCmd="autoRotateCmd"
+      v-model:propertyRequestJson="propertyRequestJson"
+      v-model:propertyRequestError="propertyRequestError"
       v-model:newPropKey="newPropKey"
       v-model:newPropValue="newPropValue"
       :widgets3D="widgets3D"
@@ -81,6 +83,7 @@
       :remove-custom-prop="removeCustomProp"
       :add-custom-prop="addCustomProp"
       :execute-command="executeCommand"
+      :execute-property="executeProperty"
     />
 
     <!-- 放下后弹出的位置/缩放对话框 -->
@@ -114,7 +117,7 @@ import MainArea from './editor3d/ui/MainArea.vue'
 import RightSidebar from './editor3d/ui/RightSidebar.vue'
 import { LayerDef, modelRegistry, ORTHOGRAPHIC_FRUSTUM_SCALE, setup3D } from '../framework'
 import type { DashboardConfig, WidgetConfig3D, Scene3DCameraLayerItem } from '../types/dashboard'
-import type { ModelTypeDefinition, PropDefinition } from '../framework'
+import type { PropDefinition } from '../framework'
 import type { Loader } from '../framework'
 import type { World } from '../framework'
 import { Object3D, OrthographicCamera, Vector3 } from 'three'
@@ -127,16 +130,10 @@ import { SimpleModel } from '../framework/model/SimpleModel'
 import { designInputToWorldXZ, worldXZToDesignInput } from '../utils/coord3d'
 import { useModelTypesByGroup } from './editor3d/useModelTypesByGroup'
 import { useViewportLayout } from './editor3d/useViewportLayout'
-import { createScene3DInfoBox } from '../framework/Scene3DInfoBox'
-import type { Scene3DInfoBoxConfig } from '../types/dashboard'
 import { saveEditor3DDraft } from '../utils/editor3dDraft'
-import { CommandManager } from '../utils/CommandManager'
-import {
-  applyAutoRotateToSelectedCommand,
-  runMoveToAnchorOnceCommand,
-  runMoveToOnceCommand,
-  runRotateToOnceCommand
-} from '../utils/editor3dCommands'
+import { useEditor3DManagers } from './editor3d/useEditor3DManagers'
+import { useEditor3DDemoScene } from './editor3d/useEditor3DDemoScene'
+import { useEditor3DDragDrop } from './editor3d/useEditor3DDragDrop'
 
 /** 预设模型列表（由 examples 等注入），在侧栏「可用模型」中展示 */
 defineProps<{
@@ -274,23 +271,6 @@ watch(
     })
   }
 )
-
-/** 拖拽 payload：模型类型 */
-interface DragPayloadType {
-  kind: 'type'
-  id: string
-  label: string
-}
-/** 拖拽 payload：预设模型 */
-interface DragPayloadPreset {
-  kind: 'preset'
-  id: string
-  label: string
-  typeId: string
-  source?: string
-  name?: string
-}
-const DRAG_TYPE = 'application/panelx-3d-model'
 
 /** 按分组整理后的模型类型列表，用于左侧「模型类型」分组展示 */
 const modelTypesByGroup = useModelTypesByGroup(modelRegistry)
@@ -641,176 +621,62 @@ const autoRotateCmd = reactive({
   speedDeg: 30
 })
 
-const DEMO_ROBOT_ID = 'demo-robot'
-let demoInfoBoxes: Object3D[] = []
-
 const moveCmd = reactive({
   x: 0,
   y: 0,
   z: 0,
   speed: 1
 })
-
-/** 右侧命令区：把 UI 点击事件转为 JSON，再由 CommandManager 执行对应逻辑 */
-const commandManager = new CommandManager()
-
-function executeCommand(req: { key: string; params?: unknown }): void {
-  commandManager.execute(req)
-}
-
-function toFiniteNumber(v: unknown, fallback: number): number {
-  const n = Number(v)
-  return Number.isFinite(n) ? n : fallback
-}
-
-commandManager.register('editor3d.rotateToOnce', (params?: unknown) => {
-  const p = (params ?? {}) as Record<string, unknown>
-  runRotateToOnceCommand({
-    selectedWidgetId: selectedWidgetId.value,
-    storyboard: storyboardRef.value as BaseStoryBoard | null,
-    rotateCmd: {
-      x: toFiniteNumber(p.x, 0),
-      y: toFiniteNumber(p.y, 0),
-      z: toFiniteNumber(p.z, 0),
-      speed: toFiniteNumber(p.speed, Math.PI)
-    }
-  })
-})
-
-commandManager.register('editor3d.moveToOnce', (params?: unknown) => {
-  const p = (params ?? {}) as Record<string, unknown>
-  runMoveToOnceCommand({
-    selectedWidgetId: selectedWidgetId.value,
-    storyboard: storyboardRef.value as BaseStoryBoard | null,
-    moveCmd: {
-      x: toFiniteNumber(p.x, 0),
-      y: toFiniteNumber(p.y, 0),
-      z: toFiniteNumber(p.z, 0),
-      speed: toFiniteNumber(p.speed, 1)
-    },
-    designCoord,
-    worldScale: worldScale.value
-  })
-})
-
-commandManager.register('editor3d.moveToAnchorOnce', (params?: unknown) => {
-  const p = (params ?? {}) as Record<string, unknown>
-  const anchorWidgetId = typeof p.anchorWidgetId === 'string' ? p.anchorWidgetId : null
-  runMoveToAnchorOnceCommand({
-    selectedWidgetId: selectedWidgetId.value,
-    anchorWidgetId,
-    storyboard: storyboardRef.value as BaseStoryBoard | null,
-    moveCmd: {
-      x: toFiniteNumber(p.x, 0),
-      y: toFiniteNumber(p.y, 0),
-      z: toFiniteNumber(p.z, 0),
-      speed: toFiniteNumber(p.speed, 1)
-    },
-    designCoord,
-    worldScale: worldScale.value
-  })
-})
-
-commandManager.register('editor3d.applyAutoRotateToSelected', (params?: unknown) => {
-  const p = (params ?? {}) as Record<string, unknown>
-  const axis = (p.axis === 'x' || p.axis === 'y' || p.axis === 'z' ? p.axis : 'y') as 'x' | 'y' | 'z'
-  applyAutoRotateToSelectedCommand({
-    selectedWidgetId: selectedWidgetId.value,
-    storyboard: storyboardRef.value as BaseStoryBoard | null,
-    autoRotateCmd: {
-      enabled: Boolean(p.enabled),
-      axis,
-      speedDeg: toFiniteNumber(p.speedDeg, 30)
-    },
-    setAutoRotateSettingsToCustom
-  })
-})
-
-function clearDemoInfoBoxes(): void {
+function getEditorModelById(id: string): Model | null {
   const sb = storyboardRef.value as BaseStoryBoard | null
-  if (!sb) return
-  for (const obj of demoInfoBoxes) {
-    try {
-      sb.css3dManager.remove(obj.uuid)
-      sb.scene.remove(obj)
-      obj.removeFromParent()
-    } catch {
-      // ignore
-    }
-  }
-  demoInfoBoxes = []
+  if (!sb) return null
+  if (!id) return null
+  return (sb.getModelByName(id) as Model | undefined) ?? null
 }
-
-async function createRobotDemoScene(): Promise<void> {
-  clearDemoInfoBoxes()
-
-  const existing = config.widgets3D?.find((w) => w.id === DEMO_ROBOT_ID)
-  if (!existing) {
-    const w: WidgetConfig3D = {
-      id: DEMO_ROBOT_ID,
-      type: 'model3d',
-      visible: true,
-      props: {
-        typeId: 'gltf',
-        source: '/models/RobotExpressive.glb',
-        position: [0, 0, 0],
-        scale: 1,
-        rotation: [0, 0, 0],
-        name: 'Robot'
-      }
+const {
+  propertyRequestJson,
+  propertyRequestError,
+  executeCommand,
+  executeProperty,
+  cleanupEditor3DManagers
+} = useEditor3DManagers({
+  getModelById: getEditorModelById,
+  mapMoveParamsToWorld: (params) => {
+    const x = Number.isFinite(Number(params.x)) ? Number(params.x) : 0
+    const y = Number.isFinite(Number(params.y)) ? Number(params.y) : 0
+    const z = Number.isFinite(Number(params.z)) ? Number(params.z) : 0
+    if (!designCoord.enabled) return new Vector3(x, y, z)
+    const xz = designInputToWorldXZ(x, z, designCoord.originX, designCoord.originY, worldScale.value)
+    return new Vector3(xz.x, y, xz.z)
+  },
+  resolveAnchorId: (params) => (typeof params.anchorWidgetId === 'string' ? params.anchorWidgetId : ''),
+  onAnchorResolved: (targetWorld) => {
+    if (designCoord.enabled) {
+      const xz = worldXZToDesignInput(targetWorld.x, targetWorld.z, designCoord.originX, designCoord.originY, worldScale.value)
+      moveCmd.x = xz.x
+      moveCmd.z = xz.y
+      moveCmd.y = targetWorld.y
+      return
     }
+    moveCmd.x = targetWorld.x
+    moveCmd.y = targetWorld.y
+    moveCmd.z = targetWorld.z
+  },
+  onApplyAutoRotate: (id, next) => {
+    setAutoRotateSettingsToCustom(id, next)
+  }
+})
+
+const { createRobotDemoScene, clearDemoInfoBoxes } = useEditor3DDemoScene({
+  getStoryboard: () => (storyboardRef.value as BaseStoryBoard | null),
+  widgets3D: () => config.widgets3D,
+  ensureWidgets3D: () => {
     if (!config.widgets3D) config.widgets3D = []
-    config.widgets3D.push(w)
-    addWidgetModelToScene(w)
-    onSelectWidget(w)
-  } else {
-    onSelectWidget(existing)
-  }
-
-  await nextTick()
-  const sb = storyboardRef.value as BaseStoryBoard | null
-  if (!sb) return
-
-  let model = sb.getModelByName(DEMO_ROBOT_ID)
-  for (let i = 0; i < 60 && !model; i++) {
-    await new Promise((r) => setTimeout(r, 50))
-    model = sb.getModelByName(DEMO_ROBOT_ID)
-  }
-  if (!model || !model.scene) return
-
-  model.setAutoRotateAxis(new Vector3(0, 1, 0))
-  model.setAutoRotateSpeed(degToRad(30))
-  model.setAutoRotateEnabled(true)
-
-  const base: Omit<Scene3DInfoBoxConfig, 'id' | 'title'> = {
-    visible: true,
-    colorPreset: 'info',
-    subtitle: 'ROBOT STATUS PANEL'
-  }
-  const configs: Scene3DInfoBoxConfig[] = [
-    { ...base, id: 'demo-box-1', title: 'Robot / Telemetry', metaLeft: 'ID: RB-001', metaRight: 'ONLINE', note: 'Link stable · 0.8ms' },
-    { ...base, id: 'demo-box-2', title: 'Power Core', metaLeft: 'ID: PWR-7A', metaRight: 'OK', note: 'Battery 87% · Temp 36℃', colorPreset: 'success' },
-    { ...base, id: 'demo-box-3', title: 'Navigation', metaLeft: 'ID: NAV-3', metaRight: 'OK', note: 'IMU locked · Map synced', colorPreset: 'info' },
-    { ...base, id: 'demo-box-4', title: 'Safety', metaLeft: 'ID: SAFE-2', metaRight: 'WARN', note: 'Proximity alert: 1.2m', colorPreset: 'warning' }
-  ]
-  const offsets: Array<[number, number, number]> = [
-    [2.2, 1.4, 0],
-    [-2.2, 1.4, 0],
-    [0, 1.4, 2.2],
-    [0, 1.4, -2.2]
-  ]
-  for (let i = 0; i < configs.length; i++) {
-    const css3d = createScene3DInfoBox(configs[i])
-    const [ox, oy, oz] = offsets[i]
-    // 信息框固定在世界坐标中：仅 robot 自旋转，信息框不跟随旋转/不移动
-    const basePos = model.scene.position
-    css3d.position.set(basePos.x + ox, basePos.y + oy, basePos.z + oz)
-    css3d.rotation.set(0, 0, 0)
-    sb.scene.add(css3d)
-    sb.css3dManager.register(css3d)
-    demoInfoBoxes.push(css3d)
-  }
-}
+    return config.widgets3D
+  },
+  addWidgetModelToScene,
+  onSelectWidget
+})
 
 /** 当前选中 widget 的 custom 对象（用于右侧栏 Props 配置），保证存在且可写 */
 const selectedWidgetCustomProps = computed(() => {
@@ -906,118 +772,31 @@ function onSelectWidget(w: WidgetConfig3D): void {
   selectedRotation.z = rot[2] ?? 0
 }
 
-/** 模型类型拖入：拖起时写入 payload */
-function onDragStartType(e: DragEvent, item: ModelTypeDefinition) {
-  if (!e.dataTransfer) return
-  e.dataTransfer.effectAllowed = 'copy'
-  e.dataTransfer.setData(DRAG_TYPE, JSON.stringify({ kind: 'type', id: item.id, label: item.label }))
-}
+const {
+  pendingDrop,
+  dropDialogVisible,
+  dropForm,
+  onDragStartType,
+  onDragStartPreset,
+  onDrop: onDropInternal,
+  closeDropDialog,
+  confirmDropDialog
+} = useEditor3DDragDrop({
+  widgets3DRef: computed({
+    get: () => config.widgets3D,
+    set: (v) => {
+      config.widgets3D = v
+    }
+  }),
+  customPropsKey: CUSTOM_PROPS_KEY,
+  defaultLayer: LayerDef.default,
+  spriteLayer: LayerDef.sprite,
+  addWidgetModelToScene
+})
 
-/** 预设模型拖入：拖起时写入 payload */
-function onDragStartPreset(
-  e: DragEvent,
-  p: { id: string; label: string; typeId: string; source?: string; name?: string }
-) {
-  if (!e.dataTransfer) return
-  e.dataTransfer.effectAllowed = 'copy'
-  e.dataTransfer.setData(
-    DRAG_TYPE,
-    JSON.stringify({
-      kind: 'preset',
-      id: p.id,
-      label: p.label,
-      typeId: p.typeId,
-      source: p.source,
-      name: p.name
-    })
-  )
-}
-
-/** 放下后待确认的数据 */
-const pendingDrop = ref<DragPayloadType | DragPayloadPreset | null>(null)
-const dropDialogVisible = ref(false)
-const dropForm = reactive({ posX: 0, posY: 0, posZ: 0, scale: 1 })
-
-/** 主区域放下：确认后弹出对话框 */
 function onDrop(e: DragEvent) {
   isDragOver.value = false
-  const raw = e.dataTransfer?.getData(DRAG_TYPE)
-  if (!raw) return
-  try {
-    const payload = JSON.parse(raw) as DragPayloadType | DragPayloadPreset
-    if (payload.kind !== 'type' && payload.kind !== 'preset') return
-    pendingDrop.value = payload
-    dropForm.posX = 0
-    dropForm.posY = 0
-    dropForm.posZ = 0
-    dropForm.scale = 1
-    dropDialogVisible.value = true
-  } catch {
-    // ignore
-  }
-}
-
-function closeDropDialog() {
-  dropDialogVisible.value = false
-  pendingDrop.value = null
-}
-
-function confirmDropDialog() {
-  const payload = pendingDrop.value
-  if (!payload) {
-    closeDropDialog()
-    return
-  }
-  const id = `model-${payload.id}-${Date.now()}`
-  const position: [number, number, number] = [
-    Number(dropForm.posX) || 0,
-    Number(dropForm.posY) || 0,
-    Number(dropForm.posZ) || 0
-  ]
-  const scale = Number(dropForm.scale)
-  const scaleVal = Number.isFinite(scale) && scale > 0 ? scale : 1
-  const w: WidgetConfig3D = {
-    id,
-    type: 'model3d',
-    layer: LayerDef.default,
-    visible: true,
-    props: {
-      position,
-      scale: scaleVal
-    }
-  }
-  if (payload.kind === 'preset') {
-    w.props!.source = payload.source
-    w.props!.typeId = payload.typeId
-    w.props!.name = payload.name ?? payload.id
-  } else {
-    w.props!.typeId = payload.id
-  }
-
-  // info-box / sprite-info-box：给一个默认的 custom，拖入后立即有内容可见
-  if (w.props!.typeId === 'info-box' || w.props!.typeId === 'sprite-info-box') {
-    if (w.props!.typeId === 'sprite-info-box') {
-      // Sprite 信息框默认放到 sprite 图层，方便用相机图层开关控制显隐
-      w.layer = LayerDef.sprite
-    }
-    ;(w.props as Record<string, unknown>)[CUSTOM_PROPS_KEY] = {
-      title: 'Robot / Telemetry',
-      subtitle: 'ROBOT STATUS PANEL',
-      metaLeft: 'ID: RB-001',
-      metaRight: 'ONLINE',
-      colorPreset: 'info',
-      fx: 'scanlines',
-      content: 'General purpose information content.',
-      note: 'Link stable · 0.8ms'
-    }
-    // 默认值用 1 即可（渲染时会叠加 widget 的 scale）
-    w.props!.scale = w.props!.scale ?? 1
-  }
-  if (!config.widgets3D) config.widgets3D = []
-  config.widgets3D.push(w)
-  // 同步到 3D 场景：注册并加载
-  addWidgetModelToScene(w)
-  closeDropDialog()
+  onDropInternal(e)
 }
 
 /** 解析为绝对 URL，避免请求落到 SPA 路由返回 index.html（导致 GLTFLoader 报 "Unexpected token '<'"） */
@@ -1406,6 +1185,8 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  cleanupEditor3DManagers()
+  clearDemoInfoBoxes()
   try {
     worldRef.value?.destroy?.()
   } catch {
@@ -1564,6 +1345,10 @@ function saveDraftToLocalStorage() {
 }
 .panelx-editor3d-size-value {
   font-weight: 500;
+}
+.panelx-editor3d-error-text {
+  color: #fca5a5;
+  width: 100%;
 }
 .panelx-editor3d-size-inputs {
   display: flex;
