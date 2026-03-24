@@ -149,7 +149,7 @@ import { isDebugEnabled } from '../utils/logManager'
 import { dataChainLog } from '../core/comm/dataChainLog'
 import type { PropDefinition } from '../framework'
 import type { Loader } from '../framework'
-import { Object3D, OrthographicCamera, Vector3 } from 'three'
+import { Color, Object3D, OrthographicCamera, Vector3 } from 'three'
 import { BaseStoryBoard } from '../framework/storyboard/BaseStoryBoard'
 import type { StoryBoard } from '../framework'
 import type { Model } from '../framework'
@@ -333,6 +333,24 @@ watch(
   }
 )
 
+function applyEditorBackgroundColorToScene(): void {
+  const sb = storyboardRef.value as BaseStoryBoard | null
+  if (!sb?.scene) return
+  const raw = String(editorBackgroundColor.value ?? '').trim()
+  const isTransparent = !raw || raw === 'transparent'
+  if (isTransparent) {
+    sb.scene.background = null
+    return
+  }
+  try {
+    sb.scene.background = new Color(raw)
+  } catch {
+    // ignore invalid css color text
+  }
+}
+
+watch(editorBackgroundColor, () => applyEditorBackgroundColorToScene())
+
 /** 按分组整理后的模型类型列表，用于左侧「模型类型」分组展示 */
 const modelTypesByGroup = useModelTypesByGroup(modelRegistry)
 
@@ -487,6 +505,10 @@ const widgets3D = computed(() => config.widgets3D ?? [])
 const loaderRef = ref<Loader | null>(null)
 // worldRef 已提前声明（用于布局计算）
 const storyboardRef = ref<StoryBoard | null>(null)
+watch(
+  () => storyboardRef.value,
+  () => applyEditorBackgroundColorToScene()
+)
 const addedModelNames = new Set<string>()
 const pendingTransforms = new Map<
   string,
