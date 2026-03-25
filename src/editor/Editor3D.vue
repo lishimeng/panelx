@@ -145,6 +145,8 @@ import {
 import type { DashboardConfig, WidgetConfig3D, Scene3DCameraLayerItem } from '../types/dashboard'
 import type { BackendDataSourceConfig } from '../types'
 import { loadDatasourceConfigFromStorage } from '../utils/datasourceConfigStorage'
+import { resolveDatasourceUrl } from '../utils/resolveDatasourceUrl'
+import { startSseDatasourceProbe } from '../utils/sseDatasourceProbe'
 import { isDebugEnabled } from '../utils/logManager'
 import { dataChainLog } from '../core/comm/dataChainLog'
 import type { PropDefinition } from '../framework'
@@ -391,24 +393,6 @@ function setDatasourceProbeHint(text: string, variant: 'info' | 'success' | 'war
   }, 3000)
 }
 
-function normalizeDatasourcePath(path: string): string {
-  const p = path.trim()
-  if (!p) return ''
-  if (/^https?:\/\//i.test(p)) return p
-  return p.startsWith('/') ? p : `/${p}`
-}
-
-function resolveDatasourceUrl(dsConfig: BackendDataSourceConfig): string {
-  const rawUrl = String(dsConfig.url ?? '').trim()
-  if (rawUrl) return rawUrl
-  const fallbackPath = dsConfig.type === 'sse' ? '/api/sse' : '/api/stats'
-  const path = normalizeDatasourcePath(String(dsConfig.path ?? fallbackPath))
-  const host = String(dsConfig.host ?? '').trim()
-  if (!host) return path
-  const h = host.endsWith('/') ? host.slice(0, -1) : host
-  return `${h}${path}`
-}
-
 function pickActiveDatasource(list: BackendDataSourceConfig[]): BackendDataSourceConfig | null {
   const enabled = list.filter((d) => d.enable === true)
   if (enabled.length > 1) return enabled[0] ?? null
@@ -428,20 +412,14 @@ function startDatasourceProbe(list: BackendDataSourceConfig[]): void {
   const url = resolveDatasourceUrl(active)
 
   if (active.type === 'sse') {
-    const es = new EventSource(url)
-    es.onopen = () => dataChainLog('Editor3D.datasourceProbe', { stage: 'connected', type: 'sse', key: active.key, url })
-    es.onmessage = (evt) => {
-      dataChainLog('Editor3D.datasourceProbe', {
-        stage: 'data',
-        type: 'sse',
-        key: active.key,
-        rawLength: String(evt.data ?? '').length
-      })
-    }
-    es.onerror = () => dataChainLog('Editor3D.datasourceProbe', { stage: 'error', type: 'sse', key: active.key })
     datasourceProbeRunning.value = true
+    const stop = startSseDatasourceProbe(
+      url,
+      (entry) => dataChainLog('Editor3D.datasourceProbe', entry),
+      { key: active.key, sourceTag: 'Editor3D' }
+    )
     stopDatasourceProbe = () => {
-      es.close()
+      stop()
       datasourceProbeRunning.value = false
     }
     return
@@ -1079,7 +1057,8 @@ const { addWidgetModelToScene, onFrameworkLoaded } = useEditor3DSceneBinding({
   normalizeLayerValues,
   applyLayersToObject,
   degToRad,
-  applyCameraLayers
+  applyCameraLayers,
+  cameraZoomRef: cameraZoom
 })
 
 const { createRobotDemoScene, clearDemoInfoBoxes } = useEditor3DDemoScene({
@@ -1299,7 +1278,11 @@ function buildDashboardExportPayload(): DashboardConfig {
       threshold: bloomThreshold.value
     },
     camera: {
-      zoom: cameraZoom.value,
+      zoom: (() => {
+        const cam = (storyboardRef.value as BaseStoryBoard | null)?.camera as OrthographicCamera | undefined
+        const z = cam?.zoom
+        return Number.isFinite(z) && (z as number) > 0 ? (z as number) : cameraZoom.value
+      })(),
       layers: cameraLayers.map((item) => ({ layer: LayerDef.normalize(item.layer), enable: item.enable }))
     }
   }

@@ -44,6 +44,8 @@ type UseEditor3DSceneBindingOptions = {
   applyLayersToObject: (obj: Object3D, values: number[]) => void
   degToRad: (deg: number) => number
   applyCameraLayers: () => void
+  /** 与正交相机实际 zoom 同步，避免导出 scene3D.camera.zoom 仍为默认 1 而运行时覆盖掉 initialOrthographicZoom */
+  cameraZoomRef?: Ref<number>
 }
 
 export function useEditor3DSceneBinding(options: UseEditor3DSceneBindingOptions) {
@@ -165,6 +167,9 @@ export function useEditor3DSceneBinding(options: UseEditor3DSceneBindingOptions)
       cam.position.copy(new Vector3(1, 1, 1).normalize().multiplyScalar(orbitDist))
       cam.zoom = initialOrthographicZoomFromWorldSize(options.sceneWorldSize.value)
       cam.updateProjectionMatrix()
+      if (options.cameraZoomRef) {
+        options.cameraZoomRef.value = cam.zoom
+      }
       const sb = new ControlsStoryBoard('Editor3D', cam, {
         background: null,
         orthographicSize: halfH,

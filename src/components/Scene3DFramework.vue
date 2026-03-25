@@ -117,6 +117,22 @@ function applyCustomProps(model: Model, props: Record<string, unknown>): void {
   }
 }
 
+/** 与 Editor3D `useEditor3DSelectionTransform` 一致：支持 number 或 [x,y,z] 缩放 */
+function parseWidgetScaleVec(raw: unknown): [number, number, number] {
+  if (typeof raw === 'number') {
+    const v = toPositiveNumber(raw, 1)
+    return [v, v, v]
+  }
+  if (Array.isArray(raw)) {
+    return [
+      toPositiveNumber(raw[0], 1),
+      toPositiveNumber(raw[1], 1),
+      toPositiveNumber(raw[2], 1)
+    ]
+  }
+  return [1, 1, 1]
+}
+
 function applyInstanceExtrasFromCustom(model: Model, props: Record<string, unknown>): void {
   const custom = props[CUSTOM_PROPS_KEY]
   if (!custom || typeof custom !== 'object') return
@@ -157,7 +173,7 @@ onMounted(() => {
   const widgetPropsMap = new Map<string, Record<string, unknown>>()
   const widgetTransformMap = new Map<
     string,
-    { position: [number, number, number]; scale: number; rotationDeg: [number, number, number] }
+    { position: [number, number, number]; scale: [number, number, number]; rotationDeg: [number, number, number] }
   >()
 
   setup3D(
@@ -388,9 +404,10 @@ onMounted(() => {
             const tf = widgetTransformMap.get(item.id)
             if (tf) {
               model.scene.position.set(tf.position[0], tf.position[1], tf.position[2])
-                // InfoBoxModel 内部已给 CSS3DObject 设置了默认缩放（0.01）
-                // 这里改为“相对缩放”，避免在 configurable 的 widgets3D runtime 路径中覆盖为 scale=1 导致信息框变大
-                model.scene.scale.multiplyScalar(tf.scale)
+              // 与 Editor3D 一致：使用完整三维缩放；CSS3D 模型乘 0.01（见 InfoBox 等）
+              const cssMul = (model as unknown as { isCss3d?: boolean }).isCss3d ? 0.01 : 1
+              const [sx, sy, sz] = tf.scale
+              model.scene.scale.set(sx * cssMul, sy * cssMul, sz * cssMul)
               model.scene.rotation.set(degToRad(tf.rotationDeg[0]), degToRad(tf.rotationDeg[1]), degToRad(tf.rotationDeg[2]))
               modelPositions.set(item.id, [...tf.position])
 
@@ -505,15 +522,12 @@ onMounted(() => {
         model.props = { ...p }
         applyCustomProps(model, p)
         const pos = (p.position as [number, number, number] | undefined) ?? [0, 0, 0]
-        const rawScale = p.scale
         const rawRotation = (p.rotation as [number, number, number] | undefined) ?? [0, 0, 0]
-        let scale = 1
-        if (typeof rawScale === 'number') scale = toPositiveNumber(rawScale, 1)
-        else if (Array.isArray(rawScale)) scale = toPositiveNumber(rawScale[0], 1)
+        const scaleVec = parseWidgetScaleVec(p.scale)
         widgetPropsMap.set(w.id, p)
         widgetTransformMap.set(w.id, {
           position: [pos[0] ?? 0, pos[1] ?? 0, pos[2] ?? 0],
-          scale,
+          scale: scaleVec,
           rotationDeg: [Number(rawRotation[0]) || 0, Number(rawRotation[1]) || 0, Number(rawRotation[2]) || 0]
         })
         list.push(model)

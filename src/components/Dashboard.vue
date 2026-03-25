@@ -43,6 +43,7 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick, provide } from 'vue'
 import { SizeManager2D } from '../core/size'
 import { getViewportAndScale, pxToVw, pxToVh, pxToRem } from '../utils/viewport'
+import { resolveDatasourceUrl } from '../utils/resolveDatasourceUrl'
 import type {
   DashboardConfig,
   WidgetConfig2D,
@@ -230,25 +231,6 @@ type RoutedSourceData = {
   targetId?: string
   route: { domain: ControlDomain; action: ControlAction }
   data: unknown
-}
-
-function normalizePath(path: string): string {
-  const p = path.trim()
-  if (!p) return ''
-  if (/^https?:\/\//i.test(p)) return p
-  return p.startsWith('/') ? p : `/${p}`
-}
-
-function resolveDatasourceUrl(dsConfig: BackendDataSourceConfig): string {
-  const rawUrl = String(dsConfig.url ?? '').trim()
-  if (rawUrl) return rawUrl
-
-  const fallbackPath = dsConfig.type === 'sse' ? '/api/sse' : '/api/stats'
-  const path = normalizePath(String(dsConfig.path ?? fallbackPath))
-  const host = String(dsConfig.host ?? '').trim()
-  if (!host) return path
-  const h = host.endsWith('/') ? host.slice(0, -1) : host
-  return `${h}${path}`
 }
 
 function buildDatasourceHash(dsConfig: BackendDataSourceConfig): string {

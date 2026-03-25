@@ -296,6 +296,8 @@ import {
   saveEnable3DMergeToStorage
 } from '../utils/editor3dDraft'
 import { loadDatasourceConfigFromStorage } from '../utils/datasourceConfigStorage'
+import { resolveDatasourceUrl } from '../utils/resolveDatasourceUrl'
+import { startSseDatasourceProbe } from '../utils/sseDatasourceProbe'
 import { dataChainLog } from '../core/comm/dataChainLog'
 
 const router = useRouter()
@@ -382,24 +384,6 @@ function setDatasourceProbeHint(text: string, variant: 'info' | 'success' | 'war
   }, 3000)
 }
 
-function normalizeDatasourcePath(path: string): string {
-  const p = path.trim()
-  if (!p) return ''
-  if (/^https?:\/\//i.test(p)) return p
-  return p.startsWith('/') ? p : `/${p}`
-}
-
-function resolveDatasourceUrl(dsConfig: EditorDatasource): string {
-  const rawUrl = String(dsConfig.url ?? '').trim()
-  if (rawUrl) return rawUrl
-  const fallbackPath = dsConfig.type === 'sse' ? '/api/sse' : '/api/stats'
-  const path = normalizeDatasourcePath(String(dsConfig.path ?? fallbackPath))
-  const host = String(dsConfig.host ?? '').trim()
-  if (!host) return path
-  const h = host.endsWith('/') ? host.slice(0, -1) : host
-  return `${h}${path}`
-}
-
 function pickActiveDatasource(list: EditorDatasource[]) {
   const enabled = list.filter((d) => d.enable === true)
   return enabled[0] ?? list[0] ?? null
@@ -416,19 +400,14 @@ function startDatasourceProbe(list: EditorDatasource[]): void {
   }
   const url = resolveDatasourceUrl(active)
   if (active.type === 'sse') {
-    const es = new EventSource(url)
-    es.onopen = () => dataChainLog('Editor2D.datasourceProbe', { stage: 'connected', type: 'sse', key: active.key, url })
-    es.onmessage = (evt) =>
-      dataChainLog('Editor2D.datasourceProbe', {
-        stage: 'data',
-        type: 'sse',
-        key: active.key,
-        rawLength: String(evt.data ?? '').length
-      })
-    es.onerror = () => dataChainLog('Editor2D.datasourceProbe', { stage: 'error', type: 'sse', key: active.key })
     datasourceProbeRunning.value = true
+    const stop = startSseDatasourceProbe(
+      url,
+      (entry) => dataChainLog('Editor2D.datasourceProbe', entry),
+      { key: active.key, sourceTag: 'Editor2D' }
+    )
     stopDatasourceProbe = () => {
-      es.close()
+      stop()
       datasourceProbeRunning.value = false
     }
     return
