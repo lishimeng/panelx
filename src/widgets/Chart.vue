@@ -7,7 +7,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, onMounted, onUnmounted, watch, nextTick, computed } from 'vue'
 import * as echarts from 'echarts'
 import { registerEchartsMacaronTheme, mergeMacaronRoundOptions } from '../theme/echartsMacaron'
 import type { ChartProps } from '../types/components'
@@ -16,9 +16,10 @@ const props = defineProps<ChartProps>()
 const chartRef = ref<HTMLElement | null>(null)
 let chartInstance: echarts.ECharts | null = null
 let resizeObserver: ResizeObserver | null = null
+let parentResizeObserver: ResizeObserver | null = null
 
-const width = props.width || '100%'
-const height = props.height || '25rem'
+const width = computed(() => props.width || '100%')
+const height = computed(() => props.height || '25rem')
 
 const defaultSeriesType = 'bar'
 
@@ -70,6 +71,12 @@ onMounted(() => {
     resizeChart()
     resizeObserver = new ResizeObserver(() => resizeChart())
     resizeObserver.observe(chartRef.value)
+    const parent = chartRef.value.parentElement
+    if (parent) {
+      parentResizeObserver = new ResizeObserver(() => resizeChart())
+      parentResizeObserver.observe(parent)
+    }
+    window.addEventListener('resize', resizeChart)
   })
 })
 
@@ -96,6 +103,9 @@ watch(() => props.loading, (loading) => {
 onUnmounted(() => {
   resizeObserver?.disconnect()
   resizeObserver = null
+  parentResizeObserver?.disconnect()
+  parentResizeObserver = null
+  window.removeEventListener('resize', resizeChart)
   if (chartInstance) {
     chartInstance.dispose()
     chartInstance = null

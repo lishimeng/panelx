@@ -15,6 +15,7 @@
         :series-type="seriesType"
         width="100%"
         height="100%"
+        class-name="panelx-glass-chart-echart"
         :theme="chartTheme"
       />
       </div>
@@ -87,12 +88,16 @@ const chartTheme = computed(() => {
 .panelx-glass-chart-body {
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-width: 0;
   min-height: 0;
   overflow: hidden;
 }
-.panelx-glass-chart-body :deep(div) {
+.panelx-glass-chart-body :deep(.panelx-glass-chart-echart) {
   width: 100% !important;
+  height: 100% !important;
   flex: 1 !important;
+  min-width: 0 !important;
   min-height: 0 !important;
   overflow: hidden !important;
 }
