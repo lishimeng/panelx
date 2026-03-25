@@ -10,6 +10,8 @@
     { "type": "stat", "label": "指标", "defaultSize": { "width": 280, "height": 100 }, "sampleImage": "" },
     { "type": "chart", "label": "图表", "defaultSize": { "width": 480, "height": 280 }, "sampleImage": "" },
     { "type": "glassChart", "label": "玻璃图表", "defaultSize": { "width": 380, "height": 220 }, "sampleImage": "widget_chart_bar.png" },
+    { "type": "textPanel2D", "label": "文字面板", "defaultSize": { "width": 340, "height": 220 }, "sampleImage": "" },
+    { "type": "tableChart", "label": "数据列表(table_chart)", "defaultSize": { "width": 340, "height": 260 }, "sampleImage": "" },
     { "type": "table", "label": "表格", "defaultSize": { "width": 400, "height": 260 }, "sampleImage": "" },
     { "type": "card", "label": "卡片", "defaultSize": { "width": 320, "height": 180 }, "sampleImage": "" },
     { "type": "panel", "label": "面板", "defaultSize": { "width": 360, "height": 200 }, "sampleImage": "" },
@@ -35,8 +37,51 @@
         "subTitle": "CHART",
         "tabColor": "blue",
         "showTab": false,
+        "panelOpacity": 0.75,
+        "panelBorderVisible": true,
+        "panelBorderOpacity": 0.6,
+        "panelShadowVisible": true,
+        "panelShadowOpacity": 1,
         "seriesType": "bar",
         "options": { "xAxis": { "type": "category", "data": ["A", "B", "C"] }, "yAxis": { "type": "value" }, "series": [{ "data": [120, 200, 150] }] }
+      },
+      "textPanel2D": {
+        "title": "关于",
+        "subTitle": "INTRODUCTION",
+        "tabColor": "cyan",
+        "showTab": true,
+        "panelOpacity": 0.75,
+        "panelBorderVisible": true,
+        "panelBorderOpacity": 0.6,
+        "panelShadowVisible": true,
+        "panelShadowOpacity": 1,
+        "sections": [
+          { "content": "用于展示文字说明。|支持用 | 分行。|可用 [[高亮内容]] 标记关键字。" }
+        ]
+      },
+      "tableChart": {
+        "title": "近期检修记录",
+        "subTitle": "RECENT MAINTENANCE",
+        "tabColor": "cyan",
+        "showTab": true,
+        "panelOpacity": 0.75,
+        "panelBorderVisible": true,
+        "panelBorderOpacity": 0.6,
+        "panelShadowVisible": true,
+        "panelShadowOpacity": 1,
+        "columns": [
+          { "key": "levelName", "title": "报警等级", "width": "72px", "align": "left" },
+          { "key": "part", "title": "检修部位", "width": "auto", "align": "left" },
+          { "key": "result", "title": "处理结果", "width": "84px", "align": "left" },
+          { "key": "time", "title": "检修时间", "width": "92px", "align": "right" }
+        ],
+        "rows": [
+          { "levelName": "一级", "badgeColor": "#2584ff", "part": "XXXXXXX", "result": "已处理", "time": "2025.02.05" },
+          { "levelName": "二级", "badgeColor": "#ff9535", "part": "XXXXXXX", "result": "已处理", "time": "2025.02.06" },
+          { "levelName": "三级", "badgeColor": "#36cc85", "part": "XXXXXXX", "result": "未处理", "time": "2025.02.12" }
+        ],
+        "badgeKey": "levelName",
+        "badgeColorKey": "badgeColor"
       },
       "table": {
         "columns": [{ "key": "name", "title": "名称" }, { "key": "value", "title": "数值" }],
@@ -51,6 +96,11 @@
         "subTitle": "PROGRESS",
         "tabColor": "cyan",
         "showTab": true,
+        "panelOpacity": 0.75,
+        "panelBorderVisible": true,
+        "panelBorderOpacity": 0.6,
+        "panelShadowVisible": true,
+        "panelShadowOpacity": 1,
         "items": [{ "label": "项1", "value": "100", "percent": 60 }, { "label": "项2", "value": "200", "percent": 80 }]
       },
       "screenTitle": { "text": "大屏标题" },

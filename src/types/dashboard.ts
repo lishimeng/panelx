@@ -14,6 +14,8 @@ export type WidgetType2D =
   | 'screenTitle'
   | 'topBar'
   | 'glassChart'
+  | 'textPanel2D'
+  | 'tableChart'
   | 'deviceCard'
   | 'bottomNav'
   | 'progressList'

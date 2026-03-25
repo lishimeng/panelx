@@ -1,5 +1,13 @@
 <template>
-  <GlassPanel :title="title" :sub-title="subTitle" :tab-color="tabColor" :show-tab="showTab">
+  <GlassPanel
+    :title="title"
+    :sub-title="subTitle"
+    :tab-color="tabColor"
+    :show-tab="showTab"
+    :panel-opacity="panelOpacity"
+    :panel-border-visible="panelBorderVisible"
+    :panel-border-opacity="panelBorderOpacity"
+  >
     <div class="panelx-progress-list-content">
       <div
         v-for="(item, i) in items"
@@ -28,6 +36,12 @@ defineProps<{
   subTitle?: string
   tabColor?: 'blue' | 'cyan' | 'yellow' | 'green' | 'orange' | 'purple'
   showTab?: boolean
+  /** 面板背景透明度（0~1） */
+  panelOpacity?: number
+  /** 是否显示面板边框 */
+  panelBorderVisible?: boolean
+  /** 面板边框透明度（0~1） */
+  panelBorderOpacity?: number
   items: Array<{ label: string; value: string | number; percent: number }>
 }>()
 </script>

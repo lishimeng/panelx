@@ -1,5 +1,9 @@
 <template>
-  <div class="panelx-glass-panel" :class="`panelx-glass-panel-theme-${theme}`">
+  <div
+    class="panelx-glass-panel"
+    :class="`panelx-glass-panel-theme-${theme}`"
+    :style="panelStyle"
+  >
     <!-- 顶部色条 -->
     <div
       v-if="showTab"
@@ -31,6 +35,7 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue'
 
 // TS 接口定义
 interface Props {
@@ -41,16 +46,65 @@ interface Props {
   tabColor?: 'blue' | 'cyan' | 'yellow' | 'green' | 'orange' | 'purple'
   showTab?: boolean
   showFold?: boolean
+  /** 面板背景透明度（0~1），不传则使用 theme 默认 */
+  panelOpacity?: number
+  /** 是否显示面板边框 */
+  panelBorderVisible?: boolean
+  /** 面板边框透明度（0~1），不传则使用 theme 默认 */
+  panelBorderOpacity?: number
+  /** 是否显示面板阴影/外发光 */
+  panelShadowVisible?: boolean
+  /** 面板阴影强度（0~1），不传则使用 theme 默认 */
+  panelShadowOpacity?: number
 }
 
 // ✅ 使用 withDefaults 设置默认值
-withDefaults(defineProps<Props>(), {
+const props = withDefaults(defineProps<Props>(), {
   title: '',
   subTitle: '',
   theme: 'hud',
   tabColor: 'blue',       // 默认蓝色
   showTab: false,         // 默认不显示顶部色条
-  showFold: true          // 默认显示折叠按钮
+  showFold: true,         // 默认显示折叠按钮
+  panelBorderVisible: true,
+  panelShadowVisible: true
+})
+
+function clamp01(v: unknown): number | undefined {
+  if (v === null || v === undefined) return undefined
+  const n = Number(v)
+  if (!Number.isFinite(n)) return undefined
+  return Math.max(0, Math.min(1, n))
+}
+
+const panelStyle = computed(() => {
+  const style: Record<string, string> = {}
+  const a = clamp01(props.panelOpacity)
+  if (a !== undefined) style['--px-panel-bg-alpha'] = String(a)
+
+  const ba = clamp01(props.panelBorderOpacity)
+  if (ba !== undefined) style['--px-panel-border-alpha'] = String(ba)
+
+  if (props.panelBorderVisible === false) style['--px-panel-border-alpha'] = '0'
+
+  const sa = clamp01(props.panelShadowOpacity)
+  if (sa !== undefined) style['--px-panel-shadow-alpha'] = String(sa)
+
+  if (props.panelShadowVisible === false) style['--px-panel-shadow-alpha'] = '0'
+  // 背景完全透明时，默认关闭阴影，避免出现“圆角阴影/发光”
+  if (a === 0 && sa === undefined) style['--px-panel-shadow-alpha'] = '0'
+
+  // 标题颜色“反转”：背景越透明越偏黑字，避免白底看不见
+  const bgAlpha = a ?? 0.75
+  if (bgAlpha <= 0.15) {
+    style['--px-panel-title-cn'] = 'rgba(10, 22, 40, 0.95)'
+    style['--px-panel-title-en'] = 'rgba(10, 22, 40, 0.65)'
+  } else {
+    style['--px-panel-title-cn'] = '#ffffff'
+    style['--px-panel-title-en'] = '#6586b5'
+  }
+
+  return Object.keys(style).length ? style : undefined
 })
 </script>
 
@@ -64,13 +118,19 @@ withDefaults(defineProps<Props>(), {
 /* 核心卡片 + theme token（CSS 变量） */
 .panelx-glass-panel {
   /* theme tokens（默认 hud） */
-  --px-panel-bg: rgba(12, 26, 54, 0.75);
+  --px-panel-bg-rgb: 12, 26, 54;
+  --px-panel-bg-alpha: 0.75;
+  --px-panel-bg: rgba(var(--px-panel-bg-rgb), var(--px-panel-bg-alpha));
   --px-panel-blur: 4px;
-  --px-panel-border: rgba(30, 59, 106, 0.6);
-  --px-panel-radius: 4px;
-  --px-panel-shadow-1: 0 0 0 1px rgba(82, 152, 255, 0.2);
-  --px-panel-shadow-2: 0 0 8px rgba(82, 152, 255, 0.25);
-  --px-panel-shadow-3: 0 0 18px rgba(30, 70, 130, 0.15);
+  --px-panel-border-rgb: 30, 59, 106;
+  --px-panel-border-alpha: 0.6;
+  --px-panel-border: rgba(var(--px-panel-border-rgb), var(--px-panel-border-alpha));
+  /* 随容器尺寸自适应圆角：小尺寸不至于太圆，大尺寸圆角更明显 */
+  --px-panel-radius: clamp(4px, 0.6cqw, 12px);
+  --px-panel-shadow-alpha: 1;
+  --px-panel-shadow-1: 0 0 0 1px rgba(82, 152, 255, calc(0.2 * var(--px-panel-shadow-alpha)));
+  --px-panel-shadow-2: 0 0 8px rgba(82, 152, 255, calc(0.25 * var(--px-panel-shadow-alpha)));
+  --px-panel-shadow-3: 0 0 18px rgba(30, 70, 130, calc(0.15 * var(--px-panel-shadow-alpha)));
 
   --px-panel-title-cn: #ffffff;
   --px-panel-title-en: #6586b5;
@@ -91,6 +151,7 @@ withDefaults(defineProps<Props>(), {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  isolation: isolate;
   background: var(--px-panel-bg);
   backdrop-filter: blur(var(--px-panel-blur));
   -webkit-backdrop-filter: blur(var(--px-panel-blur));
@@ -139,7 +200,7 @@ withDefaults(defineProps<Props>(), {
 
 /* 主标题 */
 .panelx-glass-panel-title-cn {
-  font-size: 15px;
+  font-size: 12px;
   color: var(--px-panel-title-cn);
   font-weight: 400;
   letter-spacing: 0.5px;
@@ -148,7 +209,7 @@ withDefaults(defineProps<Props>(), {
 
 /* 副标题 */
 .panelx-glass-panel-sub-title {
-  font-size: 11px;
+  font-size: 8px;
   color: var(--px-panel-title-en);
   text-transform: uppercase;
   font-family: "Roboto", "Arial", sans-serif;
@@ -176,7 +237,7 @@ withDefaults(defineProps<Props>(), {
 .panelx-glass-panel-body {
   flex: 1;
   min-height: 0;
-  padding: 24px 20px;
+  padding: 8px 20px;
   overflow: hidden;
   display: flex;
   flex-direction: column;

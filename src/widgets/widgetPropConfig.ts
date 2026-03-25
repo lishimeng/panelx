@@ -74,6 +74,11 @@ export const widgetTypeReg: Record<WidgetType2D, WidgetTypeRegItem> = {
       subTitle: 'CHART',
       tabColor: 'blue',
       showTab: true,
+      panelOpacity: 0.75,
+      panelBorderVisible: true,
+      panelBorderOpacity: 0.6,
+      panelShadowVisible: true,
+      panelShadowOpacity: 1,
       seriesType: 'bar',
       options: chartDefaultOptions
     },
@@ -82,8 +87,85 @@ export const widgetTypeReg: Record<WidgetType2D, WidgetTypeRegItem> = {
       { key: 'subTitle', label: '副标题', type: 'string', default: 'CHART' },
       { key: 'tabColor', label: '顶部色带颜色', type: 'string', default: 'blue' },
       { key: 'showTab', label: '显示顶部色带', type: 'boolean', default: true },
+      { key: 'panelOpacity', label: '面板透明度(0-1)', type: 'number', default: 0.75 },
+      { key: 'panelBorderVisible', label: '显示边框', type: 'boolean', default: true },
+      { key: 'panelBorderOpacity', label: '边框透明度(0-1)', type: 'number', default: 0.6 },
+      { key: 'panelShadowVisible', label: '显示阴影', type: 'boolean', default: true },
+      { key: 'panelShadowOpacity', label: '阴影强度(0-1)', type: 'number', default: 1 },
       { key: 'seriesType', label: '系列类型', type: 'string', default: 'bar' },
       { key: 'options', label: '图表配置', type: 'object', default: chartDefaultOptions }
+    ]
+  },
+  textPanel2D: {
+    defaultProps: {
+      title: '关于',
+      subTitle: 'INTRODUCTION',
+      tabColor: 'cyan',
+      showTab: true,
+      panelOpacity: 0.75,
+      panelBorderVisible: true,
+      panelBorderOpacity: 0.6,
+      panelShadowVisible: true,
+      panelShadowOpacity: 1,
+      sections: [
+        {
+          content:
+            '用于展示文字说明。|支持用 | 分行。|可用 [[高亮内容]] 标记关键字。'
+        }
+      ]
+    },
+    propConfig: [
+      { key: 'title', label: '标题', type: 'string', default: '关于' },
+      { key: 'subTitle', label: '副标题', type: 'string', default: 'INTRODUCTION' },
+      { key: 'tabColor', label: '顶部色带颜色', type: 'string', default: 'cyan' },
+      { key: 'showTab', label: '显示顶部色带', type: 'boolean', default: true },
+      { key: 'panelOpacity', label: '面板透明度(0-1)', type: 'number', default: 0.75 },
+      { key: 'panelBorderVisible', label: '显示边框', type: 'boolean', default: true },
+      { key: 'panelBorderOpacity', label: '边框透明度(0-1)', type: 'number', default: 0.6 },
+      { key: 'panelShadowVisible', label: '显示阴影', type: 'boolean', default: true },
+      { key: 'panelShadowOpacity', label: '阴影强度(0-1)', type: 'number', default: 1 },
+      { key: 'sections', label: '段落区块', type: 'array', default: [] }
+    ]
+  },
+  tableChart: {
+    defaultProps: {
+      title: '近期检修记录',
+      subTitle: 'RECENT MAINTENANCE',
+      tabColor: 'cyan',
+      showTab: true,
+      panelOpacity: 0.75,
+      panelBorderVisible: true,
+      panelBorderOpacity: 0.6,
+      panelShadowVisible: true,
+      panelShadowOpacity: 1,
+      columns: [
+        { key: 'levelName', title: '报警等级', width: '72px', align: 'left' },
+        { key: 'part', title: '检修部位', width: 'auto', align: 'left' },
+        { key: 'result', title: '处理结果', width: '84px', align: 'left' },
+        { key: 'time', title: '检修时间', width: '92px', align: 'right' }
+      ],
+      rows: [
+        { levelName: '一级', badgeColor: '#2584ff', part: 'XXXXXXX', result: '已处理', time: '2025.02.05' },
+        { levelName: '二级', badgeColor: '#ff9535', part: 'XXXXXXX', result: '已处理', time: '2025.02.06' },
+        { levelName: '三级', badgeColor: '#36cc85', part: 'XXXXXXX', result: '未处理', time: '2025.02.12' }
+      ],
+      badgeKey: 'levelName',
+      badgeColorKey: 'badgeColor'
+    },
+    propConfig: [
+      { key: 'title', label: '标题', type: 'string', default: '近期检修记录' },
+      { key: 'subTitle', label: '副标题', type: 'string', default: 'RECENT MAINTENANCE' },
+      { key: 'tabColor', label: '顶部色带颜色', type: 'string', default: 'cyan' },
+      { key: 'showTab', label: '显示顶部色带', type: 'boolean', default: true },
+      { key: 'panelOpacity', label: '面板透明度(0-1)', type: 'number', default: 0.75 },
+      { key: 'panelBorderVisible', label: '显示边框', type: 'boolean', default: true },
+      { key: 'panelBorderOpacity', label: '边框透明度(0-1)', type: 'number', default: 0.6 },
+      { key: 'panelShadowVisible', label: '显示阴影', type: 'boolean', default: true },
+      { key: 'panelShadowOpacity', label: '阴影强度(0-1)', type: 'number', default: 1 },
+      { key: 'columns', label: '列配置', type: 'array', default: [] },
+      { key: 'rows', label: '数据行', type: 'array', default: [] },
+      { key: 'badgeKey', label: 'Badge 字段', type: 'string', default: 'levelName' },
+      { key: 'badgeColorKey', label: 'Badge 颜色字段', type: 'string', default: 'badgeColor' }
     ]
   },
   deviceCard: {
@@ -105,6 +187,11 @@ export const widgetTypeReg: Record<WidgetType2D, WidgetTypeRegItem> = {
       subTitle: 'PROGRESS',
       tabColor: 'cyan',
       showTab: true,
+      panelOpacity: 0.75,
+      panelBorderVisible: true,
+      panelBorderOpacity: 0.6,
+      panelShadowVisible: true,
+      panelShadowOpacity: 1,
       items: [{ label: '项1', value: '100', percent: 60 }]
     },
     propConfig: [
@@ -112,6 +199,11 @@ export const widgetTypeReg: Record<WidgetType2D, WidgetTypeRegItem> = {
       { key: 'subTitle', label: '副标题', type: 'string', default: 'PROGRESS' },
       { key: 'tabColor', label: '顶部色带颜色', type: 'string', default: 'cyan' },
       { key: 'showTab', label: '显示顶部色带', type: 'boolean', default: true },
+      { key: 'panelOpacity', label: '面板透明度(0-1)', type: 'number', default: 0.75 },
+      { key: 'panelBorderVisible', label: '显示边框', type: 'boolean', default: true },
+      { key: 'panelBorderOpacity', label: '边框透明度(0-1)', type: 'number', default: 0.6 },
+      { key: 'panelShadowVisible', label: '显示阴影', type: 'boolean', default: true },
+      { key: 'panelShadowOpacity', label: '阴影强度(0-1)', type: 'number', default: 1 },
       { key: 'items', label: '列表项', type: 'array', default: [] }
     ]
   },

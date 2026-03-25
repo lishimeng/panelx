@@ -1,6 +1,14 @@
 <template>
   <div class="panelx-glass-chart">
-    <GlassPanel :title="title" :sub-title="subTitle" :tab-color="tabColor" :show-tab="showTab">
+    <GlassPanel
+      :title="title"
+      :sub-title="subTitle"
+      :tab-color="tabColor"
+      :show-tab="showTab"
+      :panel-opacity="panelOpacity"
+      :panel-border-visible="panelBorderVisible"
+      :panel-border-opacity="panelBorderOpacity"
+    >
       <div class="panelx-glass-chart-body">
       <Chart
         :options="chartOptions"
@@ -34,6 +42,12 @@ const props = withDefaults(
     tabColor?: 'blue' | 'cyan' | 'yellow' | 'green' | 'orange' | 'purple'
     /** 是否显示顶部色带 */
     showTab?: boolean
+    /** 面板背景透明度（0~1） */
+    panelOpacity?: number
+    /** 是否显示面板边框 */
+    panelBorderVisible?: boolean
+    /** 面板边框透明度（0~1） */
+    panelBorderOpacity?: number
     /** 单独配置本 widget 主题，覆盖 dashboard 级 theme */
     theme?: 'dark' | 'light' | 'macaron'
   }>(),
@@ -42,6 +56,9 @@ const props = withDefaults(
     seriesType: 'bar',
     tabColor: 'blue',
     showTab: false,
+    panelOpacity: undefined,
+    panelBorderVisible: true,
+    panelBorderOpacity: undefined,
     theme: undefined
   }
 )

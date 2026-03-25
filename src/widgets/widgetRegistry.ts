@@ -13,7 +13,9 @@ import Panel from './Panel.vue'
 import ScreenTitle from './ScreenTitle.vue'
 import TopBar from './TopBar.vue'
 import GlassChart from './GlassChart.vue'
+import TextPanel2D from './TextPanel2D.vue'
 import DeviceCard from './DeviceCard.vue'
+import TableChart from './TableChart.vue'
 import BottomNav from './BottomNav.vue'
 import ProgressList from './ProgressList.vue'
 import ScaleRuler from './ScaleRuler.vue'
@@ -29,6 +31,8 @@ export const widgetComponentMap: Record<WidgetType2D, unknown> = {
   screenTitle: ScreenTitle,
   topBar: TopBar,
   glassChart: GlassChart,
+  textPanel2D: TextPanel2D,
+  tableChart: TableChart,
   deviceCard: DeviceCard,
   bottomNav: BottomNav,
   progressList: ProgressList,
