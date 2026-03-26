@@ -255,7 +255,9 @@
             :key="propDef.key"
             class="panelx-editor-field"
           >
-            <label :title="propDef.key">{{ propDef.label }}</label>
+            <label :title="`${propDef.label}（${propDef.key}）`">
+              {{ propDef.label }}<span class="panelx-editor-prop-key"> · {{ propDef.key }}</span>
+            </label>
             <template v-if="propDef.type === 'color'">
               <ColorPickerField
                 :model-value="String(getProp(selectedConfig, propDef) ?? '')"
@@ -1695,6 +1697,14 @@ function onImportConfigChange(e: Event) {
   margin-bottom: 0.25rem;
   font-size: 0.75rem;
   color: #666;
+}
+.panelx-editor-prop-key {
+  margin-left: 0.25rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.6875rem;
+  font-weight: 400;
+  color: #94a3b8;
+  word-break: break-all;
 }
 .panelx-editor-field input,
 .panelx-editor-field .panelx-editor-select {
