@@ -69,11 +69,6 @@ const dashboardRef = ref<any>(null)
 
 const fileInputRef = ref<HTMLInputElement | null>(null)
 
-/** 预留：可由外部或默认流程调用的加载车间/大屏配置 */
-function loadWorkshopConfig() {
-  // 预留：例如从 API 或默认 JSON 加载后调用 applyConfig(result)
-}
-
 /** 用户选择文件后初始化 dashboard */
 function onFileChange(e: Event) {
   const input = e.target as HTMLInputElement
@@ -141,7 +136,6 @@ const effectiveDatasources = computed<BackendDataSourceConfig[]>(() => {
 })
 
 defineExpose({
-  loadWorkshopConfig,
   configLoaded,
   applyConfig,
   executeCommand: (req: CommandRequest) => dashboardRef.value?.executeCommand?.(req),

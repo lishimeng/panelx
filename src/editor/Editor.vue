@@ -53,9 +53,6 @@
       <button type="button" class="panelx-editor-btn" @click="previewDashboard">
         预览
       </button>
-      <button type="button" class="panelx-editor-btn" @click="loadWorkshopConfig">
-        加载车间大屏配置
-      </button>
       <div class="panelx-editor-merge-3d-hint">数据源探针：{{ datasourceProbeRunning ? '运行中' : '已停止' }}</div>
       <InlineNotice :text="datasourceProbeHint" :variant="datasourceProbeHintVariant" />
       <button type="button" class="panelx-editor-btn" :disabled="datasourceProbeRunning" @click="startDatasourceProbeManual">
@@ -320,7 +317,7 @@ import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import type { DashboardConfig, WidgetConfig2D } from '../types/dashboard'
 import type { EditorConfig, RegisteredWidgetDef } from '../types/editor'
-import { setDebugFromConfig, isDebugEnabled } from '../utils/logManager'
+import { isDebugEnabled } from '../utils/logManager'
 import { getWidgetSampleImageUrl } from '../assets/editor-samples'
 import { getWidgetComponent, getWidgetDefaultProps, getWidgetPropConfig } from '../widgets/widgetRegistry'
 import type { WidgetPropDef } from '../types/widgets'
@@ -1174,16 +1171,6 @@ function previewDashboard() {
   window.open(href, '_blank', 'noopener')
 }
 
-async function loadWorkshopConfig() {
-  const mod = await import('../demo/dashboard_config.json')
-  const loaded = mod.default as unknown as DashboardConfig
-  setDebugFromConfig(loaded.debug ?? false)
-  config.design = { ...loaded.design }
-  saveDesignSizeToStorage(loaded.design.width, loaded.design.height)
-  config.backgroundLayer = loaded.backgroundLayer ? JSON.parse(JSON.stringify(loaded.backgroundLayer)) : undefined
-  config.widgets2D = JSON.parse(JSON.stringify(loaded.widgets2D))
-  selectedId.value = config.widgets2D[0]?.id ?? null
-}
 </script>
 
 <style scoped>

@@ -17,11 +17,6 @@ const router = createRouter({
       component: () => import('../examples/pages/Editor3DPage.vue')
     },
     {
-      path: '/workshop',
-      name: 'workshop',
-      component: () => import('../examples/pages/WorkshopPage.vue')
-    },
-    {
       path: '/configurable',
       name: 'configurable',
       component: () => import('../examples/pages/ConfigurablePage.vue')

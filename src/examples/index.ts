@@ -3,7 +3,6 @@
  */
 export { default as EditorExample } from './EditorExample.vue'
 export { default as Editor3DExample } from './Editor3DExample.vue'
-export { default as WorkshopExample } from './WorkshopExample.vue'
 export { default as ConfigurableExample } from './ConfigurableExample.vue'
 export { modelPresets } from './modelPresets'
 export type { ModelPresetItem } from './modelPresets'
