@@ -39,7 +39,12 @@ type UseEditor3DSceneBindingOptions = {
   autoRotateEnabledKey: string
   autoRotateAxisKey: string
   autoRotateSpeedDegKey: string
+  forwardEnabledKey: string
+  forwardXKey: string
+  forwardYKey: string
+  forwardZKey: string
   getAutoRotateSettings: (id: string) => { enabled: boolean; axis: 'x' | 'y' | 'z'; speedDeg: number }
+  getForwardSettings: (id: string) => { enabled: boolean; x: number; y: number; z: number }
   normalizeLayerValues: (layer: unknown) => number[]
   applyLayersToObject: (obj: Object3D, values: number[]) => void
   degToRad: (deg: number) => number
@@ -93,6 +98,7 @@ export function useEditor3DSceneBinding(options: UseEditor3DSceneBindingOptions)
       for (const [k, v] of Object.entries(custom as Record<string, unknown>)) {
         if (k === options.maskColorKey || k === options.maskOpacityKey || k === options.maskRadiusKey) continue
         if (k === options.autoRotateEnabledKey || k === options.autoRotateAxisKey || k === options.autoRotateSpeedDegKey) continue
+        if (k === options.forwardEnabledKey || k === options.forwardXKey || k === options.forwardYKey || k === options.forwardZKey) continue
         try {
           model.propUpdate(k, v)
         } catch {
@@ -106,6 +112,9 @@ export function useEditor3DSceneBinding(options: UseEditor3DSceneBindingOptions)
     model.setAutoRotateAxis(axisVec)
     model.setAutoRotateSpeed(options.degToRad(ar.speedDeg || 0))
     model.setAutoRotateEnabled(Boolean(ar.enabled))
+    const fw = options.getForwardSettings(w.id)
+    model.setForwardEnabled(Boolean(fw.enabled))
+    model.setForwardAxis(new Vector3(fw.x, fw.y, fw.z))
 
     const pos = (props.position as [number, number, number] | undefined) ?? [0, 0, 0]
     const rawScale = props.scale

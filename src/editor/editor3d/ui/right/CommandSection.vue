@@ -74,6 +74,7 @@
             type="button"
             class="panelx-editor3d-btn panelx-editor3d-btn-inline"
             @click="
+              persistForwardSettings(),
               onExecuteCommand({
                 key: COMMAND_KEYS.moveTo,
                 id: selectedWidgetId!,
@@ -99,12 +100,16 @@
         <span class="panelx-editor3d-size-label">前向设置</span>
         <div class="panelx-editor3d-size-inputs">
           <label class="panelx-editor3d-checkbox">
-            <input v-model="moveCmd.forwardEnable" type="checkbox" />
+            <input
+              v-model="moveCmd.forwardEnable"
+              type="checkbox"
+              @change="persistForwardSettings()"
+            />
             启用前向
           </label>
-          <label>FX <input v-model.number="moveCmd.forwardX" type="number" step="any" /></label>
-          <label>FY <input v-model.number="moveCmd.forwardY" type="number" step="any" /></label>
-          <label>FZ <input v-model.number="moveCmd.forwardZ" type="number" step="any" /></label>
+          <label>FX <input v-model.number="moveCmd.forwardX" type="number" step="any" @input="persistForwardSettings()" /></label>
+          <label>FY <input v-model.number="moveCmd.forwardY" type="number" step="any" @input="persistForwardSettings()" /></label>
+          <label>FZ <input v-model.number="moveCmd.forwardZ" type="number" step="any" @input="persistForwardSettings()" /></label>
         </div>
       </div>
 
@@ -124,6 +129,7 @@
             type="button"
             class="panelx-editor3d-btn panelx-editor3d-btn-inline"
             @click="
+              persistForwardSettings(),
               onExecuteCommand({
                 key: COMMAND_KEYS.moveToAnchor,
                 id: selectedWidgetId!,
@@ -187,10 +193,26 @@ const anchorWidgetId = defineModel<string | null>('anchorWidgetId', { required: 
 let autoRotateCmd = defineModel<AutoRotateCmd>('autoRotateCmd', { required: true })
 const propertyRequestJson = defineModel<string>('propertyRequestJson', { required: true })
 const propertyRequestError = defineModel<string>('propertyRequestError', { required: true })
-defineProps({
+
+function persistForwardSettings(): void {
+  const id = selectedWidgetId.value
+  if (!id) return
+  props.onSetForwardSettings(id, {
+    enabled: moveCmd.value.forwardEnable,
+    x: moveCmd.value.forwardX,
+    y: moveCmd.value.forwardY,
+    z: moveCmd.value.forwardZ
+  })
+}
+
+const props = defineProps({
   widgets3D: { type: Array as PropType<WidgetLike[]>, required: true },
   onExecuteCommand: { type: Function as PropType<(req: CommandRequest) => void>, required: true },
-  onExecuteProperty: { type: Function as PropType<(req: PropertyJsonExecuteRequest) => void>, required: true }
+  onExecuteProperty: { type: Function as PropType<(req: PropertyJsonExecuteRequest) => void>, required: true },
+  onSetForwardSettings: {
+    type: Function as PropType<(id: string, next: { enabled?: boolean; x?: number; y?: number; z?: number }) => void>,
+    required: true
+  }
 })
 </script>
 

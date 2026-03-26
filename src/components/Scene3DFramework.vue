@@ -67,6 +67,10 @@ const MASK_RADIUS_KEY = 'maskRadius'
 const AUTO_ROTATE_ENABLED_KEY = 'autoRotateEnabled'
 const AUTO_ROTATE_AXIS_KEY = 'autoRotateAxis'
 const AUTO_ROTATE_SPEED_DEG_KEY = 'autoRotateSpeedDeg'
+const FORWARD_ENABLED_KEY = 'forwardEnabled'
+const FORWARD_X_KEY = 'forwardX'
+const FORWARD_Y_KEY = 'forwardY'
+const FORWARD_Z_KEY = 'forwardZ'
 
 const UNSELECTED_OPACITY_MULTIPLIER = 0.5
 const PERSPECTIVE_NEAR = 0.01
@@ -115,6 +119,7 @@ function applyCustomProps(model: Model, props: Record<string, unknown>): void {
     // ????????????????????????????? applyInstanceExtrasFromCustom ????
     if (k === MASK_COLOR_KEY || k === MASK_OPACITY_KEY || k === MASK_RADIUS_KEY) continue
     if (k === AUTO_ROTATE_ENABLED_KEY || k === AUTO_ROTATE_AXIS_KEY || k === AUTO_ROTATE_SPEED_DEG_KEY) continue
+    if (k === FORWARD_ENABLED_KEY || k === FORWARD_X_KEY || k === FORWARD_Y_KEY || k === FORWARD_Z_KEY) continue
     try {
       model.propUpdate(k, v)
     } catch {
@@ -167,6 +172,14 @@ function applyInstanceExtrasFromCustom(model: Model, props: Record<string, unkno
   model.setAutoRotateAxis(axisVec)
   model.setAutoRotateEnabled(enabled)
   model.setAutoRotateSpeed(degToRad(speedDeg || 0))
+
+  // Apply forward settings from custom props.
+  const forwardEnabled = Boolean(c[FORWARD_ENABLED_KEY])
+  const forwardX = toFiniteNumber(c[FORWARD_X_KEY], 1)
+  const forwardY = toFiniteNumber(c[FORWARD_Y_KEY], 0)
+  const forwardZ = toFiniteNumber(c[FORWARD_Z_KEY], 0)
+  model.setForwardEnabled(forwardEnabled)
+  model.setForwardAxis(new Vector3(forwardX, forwardY, forwardZ))
 }
 
 onMounted(() => {

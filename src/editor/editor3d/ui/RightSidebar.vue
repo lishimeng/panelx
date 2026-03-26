@@ -62,6 +62,7 @@
         :widgets3D="widgets3D"
         :on-execute-command="executeCommand"
         :on-execute-property="executeProperty"
+        :on-set-forward-settings="onSetForwardSettings"
       />
     </template>
   </aside>
@@ -119,6 +120,10 @@ defineProps({
   onMaskColorInput: { type: Function as PropType<(v: string) => void>, required: true },
   onMaskOpacityInput: { type: Function as PropType<(v: number) => void>, required: true },
   onMaskRadiusInput: { type: Function as PropType<(v: number) => void>, required: true },
+  onSetForwardSettings: {
+    type: Function as PropType<(id: string, next: { enabled?: boolean; x?: number; y?: number; z?: number }) => void>,
+    required: true
+  },
   setCustomPropValue: { type: Function as PropType<(key: string, v: string) => void>, required: true },
   removeCustomProp: { type: Function as PropType<(key: string) => void>, required: true },
   addCustomProp: { type: Function as PropType<() => void>, required: true },

@@ -274,9 +274,17 @@ export class Model extends Object3D{
         const worldQ = new Quaternion()
         obj.getWorldQuaternion(worldQ)
         const currentForwardWorld = f.clone().normalize().applyQuaternion(worldQ)
+        currentForwardWorld.y = 0
+        if (currentForwardWorld.lengthSq() <= 1e-12) return
+        currentForwardWorld.normalize()
+
+        const targetForwardWorld = dirWorld.clone()
+        targetForwardWorld.y = 0
+        if (targetForwardWorld.lengthSq() <= 1e-12) return
+        targetForwardWorld.normalize()
 
         const currentYaw = Math.atan2(currentForwardWorld.z, currentForwardWorld.x)
-        const targetYaw = Math.atan2(dirWorld.z, dirWorld.x)
+        const targetYaw = Math.atan2(targetForwardWorld.z, targetForwardWorld.x)
         const deltaYawRaw = targetYaw - currentYaw
         const deltaYaw = Math.atan2(Math.sin(deltaYawRaw), Math.cos(deltaYawRaw))
 
@@ -285,12 +293,26 @@ export class Model extends Object3D{
             target: { x: target.x, y: target.y, z: target.z },
             dirWorld: { x: dirWorld.x, y: dirWorld.y, z: dirWorld.z },
             forwardAxis: { x: f.x, y: f.y, z: f.z },
+            currentForwardWorld: { x: currentForwardWorld.x, y: currentForwardWorld.y, z: currentForwardWorld.z },
+            targetForwardWorld: { x: targetForwardWorld.x, y: targetForwardWorld.y, z: targetForwardWorld.z },
             targetYaw,
             currentYaw,
             deltaYaw,
             rotationBefore: { x: obj.rotation.x, y: obj.rotation.y, z: obj.rotation.z }
         })
-        obj.rotateY(deltaYaw)
+
+        // 在 world 空间绕 Y 轴旋转，再换算回本地四元数，避免 Euler 造成的翻转/歧义。
+        const qDeltaWorld = new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), deltaYaw)
+        const targetWorldQ = qDeltaWorld.multiply(worldQ.clone())
+        if (obj.parent) {
+            const parentWorldQ = new Quaternion()
+            obj.parent.getWorldQuaternion(parentWorldQ)
+            const localQ = parentWorldQ.clone().invert().multiply(targetWorldQ)
+            obj.quaternion.copy(localQ)
+        } else {
+            obj.quaternion.copy(targetWorldQ)
+        }
+
         console.log('[Model.orientToTarget.afterApply]', {
             modelName: this.modelName,
             rotationAfter: { x: obj.rotation.x, y: obj.rotation.y, z: obj.rotation.z },

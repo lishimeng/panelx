@@ -92,6 +92,7 @@
       :on-mask-color-input="onMaskColorInput"
       :on-mask-opacity-input="onMaskOpacityInput"
       :on-mask-radius-input="onMaskRadiusInput"
+      :on-set-forward-settings="setForwardSettingsToCustom"
       :set-custom-prop-value="setCustomPropValue as any"
       :remove-custom-prop="removeCustomProp"
       :add-custom-prop="addCustomProp"
@@ -811,6 +812,10 @@ const UNSELECTED_OPACITY_MULTIPLIER = 0.5
 const AUTO_ROTATE_ENABLED_KEY = 'autoRotateEnabled'
 const AUTO_ROTATE_AXIS_KEY = 'autoRotateAxis' // 'x'|'y'|'z'
 const AUTO_ROTATE_SPEED_DEG_KEY = 'autoRotateSpeedDeg' // 度/秒（editor UI 单位）
+const FORWARD_ENABLED_KEY = 'forwardEnabled'
+const FORWARD_X_KEY = 'forwardX'
+const FORWARD_Y_KEY = 'forwardY'
+const FORWARD_Z_KEY = 'forwardZ'
 
 /** 根据 id 查找 widgets3D 中的实例配置。 */
 function getWidgetById(id: string): WidgetConfig3D | undefined {
@@ -837,6 +842,31 @@ function getAutoRotateSettings(id: string): { enabled: boolean; axis: 'x' | 'y' 
   const axis = axisRaw === 'x' || axisRaw === 'y' || axisRaw === 'z' ? axisRaw : ('y' as const)
   const speedDeg = toFiniteNumber(custom?.[AUTO_ROTATE_SPEED_DEG_KEY], 30)
   return { enabled, axis, speedDeg }
+}
+
+/** 读取并归一化前向配置（enabled/x/y/z）。 */
+function getForwardSettings(id: string): { enabled: boolean; x: number; y: number; z: number } {
+  const w = getWidgetById(id)
+  const custom = (w?.props as Record<string, unknown> | undefined)?.[CUSTOM_PROPS_KEY] as Record<string, unknown> | undefined
+  const enabled = Boolean(custom?.[FORWARD_ENABLED_KEY])
+  const x = toFiniteNumber(custom?.[FORWARD_X_KEY], 1)
+  const y = toFiniteNumber(custom?.[FORWARD_Y_KEY], 0)
+  const z = toFiniteNumber(custom?.[FORWARD_Z_KEY], 0)
+  return { enabled, x, y, z }
+}
+
+/** 将前向配置持久化到 widget.props.custom。 */
+function setForwardSettingsToCustom(id: string, next: { enabled?: boolean; x?: number; y?: number; z?: number }): void {
+  const w = getWidgetById(id)
+  if (!w) return
+  if (!w.props) w.props = {}
+  const props = w.props as Record<string, unknown>
+  if (typeof props[CUSTOM_PROPS_KEY] !== 'object' || props[CUSTOM_PROPS_KEY] === null) props[CUSTOM_PROPS_KEY] = {}
+  const custom = props[CUSTOM_PROPS_KEY] as Record<string, unknown>
+  if (next.enabled != null) custom[FORWARD_ENABLED_KEY] = Boolean(next.enabled)
+  if (next.x != null && Number.isFinite(next.x)) custom[FORWARD_X_KEY] = next.x
+  if (next.y != null && Number.isFinite(next.y)) custom[FORWARD_Y_KEY] = next.y
+  if (next.z != null && Number.isFinite(next.z)) custom[FORWARD_Z_KEY] = next.z
 }
 
 /** 将自旋转配置持久化到 widget.props.custom。 */
@@ -892,6 +922,11 @@ watch(
       autoRotateCmd.enabled = ar.enabled
       autoRotateCmd.axis = ar.axis
       autoRotateCmd.speedDeg = ar.speedDeg
+      const fw = getForwardSettings(next)
+      moveCmd.forwardEnable = fw.enabled
+      moveCmd.forwardX = fw.x
+      moveCmd.forwardY = fw.y
+      moveCmd.forwardZ = fw.z
     }
   }
 )
@@ -1183,7 +1218,12 @@ const { addWidgetModelToScene, onFrameworkLoaded } = useEditor3DSceneBinding({
   autoRotateEnabledKey: AUTO_ROTATE_ENABLED_KEY,
   autoRotateAxisKey: AUTO_ROTATE_AXIS_KEY,
   autoRotateSpeedDegKey: AUTO_ROTATE_SPEED_DEG_KEY,
+  forwardEnabledKey: FORWARD_ENABLED_KEY,
+  forwardXKey: FORWARD_X_KEY,
+  forwardYKey: FORWARD_Y_KEY,
+  forwardZKey: FORWARD_Z_KEY,
   getAutoRotateSettings,
+  getForwardSettings,
   normalizeLayerValues,
   applyLayersToObject,
   degToRad,
@@ -1384,6 +1424,11 @@ function buildDashboardExportPayload(): DashboardConfig {
           custom[AUTO_ROTATE_ENABLED_KEY] = ar.enabled
           custom[AUTO_ROTATE_AXIS_KEY] = ar.axis
           custom[AUTO_ROTATE_SPEED_DEG_KEY] = ar.speedDeg
+          const fw = getForwardSettings(w.id)
+          custom[FORWARD_ENABLED_KEY] = fw.enabled
+          custom[FORWARD_X_KEY] = fw.x
+          custom[FORWARD_Y_KEY] = fw.y
+          custom[FORWARD_Z_KEY] = fw.z
           props[CUSTOM_PROPS_KEY] = custom
 
           return {
