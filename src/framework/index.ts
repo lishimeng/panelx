@@ -17,6 +17,13 @@ export { SimpleModel } from './model/SimpleModel'
 export { ModelInstanceStore } from './ModelInstanceStore'
 export { ModelRegistry, modelRegistry } from './model/ModelRegistry'
 export type { ModelTypeDefinition, ModelRegistryCreateConfig, PropDefinition } from './model/ModelRegistry'
+export {
+  registerLoadableModelDefinitions,
+  getLoadableModelDefinitions
+} from './model/loadableRegistration'
+export type { LoadableModelDefinition } from './model/loadableRegistration'
+export { registerLocalModelModules } from './model/localModelRegistration'
+export type { LocalModelModule } from './model/localModelRegistration'
 import './model/registerBuiltins'
 export { LayerDef } from './LayerDef'
 export {
