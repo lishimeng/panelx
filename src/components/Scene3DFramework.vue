@@ -33,13 +33,16 @@ import { createStarPointSpriteTexture, startStarFieldXZAnimation } from '../util
 import { degToRad } from '../utils/angle'
 import { clamp01, toFiniteNumber, toPositiveNumber } from '../utils/number'
 import { CommandManager } from '../utils/CommandManager'
+import { CameraManager } from '../utils/CameraManager'
 import { PropertyManager } from '../utils/PropertyManager'
 import { StreamEngine } from '../utils/StreamEngine'
-import type { CommandRequest, PropertyRequest } from '../types'
+import type { CameraRequest, CommandRequest, PropertyRequest } from '../types'
 import { dataChainLog, formatDataChainDetail } from '../core/comm/dataChainLog'
 import { register3DCommandHandlers, register3DPropertyHandlers } from '../utils/manager3DRegistry'
 import { create3DPropertyHandlers } from '../utils/manager3DHandlers'
 import { create3DCommandHandlers } from '../utils/manager3DCommandHandlers'
+import { create3DCameraHandlers } from '../utils/manager3DCameraHandlers'
+import { register3DCameraHandlers } from '../utils/manager3DRegistry'
 
 const props = defineProps<{
   /** 3D ???????????????????????statsStyle ????????? App ???????????*/
@@ -52,6 +55,7 @@ let worldInstance: World | null = null
 let resizeObserver: ResizeObserver | null = null
 /** ??????storyboard ???????????????store.getModel ?? clone ??????????????????????????????????*/
 let runtimeSceneModelsById: Map<string, Model> | null = null
+let runtimeStoryBoard: ControlsStoryBoard | null = null
 /** starField ??? rAF ????????????? cancel */
 let disposeStarFieldAnim: (() => void) | null = null
 /** ????????????????????? dispose */
@@ -255,6 +259,7 @@ onMounted(() => {
         ...(isOrthographic && { orthographicSize })
       }
       const storyBoard = new ControlsStoryBoard('main', camera, sceneOptions)
+      runtimeStoryBoard = storyBoard
 
       // Render star field only when scene3D.starField === true.
       if (props.config?.starField === true) {
@@ -544,8 +549,9 @@ onMounted(() => {
  * Runtime command/property entry points for external callers.
  */
 const commandManager = new CommandManager()
+const cameraManager = new CameraManager()
 const propertyManager = new PropertyManager()
-const controlEngine = new StreamEngine(commandManager, propertyManager)
+const controlEngine = new StreamEngine(commandManager, propertyManager, cameraManager)
 
 register3DCommandHandlers(
   commandManager,
@@ -572,13 +578,27 @@ register3DPropertyHandlers(
   })
 )
 
+register3DCameraHandlers(
+  cameraManager,
+  create3DCameraHandlers({
+    getCamera: () => {
+      return (runtimeStoryBoard?.camera ?? null) as any
+    }
+  })
+)
+
 function executeProperty(req: PropertyRequest): void {
   propertyManager.execute(req)
+}
+
+function executeCamera(req: CameraRequest): void {
+  cameraManager.execute(req)
 }
 
 defineExpose({
   executeCommand,
   executeProperty,
+  executeCamera,
   registerControlSource: (source: Parameters<StreamEngine['registerSource']>[0]) => controlEngine.registerSource(source),
   startControlEngine: () => controlEngine.start(),
   stopControlEngine: () => controlEngine.stop(),
@@ -599,6 +619,7 @@ onUnmounted(() => {
     worldInstance.destroy()
     worldInstance = null
   }
+  runtimeStoryBoard = null
 })
 </script>
 

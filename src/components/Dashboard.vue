@@ -4,7 +4,7 @@
     class="panelx-dashboard"
     :style="containerStyle"
   >
-    <!-- �?1 层：背景层（图片�?3D 场景）；�?backgroundLayer 时可�?widgets3D 生成 3D �?-->
+    <!-- ??1 ??????????3D ??????backgroundLayer ????widgets3D ?? 3D ??-->
     <div v-if="effectiveBackgroundLayer" class="panelx-dashboard-layer panelx-dashboard-layer-bg">
       <template v-if="effectiveBackgroundLayer.type === 'image'">
         <img
@@ -21,7 +21,7 @@
         class="panelx-dashboard-bg-scene3d"
       />
     </div>
-    <!-- �?2 层：内容层（透明背景，图表等�?-->
+    <!-- ??2 ????????????????-->
     <div class="panelx-dashboard-layer panelx-dashboard-layer-content">
       <template v-for="w in visibleWidgets" :key="w.id">
         <div
@@ -72,13 +72,13 @@ const scene3dBgRef = ref<any>(null)
 
 const props = defineProps<{
   config: DashboardConfig
-  /** 数据源列表（�?editor_config.datasources 一致）；仅一�?enable=true 生效，优先按 payload.widgetId/id 定位 */
+  /** ????????editor_config.datasources ????????enable=true ?????? payload.widgetId/id ?? */
   datasources?: BackendDataSourceConfig[]
 }>()
 
 const config = computed(() => props.config)
 
-/** �?widgets3D 且无 backgroundLayer 时，�?widgets3D 生成 3D 背景层，�?Configurable 加载编辑器导出配�?*/
+/** ??widgets3D ?? backgroundLayer ????widgets3D ?? 3D ??????Configurable ??????????*/
 const effectiveBackgroundLayer = computed((): BackgroundLayerConfig | undefined => {
   if (config.value.backgroundLayer) return config.value.backgroundLayer
   const list = config.value.widgets3D
@@ -91,9 +91,9 @@ const effectiveBackgroundLayer = computed((): BackgroundLayerConfig | undefined 
   return undefined
 })
 
-/** 向子组件提供 dashboard 级主题（整屏默认），widget �?props.theme 可单独覆�?*/
+/** ?????? dashboard ??????????widget ??props.theme ??????*/
 provide('dashboardTheme', computed(() => config.value.theme))
-/** 向子组件提供视口与比例尺，供比例尺等 widget 使用 */
+/** ?????????????????? widget ?? */
 provide(
   'dashboardViewport',
   computed(() => ({
@@ -108,7 +108,7 @@ const containerRef = ref<HTMLElement | null>(null)
 const sizeManager = ref<SizeManager2D | null>(null)
 const sizeVersion = ref(0)
 const actualWidthUsed = ref<number | null>(null)
-/** 视口尺寸，用�?px �?vw/vh 换算 */
+/** ????????px ??vw/vh ?? */
 const viewportSize = ref<{ width: number; height: number }>({ width: 0, height: 0 })
 
 const design = computed(() => config.value.design)
@@ -116,12 +116,12 @@ const visibleWidgets = computed(() =>
   (config.value.widgets2D || []).filter((w) => w.visible !== false)
 )
 
-/** �?widget id 预置的数据，配置加载后从 config 填充，便于后续数据更�?*/
+/** ??widget id ???????????? config ????????????*/
 const widgetData = ref<Record<string, Record<string, unknown>>>({})
-/** �?instanceId 的刷新版本号，updateWidget(id) 时自增，widget �?watch 以重�?*/
+/** ??instanceId ???????updateWidget(id) ????widget ??watch ????*/
 const widgetRefreshVersion = ref<Record<string, number>>({})
 
-/** 配置加载后同�?widgetData：为每个 widget id 写入�?props，便于后续数据更新只�?widgetData 而不�?config */
+/** ????????widgetData???? widget id ????props????????????widgetData ????config */
 function syncWidgetDataFromConfig() {
   const list = config.value.widgets2D || []
   const next: Record<string, Record<string, unknown>> = {}
@@ -145,21 +145,21 @@ watch(
   () => syncWidgetDataFromConfig()
 )
 
-/** 供模板使用：优先�?widgetData[id]，无则回退�?config 中的 props */
+/** ??????????widgetData[id]???????config ?? props */
 function getWidgetProps(w: WidgetConfig2D): Record<string, unknown> {
   const data = widgetData.value[w.id]
   if (data && Object.keys(data).length > 0) return data
   return (w.props ?? {}) as Record<string, unknown>
 }
 
-/** �?widget id 的数据供外部注入使用；配置加载后已填充，便于后续数据更新 */
+/** ??widget id ???????????????????????????? */
 provide(WidgetDataKey, widgetData)
 provide(SetWidgetDataKey, (id: string, patch: Record<string, unknown>) => {
   const cur = widgetData.value[id]
   widgetData.value = { ...widgetData.value, [id]: { ...(cur ?? {}), ...patch } }
 })
 
-/** 更新�?widget 的数据（仅改数据，不触发展示刷新；外部模块调用） */
+/** ????widget ???????????????????????? */
 function updateWidgetData(instanceId: string, patch: Record<string, unknown>) {
   const cur = widgetData.value[instanceId]
   widgetData.value = { ...widgetData.value, [instanceId]: { ...(cur ?? {}), ...patch } }
@@ -169,7 +169,7 @@ function updateWidgetData(instanceId: string, patch: Record<string, unknown>) {
     patch: formatDataChainDetail(patch, 16000)
   })
 }
-/** 触发�?widget 刷新展示（外部在更新数据后可调用，widget 通过 watch widgetRefreshVersion 重绘�?*/
+/** ????widget ?????????????????widget ?? watch widgetRefreshVersion ????*/
 function updateWidget(instanceId: string) {
   widgetRefreshVersion.value = {
     ...widgetRefreshVersion.value,
@@ -181,8 +181,8 @@ provide(UpdateWidgetDataKey, updateWidgetData)
 provide(UpdateWidgetKey, updateWidget)
 provide(WidgetRefreshVersionKey, widgetRefreshVersion)
 
-/** Dashboard 后端数据统一入口：所有后端数据必须经 dataEngine�?*/
-const dataEngine = new StreamEngine(undefined, undefined, {
+/** Dashboard ?????????????????? dataEngine??*/
+const dataEngine = new StreamEngine(undefined, undefined, undefined, {
   widgetSink: (payload) => {
     updateWidgetData(payload.widgetId, payload.patch)
     if (payload.refresh !== false) updateWidget(payload.widgetId)
@@ -198,6 +198,8 @@ const dataEngine = new StreamEngine(undefined, undefined, {
     scene?.executeCommand?.(request)
   },
   propertySink: (request) => scene3dBgRef.value?.executeProperty?.(request)
+  ,
+  cameraSink: (request) => scene3dBgRef.value?.executeCamera?.(request)
 })
 const dashboardOwnerId = `dashboard_${Math.random().toString(36).slice(2)}`
 const retainedDatasourceKeys = new Set<string>()
@@ -208,7 +210,7 @@ function parseRouteToken(token: string): { domain: ControlDomain; action: Contro
   const t = String(token ?? '').trim().toLowerCase()
   const [d, a] = t.split('_')
   const domain = d === '2d' || d === '3d' ? d : null
-  const action = a === 'command' || a === 'property' || a === 'chart' || a === 'other' ? a : null
+  const action = a === 'command' || a === 'property' || a === 'camera' || a === 'chart' || a === 'other' ? a : null
   if (!domain || !action) return null
   return { domain, action }
 }
@@ -285,6 +287,13 @@ function toPayloadByRoute(
     if (!key || !id) return null
     return { kind: 'property', request: { key, id, params: req?.params } }
   }
+  if (route.action === 'camera') {
+    const req = data as { key?: unknown; id?: unknown; params?: unknown }
+    const key = String(req?.key ?? '').trim()
+    if (!key) return null
+    const id = String(req?.id ?? '').trim()
+    return { kind: 'camera', request: { key, id: id || undefined, params: req?.params } }
+  }
   return null
 }
 
@@ -321,7 +330,7 @@ async function ensureGlobalDatasource(dsConfig: BackendDataSourceConfig): Promis
                 if (!parsed || typeof parsed !== 'object') return []
 
                 const rec = parsed as Record<string, unknown>
-                /** �?server/data/*_enable.json 一致：{ header: { route: { domain, action } }, payload: [{ widgetId, payload }] } */
+                /** ??server/data/*_enable.json ???{ header: { route: { domain, action } }, payload: [{ widgetId, payload }] } */
                 const header = rec.header as Record<string, unknown> | undefined
                 const routeBlock = header?.route as { domain?: string; action?: string } | undefined
                 const payloadArr = rec.payload
@@ -336,7 +345,7 @@ async function ensureGlobalDatasource(dsConfig: BackendDataSourceConfig): Promis
                     if (!row || typeof row !== 'object') continue
                     const r = row as Record<string, unknown>
                     const targetId = String(r.widgetId ?? r.id ?? '').trim()
-                    if (!targetId) continue
+                    if (!targetId && !(route.domain === '3d' && route.action === 'camera')) continue
                     out.push({ targetId, route, data: r.payload })
                   }
                   return out.map((it) => ({
@@ -351,7 +360,8 @@ async function ensureGlobalDatasource(dsConfig: BackendDataSourceConfig): Promis
                   const row = item as Record<string, unknown>
                   const targetId = String(row.widgetId ?? row.id ?? '').trim()
                   const route = parseRouteToken(String(row.event ?? ''))
-                  if (!targetId || !route) continue
+                  if (!route) continue
+                  if (!targetId && !(route.domain === '3d' && route.action === 'camera')) continue
                   out.push({ targetId, route, data: row.payload })
                 }
                 return out.map((it) => ({
@@ -448,7 +458,7 @@ function pickActiveDatasource(list: BackendDataSourceConfig[]): BackendDataSourc
   return list[0] ?? null
 }
 
-/** 将活�?datasource 绑定�?dataEngine：按 targetId 路由�?2D 组件�?3D 实例（widgetId / id�?*/
+/** ????datasource ????dataEngine?? targetId ????2D ????3D ???widgetId / id??*/
 async function setupDataSourceConnector() {
   await cleanupConnectorState()
 
@@ -512,6 +522,20 @@ async function setupDataSourceConnector() {
           return
         }
         if (routed.route.domain === '3d') {
+          if (routed.route.action === 'camera') {
+            const payload = toPayloadByRoute(null, routed.route, routed.data)
+            if (!payload) return
+            dataChainLog('Dashboard.connector.routed', {
+              datasourceKey: dsConfig.key,
+              domain: routed.route.domain,
+              action: routed.route.action,
+              targetId: '(camera)',
+              data: formatDataChainDetail(routed.data, 16000),
+              payloadKind: payload.kind
+            })
+            push(toControlEnvelope(sourceId, routed.route, payload))
+            return
+          }
           if (!widget3DById.has(tid)) {
             dataChainLog('Dashboard.connector.skip', {
               reason: 'widget_3d_not_found',
@@ -624,7 +648,7 @@ function ensureSizeManager() {
   sizeVersion.value++
 }
 
-/** widget 展示：layoutUnit=percent 时用配置转换后的 0-100；否则用 sizeManager（px 换算�?vw/vh/rem�?*/
+/** widget ???layoutUnit=percent ???????? 0-100???? sizeManager?px ????vw/vh/rem??*/
 function getActualRect(w: WidgetConfig2D): { x: number; y: number; width: number; height: number } | null {
   if (!w.layout) return null
   if (config.value.layoutUnit === 'percent') return w.layout as DesignRect
@@ -741,7 +765,7 @@ defineExpose({
   max-width: 100%;
   box-sizing: border-box;
 }
-/* 分层：两层绝对定位叠放，�?1 在下、层 2 在上；内容层需高于 WebGL canvas */
+/* ??????????????1 ???? 2 ????????? WebGL canvas */
 .panelx-dashboard-layer {
   position: absolute;
   inset: 0;

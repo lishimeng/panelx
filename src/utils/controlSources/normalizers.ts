@@ -1,4 +1,4 @@
-import type { CommandRequest, ControlAction, ControlDomain, ControlEnvelope, ControlPayload, PropertyRequest } from '../../types'
+import type { CameraRequest, CommandRequest, ControlAction, ControlDomain, ControlEnvelope, ControlPayload, PropertyRequest } from '../../types'
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null
@@ -20,6 +20,14 @@ function toPropertyRequest(v: unknown): PropertyRequest | null {
   return { key, id, params: v.params }
 }
 
+function toCameraRequest(v: unknown): CameraRequest | null {
+  if (!isRecord(v)) return null
+  const key = String(v.key ?? '').trim()
+  if (!key) return null
+  const id = String(v.id ?? '').trim()
+  return { key, id: id || undefined, params: v.params }
+}
+
 function toPayload(v: unknown): ControlPayload | null {
   if (!isRecord(v)) return null
   const kind = v.kind
@@ -32,6 +40,11 @@ function toPayload(v: unknown): ControlPayload | null {
     const req = toPropertyRequest(v.request)
     if (!req) return null
     return { kind: 'property', request: req }
+  }
+  if (kind === 'camera') {
+    const req = toCameraRequest(v.request)
+    if (!req) return null
+    return { kind: 'camera', request: req }
   }
   if (kind === 'widget') {
     const widgetId = String(v.widgetId ?? '').trim()
@@ -49,7 +62,7 @@ function toDomain(v: unknown): ControlDomain | null {
 }
 
 function toAction(v: unknown): ControlAction | null {
-  return v === 'command' || v === 'property' || v === 'chart' || v === 'other' ? v : null
+  return v === 'command' || v === 'property' || v === 'camera' || v === 'chart' || v === 'other' ? v : null
 }
 
 export function normalizeControlEnvelope(sourceId: string, input: unknown): ControlEnvelope | null {

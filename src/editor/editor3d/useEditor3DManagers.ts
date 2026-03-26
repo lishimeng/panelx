@@ -40,7 +40,7 @@ export function useEditor3DManagers(options: UseEditor3DManagersOptions) {
   )
 
   register3DPropertyHandlers(propertyManager, create3DPropertyHandlers(options.getModelById))
-  const controlEngine = new StreamEngine(commandManager, propertyManager)
+  const controlEngine = new StreamEngine(commandManager, propertyManager, undefined)
   const controlEngineStatus = ref(controlEngine.getStatus())
 
   const demoSource = new SpawnSource({
@@ -80,9 +80,9 @@ export function useEditor3DManagers(options: UseEditor3DManagersOptions) {
 
     const raw = String(req?.json ?? '').trim()
     if (!raw) {
-      const msg = '[Editor3D] executeProperty: 请求 JSON 不能为空'
+      const msg = '[Editor3D] executeProperty: 请�? JSON 不�?�为空'
       console.error(msg)
-      setPropertyError('请求 JSON 不能为空')
+      setPropertyError('请�? JSON 不�?�为空')
       return
     }
     try {
@@ -90,18 +90,22 @@ export function useEditor3DManagers(options: UseEditor3DManagersOptions) {
       const key = String(parsed?.key ?? '').trim()
       const id = String(parsed?.id ?? '').trim()
       if (!key || !id) {
-        const msg = '[Editor3D] executeProperty: JSON 必须包含非空 key �?id'
+        const msg = '[Editor3D] executeProperty: JSON �?须�??含�?空 key �?id'
         console.error(msg, parsed)
-        setPropertyError('JSON 必须包含非空 key �?id')
+        setPropertyError('JSON �?须�??含�?空 key �?id')
         return
       }
       propertyRequestError.value = ''
       propertyManager.execute({ key, id, params: parsed?.params })
     } catch (err) {
-      const msg = '[Editor3D] executeProperty: JSON 解析失败'
+      const msg = '[Editor3D] executeProperty: JSON 解�?�失败'
       console.error(msg, err)
-      setPropertyError('JSON 解析失败')
+      setPropertyError('JSON 解�?�失败')
     }
+  }
+
+  function executePropertyRequest(req: PropertyRequest): void {
+    propertyManager.execute(req)
   }
 
   function cleanupEditor3DManagers(): void {
@@ -148,6 +152,7 @@ export function useEditor3DManagers(options: UseEditor3DManagersOptions) {
     registerControlSource,
     executeCommand,
     executeProperty,
+    executePropertyRequest,
     cleanupEditor3DManagers
   }
 }

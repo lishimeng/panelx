@@ -647,9 +647,9 @@ dashboardRef.stopControlEngine()
 
 | 字段 | 类型 | 必填 | 说明 |
 | --- | --- | --- | --- |
-| `kind` | `'command' \| 'property'` | 是 | 事件类型，决定走哪个 manager |
+| `kind` | `'command' \| 'property' \| 'camera'` | 是 | 事件类型，决定走哪个 manager |
 | `request.key` | `string` | 是 | handler key，如 `editor3d.moveTo` / `model.visible` |
-| `request.id` | `string` | 是 | 模型实例 id（必须与场景实例一致） |
+| `request.id` | `string` | 条件必填 | `command/property` 必填（模型实例 id）；`camera` 可不填（默认主相机） |
 | `request.params` | `object` | 否 | 业务参数；不同 key 结构不同 |
 | `sourceId` | `string` | 否 | 来源标识；为空时由 source 配置补齐 |
 | `timestamp` | `number` | 否 | 事件时间戳（ms）；为空时默认 `Date.now()` |
@@ -661,6 +661,29 @@ dashboardRef.stopControlEngine()
 - polling 接口支持返回数组，元素包含 `id/widgetId + domain/action + payload`
 - SSE 建议按单条 event 发送；如需批量，建议字段 `events: []` 并在 `parseMessage` 展开
 - Dashboard 内所有后端数据都必须先进入 dataEngine，再路由到 2D widget 或 3D manager。
+
+Camera 事件示例（支持 `event: "3d_camera"`）：
+
+```json
+{
+  "event": "3d_camera",
+  "id": "",
+  "payload": {
+    "key": "camera.moveTo",
+    "params": { "x": 12, "y": 8, "z": 16, "lookAt": { "x": 0, "y": 0, "z": 0 } }
+  }
+}
+```
+
+```json
+{
+  "event": "3d_camera",
+  "payload": {
+    "key": "camera.zoomTo",
+    "params": { "zoom": 1.6 }
+  }
+}
+```
 
 ### Datasource 全局单例策略
 
@@ -757,6 +780,15 @@ dashboardRef.stopControlEngine()
 | 3D 属性：缩放 | `model.scale` | `{ scale }` 或 `{ x, y, z }` | `Editor3D` / `Scene3DFramework` |
 | 3D 属性：显示/隐藏 | `model.visible` | `{ visible }` | `Editor3D` / `Scene3DFramework` |
 | 自定义属性（prop）编辑 | `model.propUpdate` | `{ propKey, value }` | `Editor3D` / `Scene3DFramework` |
+
+### Camera（`executeCamera`）
+
+| 作用 | key | params 示例 | 执行位置 |
+| --- | --- | --- | --- |
+| 相机移动（可选 lookAt） | `camera.moveTo` | `{ x, y, z, durationMs?, lookAt?: { x, y, z } }` | `Scene3DFramework` |
+| 相机缩放 | `camera.zoomTo` | `{ zoom }` | `Scene3DFramework` |
+
+说明：`camera.moveTo.durationMs` 为移动周期（毫秒），默认 `1000`。
 
 补充说明：
 

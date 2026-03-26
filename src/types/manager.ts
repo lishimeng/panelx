@@ -17,6 +17,16 @@ export type PropertyRequest = {
 }
 
 /**
+ * 相机请求：用于 CameraManager 与各层 executeCamera API。
+ * id 可选（预留多相机场景），当前默认主相机。
+ */
+export type CameraRequest = {
+  key: string
+  id?: string
+  params?: unknown
+}
+
+/**
  * 编辑器属性 JSON 调试入口请求。
  * 用于 executeProperty({ json }) 这类调用。
  */
@@ -25,7 +35,7 @@ export type PropertyJsonExecuteRequest = {
 }
 
 export type ControlDomain = '2d' | '3d'
-export type ControlAction = 'command' | 'property' | 'chart' | 'other'
+export type ControlAction = 'command' | 'property' | 'camera' | 'chart' | 'other'
 
 export type ControlHeader = {
   domain: ControlDomain
@@ -38,6 +48,7 @@ export type ControlHeader = {
 export type ControlPayload =
   | { kind: 'command'; request: CommandRequest }
   | { kind: 'property'; request: PropertyRequest }
+  | { kind: 'camera'; request: CameraRequest }
   | { kind: 'widget'; widgetId: string; patch: Record<string, unknown>; refresh?: boolean }
 
 /**

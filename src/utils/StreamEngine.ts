@@ -1,5 +1,6 @@
-import type { CommandRequest, ControlEnvelope, ControlPayload, ControlSource, ControlSourceStatus, PropertyRequest } from '../types'
+import type { CameraRequest, CommandRequest, ControlEnvelope, ControlPayload, ControlSource, ControlSourceStatus, PropertyRequest } from '../types'
 import type { CommandManager } from './CommandManager'
+import type { CameraManager } from './CameraManager'
 import type { PropertyManager } from './PropertyManager'
 
 export type EngineStatus = 'idle' | 'running' | 'paused' | 'stopped'
@@ -11,6 +12,7 @@ export type StreamEngineOptions = {
   logger?: (entry: Record<string, unknown>) => void
   commandSink?: (request: CommandRequest, event: ControlEnvelope) => void
   propertySink?: (request: PropertyRequest, event: ControlEnvelope) => void
+  cameraSink?: (request: CameraRequest, event: ControlEnvelope) => void
   widgetSink?: (payload: Extract<ControlPayload, { kind: 'widget' }>, event: ControlEnvelope) => void
 }
 
@@ -31,6 +33,7 @@ type EngineStats = {
 export class StreamEngine {
   private readonly commandManager?: CommandManager
   private readonly propertyManager?: PropertyManager
+  private readonly cameraManager?: CameraManager
   private readonly maxQueueSize: number
   private readonly dropPolicy: QueueDropPolicy
   private readonly logger: (entry: Record<string, unknown>) => void
@@ -44,16 +47,19 @@ export class StreamEngine {
 
   private readonly commandSink?: (request: CommandRequest, event: ControlEnvelope) => void
   private readonly propertySink?: (request: PropertyRequest, event: ControlEnvelope) => void
+  private readonly cameraSink?: (request: CameraRequest, event: ControlEnvelope) => void
   private readonly widgetSink?: (payload: Extract<ControlPayload, { kind: 'widget' }>, event: ControlEnvelope) => void
 
-  constructor(commandManager?: CommandManager, propertyManager?: PropertyManager, options?: StreamEngineOptions) {
+  constructor(commandManager?: CommandManager, propertyManager?: PropertyManager, cameraManager?: CameraManager, options?: StreamEngineOptions) {
     this.commandManager = commandManager
     this.propertyManager = propertyManager
+    this.cameraManager = cameraManager
     this.maxQueueSize = Math.max(1, Math.trunc(options?.maxQueueSize ?? 2000))
     this.dropPolicy = options?.dropPolicy ?? 'drop_oldest'
     this.logger = options?.logger ?? ((entry) => console.log('[StreamEngine]', entry))
     this.commandSink = options?.commandSink
     this.propertySink = options?.propertySink
+    this.cameraSink = options?.cameraSink
     this.widgetSink = options?.widgetSink
   }
 
@@ -191,6 +197,11 @@ export class StreamEngine {
     if (payload.kind === 'property') {
       if (this.propertySink) this.propertySink(payload.request as PropertyRequest, event)
       else this.propertyManager?.execute(payload.request as PropertyRequest)
+      return
+    }
+    if (payload.kind === 'camera') {
+      if (this.cameraSink) this.cameraSink(payload.request as CameraRequest, event)
+      else this.cameraManager?.execute(payload.request as CameraRequest)
       return
     }
     if (this.widgetSink) {

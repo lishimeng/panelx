@@ -26,7 +26,8 @@ export type SseProbeMeta = { key: string; sourceTag: string }
 export function startSseDatasourceProbe(
   url: string,
   log: (entry: Record<string, unknown>) => void,
-  meta: SseProbeMeta
+  meta: SseProbeMeta,
+  onData?: (packet: { eventName: string; data: string }) => void
 ): () => void {
   const ac = new AbortController()
   void (async () => {
@@ -66,6 +67,7 @@ export function startSseDatasourceProbe(
           const trimmed = raw.trim()
           if (!trimmed) continue
           const { event, data } = parseSseBlock(trimmed)
+          onData?.({ eventName: event, data })
           log({
             stage: 'data',
             type: 'sse',

@@ -394,6 +394,136 @@ function pickActiveDatasource(list: BackendDataSourceConfig[]): BackendDataSourc
   return list[0] ?? null
 }
 
+type ProbeRoute = { domain: '2d' | '3d'; action: 'command' | 'property' | 'camera' | 'chart' | 'other' }
+let stopCameraMoveAnim: (() => void) | null = null
+
+function parseProbeRoute(token: string): ProbeRoute | null {
+  const t = String(token ?? '').trim().toLowerCase()
+  const [d, a] = t.split('_')
+  const domain = d === '2d' || d === '3d' ? d : null
+  const action = a === 'command' || a === 'property' || a === 'camera' || a === 'chart' || a === 'other' ? a : null
+  if (!domain || !action) return null
+  return { domain, action }
+}
+
+function executeCameraRequest(input: unknown): void {
+  const req = (input ?? {}) as { key?: unknown; params?: unknown }
+  const key = String(req.key ?? '').trim()
+  if (!key) return
+  const p = (req.params ?? {}) as Record<string, unknown>
+  const sb = storyboardRef.value as BaseStoryBoard | null
+  const cam = sb?.camera as {
+    position?: { set: (x: number, y: number, z: number) => void; x: number; y: number; z: number }
+    zoom?: number
+    lookAt?: (x: number, y: number, z: number) => void
+    updateProjectionMatrix?: () => void
+  } | null
+  if (!cam) return
+  if (key === 'camera.moveTo' && cam.position) {
+    const pos = cam.position
+    const x0 = pos.x
+    const y0 = pos.y
+    const z0 = pos.z
+    const x1 = toFiniteNumber(p.x, x0)
+    const y1 = toFiniteNumber(p.y, y0)
+    const z1 = toFiniteNumber(p.z, z0)
+    const durationMs = toPositiveNumber(p.durationMs, 1000)
+    stopCameraMoveAnim?.()
+    stopCameraMoveAnim = null
+
+    if (durationMs <= 1) {
+      pos.set(x1, y1, z1)
+      const lk = p.lookAt as Record<string, unknown> | undefined
+      if (lk && typeof lk === 'object') {
+        cam.lookAt?.(toFiniteNumber(lk.x, 0), toFiniteNumber(lk.y, 0), toFiniteNumber(lk.z, 0))
+      }
+      dataChainLog('Editor3D.cameraDispatch', { key, params: req.params ?? null, applied: true, durationMs: 0 })
+      return
+    }
+
+    let stopped = false
+    const startedAt = performance.now()
+    const step = (now: number) => {
+      if (stopped) return
+      const t = Math.max(0, Math.min(1, (now - startedAt) / durationMs))
+      pos.set(
+        x0 + (x1 - x0) * t,
+        y0 + (y1 - y0) * t,
+        z0 + (z1 - z0) * t
+      )
+      const lk = p.lookAt as Record<string, unknown> | undefined
+      if (lk && typeof lk === 'object') {
+        cam.lookAt?.(toFiniteNumber(lk.x, 0), toFiniteNumber(lk.y, 0), toFiniteNumber(lk.z, 0))
+      }
+      if (t < 1) requestAnimationFrame(step)
+    }
+    requestAnimationFrame(step)
+    stopCameraMoveAnim = () => {
+      stopped = true
+    }
+    dataChainLog('Editor3D.cameraDispatch', { key, params: req.params ?? null, applied: true, durationMs })
+    return
+  }
+  if (key === 'camera.zoomTo' && typeof cam.zoom === 'number') {
+    cam.zoom = toPositiveNumber(p.zoom, cam.zoom)
+    cam.updateProjectionMatrix?.()
+    dataChainLog('Editor3D.cameraDispatch', { key, params: req.params ?? null, applied: true })
+    return
+  }
+  dataChainLog('Editor3D.cameraDispatch', { key, params: req.params ?? null, applied: false, reason: 'unsupported_or_camera_unavailable' })
+}
+
+function dispatchProbeRoute(route: ProbeRoute, payload: unknown): void {
+  if (route.domain !== '3d') return
+  const req = (payload ?? {}) as { key?: unknown; id?: unknown; params?: unknown }
+  if (route.action === 'command') {
+    executeCommand({ key: String(req.key ?? ''), id: String(req.id ?? ''), params: req.params })
+    return
+  }
+  if (route.action === 'property') {
+    executePropertyRequest({ key: String(req.key ?? ''), id: String(req.id ?? ''), params: req.params })
+    return
+  }
+  if (route.action === 'camera') {
+    executeCameraRequest(req)
+  }
+}
+
+function extractProbePayloads(eventName: string, rawData: string): Array<{ route: ProbeRoute; payload: unknown }> {
+  const directRoute = parseProbeRoute(eventName)
+  if (!directRoute) return []
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(rawData)
+  } catch {
+    return []
+  }
+  const list = Array.isArray(parsed) ? parsed : [parsed]
+  const out: Array<{ route: ProbeRoute; payload: unknown }> = []
+  for (const item of list) {
+    const rec = (item ?? {}) as Record<string, unknown>
+    const header = rec.header as Record<string, unknown> | undefined
+    const routeHeader = (header?.route ?? null) as Record<string, unknown> | null
+    const routeFromHeader =
+      routeHeader && typeof routeHeader === 'object'
+        ? parseProbeRoute(`${String(routeHeader.domain ?? '')}_${String(routeHeader.action ?? '')}`)
+        : header && typeof header === 'object'
+          ? parseProbeRoute(`${String((header as any).domain ?? '')}_${String((header as any).action ?? '')}`)
+          : null
+    const route = routeFromHeader ?? directRoute
+    const arrPayload = rec.payload
+    if (Array.isArray(arrPayload)) {
+      for (const row of arrPayload) {
+        const r = (row ?? {}) as Record<string, unknown>
+        out.push({ route, payload: r.payload ?? r })
+      }
+      continue
+    }
+    out.push({ route, payload: rec.payload ?? rec })
+  }
+  return out
+}
+
 function startDatasourceProbe(list: BackendDataSourceConfig[]): void {
   stopDatasourceProbe?.()
   stopDatasourceProbe = null
@@ -410,7 +540,13 @@ function startDatasourceProbe(list: BackendDataSourceConfig[]): void {
     const stop = startSseDatasourceProbe(
       url,
       (entry) => dataChainLog('Editor3D.datasourceProbe', entry),
-      { key: active.key, sourceTag: 'Editor3D' }
+      { key: active.key, sourceTag: 'Editor3D' },
+      ({ eventName, data }) => {
+        const packets = extractProbePayloads(eventName, data)
+        for (const packet of packets) {
+          dispatchProbeRoute(packet.route, packet.payload)
+        }
+      }
     )
     stopDatasourceProbe = () => {
       stop()
@@ -965,6 +1101,7 @@ const {
   propertyRequestError,
   executeCommand,
   executeProperty,
+  executePropertyRequest,
   cleanupEditor3DManagers
 } = useEditor3DManagers({
   getModelById: getEditorModelById,
@@ -1193,6 +1330,8 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  stopCameraMoveAnim?.()
+  stopCameraMoveAnim = null
   stopDatasourceProbeManual()
   if (datasourceProbeHintTimer) clearTimeout(datasourceProbeHintTimer)
   datasourceProbeHintTimer = null
