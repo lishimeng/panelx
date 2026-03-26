@@ -7,7 +7,7 @@ import { PropertyManager } from '../../utils/PropertyManager'
 import { create3DCommandHandlers } from '../../utils/manager3DCommandHandlers'
 import { create3DPropertyHandlers } from '../../utils/manager3DHandlers'
 import { register3DCommandHandlers, register3DPropertyHandlers } from '../../utils/manager3DRegistry'
-import { SceneControlStreamEngine } from '../../utils/SceneControlStreamEngine'
+import { StreamEngine } from '../../utils/StreamEngine'
 import { SpawnSource } from '../../utils/controlSources'
 
 type AutoRotatePayload = { enabled: boolean; axis: 'x' | 'y' | 'z'; speedDeg: number }
@@ -40,7 +40,7 @@ export function useEditor3DManagers(options: UseEditor3DManagersOptions) {
   )
 
   register3DPropertyHandlers(propertyManager, create3DPropertyHandlers(options.getModelById))
-  const controlEngine = new SceneControlStreamEngine(commandManager, propertyManager)
+  const controlEngine = new StreamEngine(commandManager, propertyManager)
   const controlEngineStatus = ref(controlEngine.getStatus())
 
   const demoSource = new SpawnSource({
@@ -90,9 +90,9 @@ export function useEditor3DManagers(options: UseEditor3DManagersOptions) {
       const key = String(parsed?.key ?? '').trim()
       const id = String(parsed?.id ?? '').trim()
       if (!key || !id) {
-        const msg = '[Editor3D] executeProperty: JSON 必须包含非空 key 和 id'
+        const msg = '[Editor3D] executeProperty: JSON 必须包含非空 key �?id'
         console.error(msg, parsed)
-        setPropertyError('JSON 必须包含非空 key 和 id')
+        setPropertyError('JSON 必须包含非空 key �?id')
         return
       }
       propertyRequestError.value = ''
@@ -133,7 +133,7 @@ export function useEditor3DManagers(options: UseEditor3DManagersOptions) {
     syncEngineStatus()
   }
 
-  function registerControlSource(source: Parameters<SceneControlStreamEngine['registerSource']>[0]): void {
+  function registerControlSource(source: Parameters<StreamEngine['registerSource']>[0]): void {
     controlEngine.registerSource(source)
   }
 

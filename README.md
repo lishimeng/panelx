@@ -97,18 +97,18 @@ grid-template-columns: 20% 60% 20%;
 
 | 位置 | 作用 | 优先级（拖入时） |
 |------|------|------------------|
-| **`src/editor/editor_config.json`** → `widgetPropData.defaultParams` | 按 **类型** 配置默认参数（如 `stat`、`chart`、`glassChart`），拖入时作为该类型 widget 的初始 props | **最高** |
-| **`src/editor/editor_config.json`** → `registeredWidgets[].defaultProps` | 每个侧栏项可选的 `defaultProps`，仅当 `defaultParams` 未配置该类型或为空时使用 | 次之 |
+| **`src/editor/editor-config/defaultParams.ts`** | 按 **类型** 配置默认参数（如 `stat`、`chart`、`glassChart`），拖入时作为该类型 widget 的初始 props | **最高** |
+| **`src/editor/editor-config/registeredWidgets.ts`** → `registeredWidgets[].defaultProps` | 每个侧栏项可选的 `defaultProps`，仅当 `defaultParams` 未配置该类型或为空时使用 | 次之 |
 | **`src/widgets/widgetPropConfig.ts`** → `widgetTypeReg[type].defaultProps` | 代码侧为每种 `WidgetType2D` 写的默认 props，未在 JSON 中配置时兜底 | 兜底 |
 
 编辑器解析顺序：先取 **`widgetPropData.defaultParams[type]`**，若无再取 **`registeredWidgets` 中该 type 的 `defaultProps`**，再无则用 **`getWidgetDefaultProps(type)`**（来自 `widgetPropConfig.ts`）。  
 右侧「组件属性」的字段列表来自 **`src/widgets/widgetPropConfig.ts`** 的 **`propConfig`**（`getWidgetPropConfig(type)`），与默认值同文件定义。
 
-### 配置文件示例（editor_config.json）
+### 配置文件示例（editor-config）
 
 - **`registeredWidgets`**：侧栏可拖拽列表；每项需 **`type`**、**`label`**、**`defaultSize`**（拖入时的宽高，设计稿 px），可选 **`defaultProps`**、**`sampleImage`**。
 - **`widgetPropData.defaultParams`**：按类型集中写默认参数，拖入时优先使用，无需在每条 `registeredWidgets` 里重复。  
-  编辑器启动时从 **`src/editor/editor_config.json`** 加载（见 `Editor.vue` 的 `onMounted`）；大屏/配置加载视图从同一文件取 `datasources`（`App.vue`、`DashboardWithLoader.vue`）。
+  编辑器启动时从 **`src/editor/editor-config/index.ts`** 加载（见 `Editor2D.vue` 的 `onMounted`）；大屏/配置加载视图从同一内置配置取 `datasources`。
 
 ```json
 {
@@ -173,7 +173,7 @@ setWidgetData?.('stat-1', { value: 123, label: '产量' })
 
 ## MarqueeText 走马灯（维护说明）
 
-实现文件：**`src/widgets/MarqueeText.vue`**。用于 2D 单行横向跑马灯；属性注册见 **`src/widgets/widgetPropConfig.ts`**、**`src/widgets/widgetRegistry.ts`**，编辑器默认参数见 **`src/editor/editor_config.json`**（如有 `marqueeText` 配置）。
+实现文件：**`src/widgets/MarqueeText.vue`**。用于 2D 单行横向跑马灯；属性注册见 **`src/widgets/widgetPropConfig.ts`**、**`src/widgets/widgetRegistry.ts`**，编辑器默认参数见 **`src/editor/editor-config/defaultParams.ts`**（如有 `marqueeText` 配置）。
 
 ### 行为概要
 
@@ -505,9 +505,24 @@ pm.execute({
 {"key":"model.visible","id":"model-xxx","params":{"visible":true}}
 ```
 
-## SceneControlStreamEngine（流式控制引擎）
+## StreamEngine（流式控制引擎）
 
-`SceneControlStreamEngine` 位于 `src/utils/SceneControlStreamEngine.ts`，用于持续消费外部数据源事件，并分发到 `CommandManager` / `PropertyManager`。
+`StreamEngine` 位于 `src/utils/StreamEngine.ts`，用于持续消费外部数据源事件，并分发到 `CommandManager` / `PropertyManager`。
+
+统一数据路径：
+
+- 后端（SSE / polling）-> `datasourceProbe` -> `StreamEngine` -> handler（`command` / `property` / `other`）
+- 说明：`datasourceProbe` 负责取流与解析 envelope，`StreamEngine` 负责调度，具体业务执行由 handlers 落到 manager 或 widget 逻辑。
+
+```mermaid
+flowchart LR
+  BE["Backend<br/>SSE / Polling"] --> DSP["datasourceProbe<br/>fetch + parse envelope"]
+  DSP --> SE["StreamEngine<br/>queue + schedule + dispatch"]
+  SE --> H["handlers<br/>command / property / other"]
+  H --> CM["CommandManager"]
+  H --> PM["PropertyManager"]
+  H --> W["Widget/Other sinks"]
+```
 
 - **核心价值**：把一次性 `executeCommand/executeProperty` 升级为持续数据流控制。
 - **统一事件模型**：`ControlEnvelope -> ControlPayload -> request`。
@@ -555,7 +570,7 @@ dashboardRef.startControlEngine()
 
 说明（重要）：
 
-- 不建议在业务侧手动 `new SceneControlStreamEngine`。
+- 不建议在业务侧手动 `new StreamEngine`。
 - engine 由 `Dashboard` 统一托管，保证后端数据入口唯一、队列与生命周期统一治理。
 - 若外部重复创建 engine，可能导致同一后端流被重复消费，出现重复执行、状态抖动与调试困难。
 
@@ -708,10 +723,10 @@ dashboardRef.stopControlEngine()
 
 ### Editor / Runtime datasource 优先级
 
-- Editor2D 与 Editor3D 导出 `DashboardConfig` 时，会将 `editor_config.json` 的 `datasources` 写入 `config.datasources`。
+- Editor2D 与 Editor3D 导出 `DashboardConfig` 时，会将 `src/editor/editor-config` 的 `datasources` 写入 `config.datasources`。
 - Runtime（`DashboardWithLoader`）消费优先级：
   1. 优先使用 `config.datasources`
-  2. 若为空，再回退到本地 `editor_config.json.datasources`
+  2. 若为空，再回退到本地内置配置（`src/editor/editor-config/datasources.ts`）
 - 推荐实践：生产配置始终显式携带 `datasources`，避免依赖运行环境中的 fallback 文件。
 
 ### 排错清单（source 有数据但模型不动）

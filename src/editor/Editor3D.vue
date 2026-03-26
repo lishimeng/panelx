@@ -24,11 +24,6 @@
       :save-draft-to-local-storage="saveDraftToLocalStorage"
       :trigger-import-config="triggerImportConfig"
       :create-robot-demo-scene="createRobotDemoScene"
-      :control-engine-status="controlEngineStatus"
-      :start-control-engine="startControlEngine"
-      :stop-control-engine="stopControlEngine"
-      :pause-control-engine="pauseControlEngine"
-      :resume-control-engine="resumeControlEngine"
       :datasource-probe-running="datasourceProbeRunning"
       :datasource-probe-hint="datasourceProbeHint"
       :datasource-probe-hint-variant="datasourceProbeHintVariant"
@@ -968,11 +963,6 @@ function getEditorModelById(id: string): Model | null {
 const {
   propertyRequestJson,
   propertyRequestError,
-  controlEngineStatus,
-  startControlEngine,
-  stopControlEngine,
-  pauseControlEngine,
-  resumeControlEngine,
   executeCommand,
   executeProperty,
   cleanupEditor3DManagers

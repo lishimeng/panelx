@@ -5,7 +5,7 @@ import type { PropertyManager } from './PropertyManager'
 export type EngineStatus = 'idle' | 'running' | 'paused' | 'stopped'
 export type QueueDropPolicy = 'drop_oldest' | 'drop_newest'
 
-export type SceneControlStreamEngineOptions = {
+export type StreamEngineOptions = {
   maxQueueSize?: number
   dropPolicy?: QueueDropPolicy
   logger?: (entry: Record<string, unknown>) => void
@@ -28,7 +28,7 @@ type EngineStats = {
   sourceCount: number
 }
 
-export class SceneControlStreamEngine {
+export class StreamEngine {
   private readonly commandManager?: CommandManager
   private readonly propertyManager?: PropertyManager
   private readonly maxQueueSize: number
@@ -46,12 +46,12 @@ export class SceneControlStreamEngine {
   private readonly propertySink?: (request: PropertyRequest, event: ControlEnvelope) => void
   private readonly widgetSink?: (payload: Extract<ControlPayload, { kind: 'widget' }>, event: ControlEnvelope) => void
 
-  constructor(commandManager?: CommandManager, propertyManager?: PropertyManager, options?: SceneControlStreamEngineOptions) {
+  constructor(commandManager?: CommandManager, propertyManager?: PropertyManager, options?: StreamEngineOptions) {
     this.commandManager = commandManager
     this.propertyManager = propertyManager
     this.maxQueueSize = Math.max(1, Math.trunc(options?.maxQueueSize ?? 2000))
     this.dropPolicy = options?.dropPolicy ?? 'drop_oldest'
-    this.logger = options?.logger ?? ((entry) => console.log('[SceneControlStreamEngine]', entry))
+    this.logger = options?.logger ?? ((entry) => console.log('[StreamEngine]', entry))
     this.commandSink = options?.commandSink
     this.propertySink = options?.propertySink
     this.widgetSink = options?.widgetSink

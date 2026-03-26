@@ -174,16 +174,6 @@
     <button type="button" class="panelx-editor3d-btn" @click="triggerImportConfig">导入配置</button>
     <button type="button" class="panelx-editor3d-btn" @click="createRobotDemoScene">生成 Robot 示例</button>
     <div class="panelx-editor3d-size-row panelx-editor3d-size-row-bg" style="margin-top: 0.5rem;">
-      <span class="panelx-editor3d-size-label">流引擎</span>
-      <div class="panelx-editor3d-size-inputs">
-        <span class="panelx-editor3d-size-value">{{ controlEngineStatus }}</span>
-        <button type="button" class="panelx-editor3d-btn" @click="startControlEngine">启动</button>
-        <button type="button" class="panelx-editor3d-btn" @click="pauseControlEngine">暂停</button>
-        <button type="button" class="panelx-editor3d-btn" @click="resumeControlEngine">恢复</button>
-        <button type="button" class="panelx-editor3d-btn" @click="stopControlEngine">停止</button>
-      </div>
-    </div>
-    <div class="panelx-editor3d-size-row panelx-editor3d-size-row-bg" style="margin-top: 0.5rem;">
       <span class="panelx-editor3d-size-label">数据源</span>
       <div class="panelx-editor3d-size-inputs">
         <span class="panelx-editor3d-size-value">{{ datasourceProbeRunning ? 'running' : 'stopped' }}</span>
@@ -250,11 +240,6 @@ defineProps({
   saveDraftToLocalStorage: { type: Function as PropType<() => void>, required: true },
   triggerImportConfig: { type: Function as PropType<() => void>, required: true },
   createRobotDemoScene: { type: Function as PropType<() => void>, required: true },
-  controlEngineStatus: { type: String as PropType<'idle' | 'running' | 'paused' | 'stopped'>, required: true },
-  startControlEngine: { type: Function as PropType<() => void>, required: true },
-  stopControlEngine: { type: Function as PropType<() => void>, required: true },
-  pauseControlEngine: { type: Function as PropType<() => void>, required: true },
-  resumeControlEngine: { type: Function as PropType<() => void>, required: true },
   datasourceProbeRunning: { type: Boolean as PropType<boolean>, required: true },
   datasourceProbeHint: { type: String as PropType<string>, required: true },
   datasourceProbeHintVariant: { type: String as PropType<'info' | 'success' | 'warn' | 'error'>, required: true },

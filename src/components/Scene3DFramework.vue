@@ -34,7 +34,7 @@ import { degToRad } from '../utils/angle'
 import { clamp01, toFiniteNumber, toPositiveNumber } from '../utils/number'
 import { CommandManager } from '../utils/CommandManager'
 import { PropertyManager } from '../utils/PropertyManager'
-import { SceneControlStreamEngine } from '../utils/SceneControlStreamEngine'
+import { StreamEngine } from '../utils/StreamEngine'
 import type { CommandRequest, PropertyRequest } from '../types'
 import { dataChainLog, formatDataChainDetail } from '../core/comm/dataChainLog'
 import { register3DCommandHandlers, register3DPropertyHandlers } from '../utils/manager3DRegistry'
@@ -42,7 +42,7 @@ import { create3DPropertyHandlers } from '../utils/manager3DHandlers'
 import { create3DCommandHandlers } from '../utils/manager3DCommandHandlers'
 
 const props = defineProps<{
-  /** 3D 场景配置（模型列表、statsStyle 等），由 App 或外部传入 */
+  /** 3D ???????????????????????statsStyle ????????? App ???????????*/
   config?: Scene3DConfig
 }>()
 
@@ -50,11 +50,11 @@ const containerRef = ref<HTMLElement | null>(null)
 const containerId = computed(() => `panelx-3d-framework-${Math.random().toString(36).slice(2, 10)}`)
 let worldInstance: World | null = null
 let resizeObserver: ResizeObserver | null = null
-/** 已挂入 storyboard 的模型实例（与 store.getModel 每次 clone 不同，命令/属性必须指向同一引用） */
+/** ??????storyboard ???????????????store.getModel ?? clone ??????????????????????????????????*/
 let runtimeSceneModelsById: Map<string, Model> | null = null
-/** starField 粒子 rAF 动画，卸载时 cancel */
+/** starField ??? rAF ????????????? cancel */
 let disposeStarFieldAnim: (() => void) | null = null
-/** 圆形光点贴图，卸载时 dispose */
+/** ????????????????????? dispose */
 let starFieldPointTexture: CanvasTexture | null = null
 const CUSTOM_PROPS_KEY = 'custom'
 const MASK_COLOR_KEY = 'maskColor'
@@ -108,7 +108,7 @@ function applyCustomProps(model: Model, props: Record<string, unknown>): void {
   const custom = props[CUSTOM_PROPS_KEY]
   if (!custom || typeof custom !== 'object') return
   for (const [k, v] of Object.entries(custom as Record<string, unknown>)) {
-    // 引擎级状态（自旋转/遮罩）由 applyInstanceExtrasFromCustom 处理
+    // ????????????????????????????? applyInstanceExtrasFromCustom ????
     if (k === MASK_COLOR_KEY || k === MASK_OPACITY_KEY || k === MASK_RADIUS_KEY) continue
     if (k === AUTO_ROTATE_ENABLED_KEY || k === AUTO_ROTATE_AXIS_KEY || k === AUTO_ROTATE_SPEED_DEG_KEY) continue
     try {
@@ -119,7 +119,7 @@ function applyCustomProps(model: Model, props: Record<string, unknown>): void {
   }
 }
 
-/** 与 Editor3D `useEditor3DSelectionTransform` 一致：支持 number 或 [x,y,z] 缩放 */
+/** ??Editor3D `useEditor3DSelectionTransform` ????????????? number ??[x,y,z] ???? */
 function parseWidgetScaleVec(raw: unknown): [number, number, number] {
   if (typeof raw === 'number') {
     const v = toPositiveNumber(raw, 1)
@@ -141,19 +141,19 @@ function applyInstanceExtrasFromCustom(model: Model, props: Record<string, unkno
 
   const c = custom as Record<string, unknown>
 
-  // 遮罩（运行时默认不显示；仅应用颜色/透明度/半径用于后续可能的显示逻辑）
+  // Apply mask settings from custom props.
   const maskColor = typeof c[MASK_COLOR_KEY] === 'string' ? c[MASK_COLOR_KEY] : '#38bdf8'
   const maskOpacityRaw = Number(c[MASK_OPACITY_KEY])
   const maskOpacity = Number.isFinite(maskOpacityRaw) ? clamp01(maskOpacityRaw) : 1
   const maskRadiusWorld = toPositiveNumber(c[MASK_RADIUS_KEY], 3)
 
   model.setMaskColor(maskColor)
-  // 不处于“选中”态：沿用 editor 里的 unselected 逻辑 opacity * 0.5
+  // ???????????????????????? editor ?????? unselected ????? opacity * 0.5
   model.setMaskOpacity(maskOpacity * UNSELECTED_OPACITY_MULTIPLIER)
   model.setMaskRadiusWorld(maskRadiusWorld)
   model.setMaskVisible(false)
 
-  // 自旋转
+  // Apply auto-rotate settings from custom props.
   const enabled = Boolean(c[AUTO_ROTATE_ENABLED_KEY])
   const axisRaw = c[AUTO_ROTATE_AXIS_KEY]
   const axis = axisRaw === 'x' || axisRaw === 'y' || axisRaw === 'z' ? axisRaw : 'y'
@@ -256,13 +256,13 @@ onMounted(() => {
       }
       const storyBoard = new ControlsStoryBoard('main', camera, sceneOptions)
 
-      // 星空粒子：仅当 scene3D.starField === true 时启用（默认关闭以省资源）
+      // Render star field only when scene3D.starField === true.
       if (props.config?.starField === true) {
-        // 仅在 XZ 平面分布（固定 Y）；大:小数量 ≈ 1:6（两套 Points，因 PointsMaterial.size 为全局 uniform）
+        // XZ plane stars, Y fixed, with large/small point mixing.
         const STAR_COUNT_TOTAL = 80
         const STAR_LARGE_COUNT = Math.max(1, Math.round(STAR_COUNT_TOTAL / 7))
         const STAR_SMALL_COUNT = STAR_COUNT_TOTAL - STAR_LARGE_COUNT
-        /** 粒子所在水平面高度（Y 向上）；与场景地面重合，必要时可微调避免与模型 z-fight */
+        /** ?????????????????Y ??????????????????????????????????????????????z-fight */
         const STAR_PLANE_Y = 0
         const STAR_COLOR = new Color(0x38bdf8)
         const ext = Math.max(orthographicSize * aspect, orthographicSize)
@@ -290,7 +290,7 @@ onMounted(() => {
             starPositions[i * 3 + 1] = STAR_PLANE_Y
             starPositions[i * 3 + 2] = z
 
-            // 亮:暗 ≈ 1:6（大多数为暗点，少数较亮）
+            // Roughly 1/7 stars are brighter.
             const isBright = Math.random() < 1 / 7
             const brightness = isBright ? 0.52 + Math.random() * 0.48 : 0.04 + Math.random() * 0.22
             const isWhite = isBright && Math.random() < 0.2
@@ -376,7 +376,7 @@ onMounted(() => {
             anyEnabled = true
             camera.layers.enable(LayerDef.normalize(item.layer))
           })
-        // 避免误配置导致 camera mask=0，全黑
+        // Avoid invalid camera mask=0.
         if (!anyEnabled) camera.layers.enable(LayerDef.default)
       } else {
         camera.layers.enable(LayerDef.default)
@@ -388,8 +388,8 @@ onMounted(() => {
       const runtimeModels = useWidgets3DRuntime
         ? widgets3DConfig.map((w) => ({ id: w.id, visible: w.visible, layer: w.layer }))
         : modelsConfig.map((m) => ({ id: m.id, visible: m.visible, layer: m.layer }))
-      // 注意：不要在这里把 widget/model 的 layer 强行覆盖给实例。
-      // 模型的 layer 应尽量由模型自身/类型规则决定；仅 info-box/sprite-info-box 需要由配置控制。
+      // Do not force widget/model layer onto all instances here.
+      // Let model defaults decide; only info-box related types need config-driven layers.
       const modelPositions = new Map<string, [number, number, number]>()
       const widgetTypeIdById = new Map<string, string>()
       if (useWidgets3DRuntime) {
@@ -407,7 +407,7 @@ onMounted(() => {
             const tf = widgetTransformMap.get(item.id)
             if (tf) {
               model.scene.position.set(tf.position[0], tf.position[1], tf.position[2])
-              // 与 Editor3D 一致：使用完整三维缩放；CSS3D 模型乘 0.01（见 InfoBox 等）
+              // Keep consistent with Editor3D: use full XYZ scale; CSS3D models apply *0.01.
               const cssMul = (model as unknown as { isCss3d?: boolean }).isCss3d ? 0.01 : 1
               const [sx, sy, sz] = tf.scale
               model.scene.scale.set(sx * cssMul, sy * cssMul, sz * cssMul)
@@ -513,14 +513,13 @@ onMounted(() => {
         if ((typeId === 'gltf' || typeId === 'fbx') && !source) continue
         const model = createModelByTypeId(typeId, w.id, source)
         if (!model) continue
-        // 只有部分模型需要依赖外部 layer 开关；其余模型让自身默认 layer 行为生效
+        // Only some model types rely on external layer controls.
         if (typeId === 'sprite-info-box') {
           model.layer = [LayerDef.sprite]
         } else if (typeId === 'info-box') {
           model.layer = toLayerArray(w.layer)
         } else {
-          // expanding-ring / gltf/fbx 等默认使用 Object3D 默认 layer=0，
-          // 不把 widget.layer 强行覆盖到 mesh 上，避免出现 configurable 中“只少某模型”的 layer mask 问题
+          // For most types keep Object3D default layer behavior (layer=0).
           model.layer = []
         }
         model.props = { ...p }
@@ -542,12 +541,11 @@ onMounted(() => {
 })
 
 /**
- * 可配置运行时：对外暴露执行命令入口。
- * 用法：外部调用 `executeCommand({ key, params })`。
+ * Runtime command/property entry points for external callers.
  */
 const commandManager = new CommandManager()
 const propertyManager = new PropertyManager()
-const controlEngine = new SceneControlStreamEngine(commandManager, propertyManager)
+const controlEngine = new StreamEngine(commandManager, propertyManager)
 
 register3DCommandHandlers(
   commandManager,
@@ -581,7 +579,7 @@ function executeProperty(req: PropertyRequest): void {
 defineExpose({
   executeCommand,
   executeProperty,
-  registerControlSource: (source: Parameters<SceneControlStreamEngine['registerSource']>[0]) => controlEngine.registerSource(source),
+  registerControlSource: (source: Parameters<StreamEngine['registerSource']>[0]) => controlEngine.registerSource(source),
   startControlEngine: () => controlEngine.start(),
   stopControlEngine: () => controlEngine.stop(),
   pauseControlEngine: () => controlEngine.pause(),
