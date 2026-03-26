@@ -2,8 +2,8 @@ import type { EditorConfig } from '../../types/editor'
 
 export const editorBuiltinRegisteredWidgets: EditorConfig['registeredWidgets'] = [
   { type: 'screenTitle', label: '大屏标题', group: '布局导航', defaultSize: { width: 1920, height: 80 }, sampleImage: 'widget_title.png' },
-  { type: 'topBarTime', label: '时间组件', group: '布局导航', defaultSize: { width: 420, height: 48 }, sampleImage: '' },
-  { type: 'topBarClimate', label: '温湿度组件', group: '布局导航', defaultSize: { width: 280, height: 48 }, sampleImage: '' },
+  { type: 'topBarTime', label: '时间组件', group: '布局导航', defaultSize: { width: 420, height: 48 }, sampleImage: 'widget_time.png' },
+  { type: 'topBarClimate', label: '温湿度组件', group: '布局导航', defaultSize: { width: 280, height: 48 }, sampleImage: 'widget_climate.png' },
   { type: 'bottomNav', label: '底栏', group: '布局导航', defaultSize: { width: 1920, height: 56 }, sampleImage: '' },
   { type: 'chart', label: '图表', group: '数据可视化/图表', defaultSize: { width: 480, height: 280 }, sampleImage: '' },
   { type: 'glassChart', label: '玻璃图表', group: '数据可视化/图表', defaultSize: { width: 380, height: 220 }, sampleImage: 'widget_chart_bar.png' },
