@@ -57,8 +57,24 @@ export const widgetTypeReg: Record<BuiltinWidgetType2D, WidgetTypeRegItem> = {
     propConfig: [{ key: 'title', label: '标题', type: 'string', default: '面板' }]
   },
   screenTitle: {
-    defaultProps: { text: '大屏标题' },
-    propConfig: [{ key: 'text', label: '标题文字', type: 'string', default: '大屏标题' }]
+    defaultProps: {
+      text: '大屏标题',
+      borderVisible: false,
+      borderColor: '#ff4d4f',
+      borderWidth: 1,
+      borderStyle: 'solid',
+      borderRadius: 4,
+      titleFontSize: '3rem'
+    },
+    propConfig: [
+      { key: 'text', label: '标题文字', type: 'string', default: '大屏标题' },
+      { key: 'titleFontSize', label: '标题字号(CSS)', type: 'string', default: '3rem' },
+      { key: 'borderVisible', label: '显示边框(调试)', type: 'boolean', default: false },
+      { key: 'borderColor', label: '边框颜色', type: 'color', default: '#ff4d4f' },
+      { key: 'borderWidth', label: '边框宽度(px)', type: 'number', default: 1 },
+      { key: 'borderStyle', label: '边框样式', type: 'string', default: 'solid', enum: ['solid', 'dashed', 'dotted', 'double'] },
+      { key: 'borderRadius', label: '边框圆角(px)', type: 'number', default: 4 }
+    ]
   },
   topBar: {
     defaultProps: {

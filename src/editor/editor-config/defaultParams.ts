@@ -91,7 +91,15 @@ export const editorBuiltinDefaultParams: NonNullable<EditorConfig['widgetPropDat
     scrollDurationMs: 350,
     items: [{ label: '项1', value: '100', percent: 60 }, { label: '项2', value: '200', percent: 80 }]
   },
-  screenTitle: { text: '大屏标题' },
+  screenTitle: {
+    text: '大屏标题',
+    borderVisible: false,
+    borderColor: '#ff4d4f',
+    borderWidth: 1,
+    borderStyle: 'solid',
+    borderRadius: 4,
+    titleFontSize: '3rem'
+  },
   topBarTime: { background: 'transparent' },
   topBarClimate: { temperature: '25℃', humidity: '50%rh', background: 'transparent' },
   topBar: { datetime: '', temperature: '25℃', humidity: '50%rh', background: 'transparent' },

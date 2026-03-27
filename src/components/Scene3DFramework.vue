@@ -498,13 +498,16 @@ onMounted(() => {
         storyBoard.scene.add(obj)
       }
       storyBoard.enableControls(world.getRendererDom())
-      const cameraLookAt = Array.isArray(cameraConfig?.lookAt) && cameraConfig.lookAt.length >= 3
-        ? new Vector3(
+      const cameraLookAt = (() => {
+        if (Array.isArray(cameraConfig?.lookAt) && cameraConfig.lookAt.length >= 3) {
+          return new Vector3(
             Number(cameraConfig.lookAt[0]) || 0,
             Number(cameraConfig.lookAt[1]) || 0,
             Number(cameraConfig.lookAt[2]) || 0
           )
-        : new Vector3(0, 0, 0)
+        }
+        return new Vector3(0, 0, 0)
+      })()
       if (storyBoard.controls) {
         storyBoard.controls.target.copy(cameraLookAt)
         storyBoard.controls.update()

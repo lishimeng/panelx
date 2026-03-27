@@ -239,10 +239,13 @@ function applyCameraPose(): void {
   const lx = Number(cameraLookAt.x)
   const ly = Number(cameraLookAt.y)
   const lz = Number(cameraLookAt.z)
-  if (controls && Number.isFinite(lx) && Number.isFinite(ly) && Number.isFinite(lz)) {
-    controls.target.set(lx, ly, lz)
-    controls.update()
-  } else if (Number.isFinite(lx) && Number.isFinite(ly) && Number.isFinite(lz)) {
+  const hasLookAt = Number.isFinite(lx) && Number.isFinite(ly) && Number.isFinite(lz)
+  if (controls) {
+    if (hasLookAt) {
+      controls.target.set(lx, ly, lz)
+      controls.update()
+    }
+  } else if (hasLookAt) {
     sb.camera.lookAt(lx, ly, lz)
   }
 }
@@ -1165,6 +1168,21 @@ async function onImportConfigFile(e: Event): Promise<void> {
     applyCameraLayers()
     applyCameraZoom()
     applyCameraPose()
+    // 兼容旧版导出中含 camera.rotation：不再写入导出，导入时仍应用到场景相机
+    const legacyRot = scene3D?.camera as { rotation?: number[] } | undefined
+    if (Array.isArray(legacyRot?.rotation) && legacyRot.rotation.length >= 3) {
+      const sb = storyboardRef.value as BaseStoryBoard | null
+      const cam = sb?.camera
+      if (cam) {
+        cam.rotation.set(
+          Number(legacyRot.rotation[0]) || 0,
+          Number(legacyRot.rotation[1]) || 0,
+          Number(legacyRot.rotation[2]) || 0
+        )
+        const controls = (sb as unknown as { controls?: { update: () => void } }).controls
+        controls?.update()
+      }
+    }
     for (const w of config.widgets3D ?? []) {
       addWidgetModelToScene(w)
     }
@@ -1341,6 +1359,7 @@ const isDragOver = ref(false)
 const cameraInfo = reactive({
   positionText: '-',
   lookAtText: '-',
+  rotationText: '-',
   zoomText: '-'
 })
 let cameraInfoRafId: number | null = null
@@ -1355,11 +1374,13 @@ function syncCameraInfo(): void {
   const cam = sb?.camera as
     | {
         position?: { x: number; y: number; z: number }
+        rotation?: { x: number; y: number; z: number }
         zoom?: number
       }
     | undefined
   if (!cam?.position) return
   cameraInfo.positionText = formatVec3(cam.position.x, cam.position.y, cam.position.z)
+  cameraInfo.rotationText = cam.rotation ? formatVec3(cam.rotation.x, cam.rotation.y, cam.rotation.z) : '0.00, 0.00, 0.00'
   const controls = (sb as unknown as { controls?: { target?: { x: number; y: number; z: number } } })?.controls
   const target = controls?.target
   cameraInfo.lookAtText = target ? formatVec3(target.x, target.y, target.z) : '0.00, 0.00, 0.00'
@@ -1852,42 +1873,6 @@ function saveDraftToLocalStorage() {
   border-radius: 0.5rem;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
   overflow: hidden;
-}
-.panelx-editor3d-camera-float {
-  position: absolute;
-  top: 0.75rem;
-  right: 0.75rem;
-  z-index: 25;
-  min-width: 15rem;
-  padding: 0.5rem 0.6rem;
-  border-radius: 0.5rem;
-  border: 1px solid #334155;
-  background: rgba(15, 23, 42, 0.9);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-  color: #dbeafe;
-  font-size: 0.75rem;
-  line-height: 1.35;
-  pointer-events: none;
-}
-.panelx-editor3d-camera-float-title {
-  margin-bottom: 0.35rem;
-  color: #93c5fd;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-}
-.panelx-editor3d-camera-float-row {
-  display: flex;
-  align-items: baseline;
-  gap: 0.35rem;
-}
-.panelx-editor3d-camera-float-label {
-  flex-shrink: 0;
-  color: #93c5fd;
-  min-width: 3.8rem;
-}
-.panelx-editor3d-camera-float-value {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace;
-  color: #e2e8f0;
 }
 .panelx-editor3d-instance-float.collapsed {
   max-height: none;
