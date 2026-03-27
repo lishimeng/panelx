@@ -23,7 +23,8 @@ import {
   Forklift,
   LaserBeam,
   SimpleTree,
-  GrassPatch
+  GrassPatch,
+  CorrugatedBox
 } from '../models/IndustrialModels'
 import { EzTreeModel } from '../models/EzTreeModel'
 
@@ -287,6 +288,17 @@ function registerBuiltins(): void {
     create(config: ModelRegistryCreateConfig) {
       const name = config.name ?? config.id ?? 'GrassPatch'
       return new GrassPatch(name)
+    }
+  })
+
+  modelRegistry.register({
+    id: 'corrugated-box',
+    label: 'Corrugated Box',
+    category: 'builtin',
+    group: 'equipment',
+    create(config: ModelRegistryCreateConfig) {
+      const name = config.name ?? config.id ?? 'CorrugatedBox'
+      return new CorrugatedBox(name)
     }
   })
 

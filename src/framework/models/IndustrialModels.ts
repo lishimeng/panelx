@@ -4,6 +4,9 @@ import {
   Color,
   CylinderGeometry,
   DoubleSide,
+  EdgesGeometry,
+  LineBasicMaterial,
+  LineSegments,
   Mesh,
   MeshBasicMaterial,
   PlaneGeometry,
@@ -1177,6 +1180,59 @@ export class GrassPatch extends Model {
     mesh.rotation.x = -Math.PI / 2
     mesh.position.set(0, 0.01, 0)
     scene.add(mesh)
+
+    this.setScene(scene)
+  }
+}
+
+/** 纸箱：瓦楞纸色盒体 + 条纹纹理（自发光，适合无灯光场景） */
+export class CorrugatedBox extends Model {
+  constructor(name = 'CorrugatedBox') {
+    super(name)
+    const scene = new Scene()
+
+    const texSize = 256
+    const canvas = document.createElement('canvas')
+    canvas.width = texSize
+    canvas.height = texSize
+    const ctx = canvas.getContext('2d')
+    if (ctx) {
+      ctx.fillStyle = '#b78345'
+      ctx.fillRect(0, 0, texSize, texSize)
+
+      // 瓦楞横向细条纹
+      for (let y = 0; y < texSize; y += 6) {
+        ctx.fillStyle = y % 12 === 0 ? 'rgba(117,78,37,0.30)' : 'rgba(238,206,158,0.20)'
+        ctx.fillRect(0, y, texSize, 2)
+      }
+
+      // 轻微纸面噪点，避免颜色过于死板
+      for (let i = 0; i < 500; i++) {
+        const x = Math.floor(Math.random() * texSize)
+        const y = Math.floor(Math.random() * texSize)
+        const a = 0.06 + Math.random() * 0.1
+        ctx.fillStyle = `rgba(80,52,24,${a})`
+        ctx.fillRect(x, y, 1, 1)
+      }
+    }
+
+    const tex = new CanvasTexture(canvas)
+    const mat = new MeshBasicMaterial({ map: tex, color: 0xffffff })
+    const geom = new BoxGeometry(1.1, 0.8, 0.75)
+    const box = new Mesh(geom, mat)
+    box.position.set(0, 0.4, 0)
+    scene.add(box)
+
+    // 叠加深色边缘线，模型并排时轮廓更清晰。
+    const edgeGeom = new EdgesGeometry(geom)
+    const edgeMat = new LineBasicMaterial({
+      color: 0x5f3f1d,
+      transparent: true,
+      opacity: 0.55
+    })
+    const edges = new LineSegments(edgeGeom, edgeMat)
+    edges.position.copy(box.position)
+    scene.add(edges)
 
     this.setScene(scene)
   }
