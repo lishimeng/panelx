@@ -15,19 +15,9 @@ import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 const props = withDefaults(
   defineProps<{
   text: string
-  borderVisible?: boolean
-  borderColor?: string
-  borderWidth?: number
-  borderStyle?: 'solid' | 'dashed' | 'dotted' | 'double'
-  borderRadius?: number
   titleFontSize?: string
 }>(),
   {
-    borderVisible: false,
-    borderColor: '#ff4d4f',
-    borderWidth: 1,
-    borderStyle: 'solid',
-    borderRadius: 4,
     titleFontSize: '3rem'
   }
 )
@@ -36,13 +26,9 @@ const rootRef = ref<HTMLElement | null>(null)
 const titleUnitPx = ref(12)
 let resizeObserver: ResizeObserver | null = null
 const rootStyle = computed(() => {
-  const bw = Number.isFinite(props.borderWidth) ? Math.max(0, Number(props.borderWidth)) : 0
-  const radius = Number.isFinite(props.borderRadius) ? Math.max(0, Number(props.borderRadius)) : 0
   return {
     '--panelx-title-unit': `${titleUnitPx.value}px`,
-    '--panelx-title-font-size': String(props.titleFontSize || '3rem'),
-    border: props.borderVisible ? `${bw}px ${props.borderStyle} ${props.borderColor}` : 'none',
-    borderRadius: `${radius}px`
+    '--panelx-title-font-size': String(props.titleFontSize || '3rem')
   }
 })
 

@@ -93,11 +93,6 @@ export const editorBuiltinDefaultParams: NonNullable<EditorConfig['widgetPropDat
   },
   screenTitle: {
     text: '大屏标题',
-    borderVisible: false,
-    borderColor: '#ff4d4f',
-    borderWidth: 1,
-    borderStyle: 'solid',
-    borderRadius: 4,
     titleFontSize: '3rem'
   },
   topBarTime: { background: 'transparent', fontSize: 'clamp(0.625rem, 58.33cqh, 1.75rem)' },
