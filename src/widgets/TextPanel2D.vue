@@ -3,6 +3,8 @@
     <GlassPanel
       :title="title"
       :sub-title="subTitle"
+      :title-font-size="titleFontSize"
+      :sub-title-font-size="subTitleFontSize"
       :tab-color="tabColor"
       :show-tab="showTab"
       :panel-opacity="panelOpacity"
@@ -11,7 +13,7 @@
     >
       <div class="panelx-textPanel2d__body">
         <div v-for="(sec, idx) in normalizedSections" :key="idx" class="panelx-textPanel2d__section">
-          <div class="panelx-textPanel2d__content">
+          <div class="panelx-textPanel2d__content" :style="{ fontSize: bodyFontSize }">
             <div v-for="(line, i) in sec.lines" :key="i" class="panelx-textPanel2d__line">
               <template v-for="(seg, si) in line" :key="si">
                 <span v-if="seg.hl" class="panelx-textPanel2d__hl">{{ seg.text }}</span>
@@ -40,6 +42,9 @@ const props = withDefaults(
   defineProps<{
     title?: string
     subTitle?: string
+    titleFontSize?: string
+    subTitleFontSize?: string
+    bodyFontSize?: string
     tabColor?: 'blue' | 'cyan' | 'yellow' | 'green' | 'orange' | 'purple'
     showTab?: boolean
     /** 面板背景透明度（0~1） */
@@ -58,6 +63,7 @@ const props = withDefaults(
     panelOpacity: undefined,
     panelBorderVisible: true,
     panelBorderOpacity: undefined,
+    bodyFontSize: '0.75rem',
     sections: () => [
       {
         content:
@@ -97,7 +103,7 @@ const normalizedSections = computed(() => {
 .panelx-textPanel2d__body {
   height: 100%;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;

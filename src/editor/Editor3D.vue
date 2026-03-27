@@ -10,6 +10,8 @@
       v-model:bloomStrength="bloomStrength"
       v-model:bloomRadius="bloomRadius"
       v-model:bloomThreshold="bloomThreshold"
+      v-model:cameraPosition="cameraPosition"
+      v-model:cameraLookAt="cameraLookAt"
       v-model:cameraZoom="cameraZoom"
       v-model:editorBackgroundColor="editorBackgroundColor"
       v-model:cameraLayers="cameraLayers"
@@ -191,6 +193,8 @@ const bloomStrength = ref(0.55)
 const bloomRadius = ref(0.22)
 /** 默认 0.35：在关闭 tone mapping 后，emissive 区域能稳定超过阈值并泛光 */
 const bloomThreshold = ref(0.35)
+const cameraPosition = reactive({ x: Number.NaN, y: Number.NaN, z: Number.NaN })
+const cameraLookAt = reactive({ x: Number.NaN, y: Number.NaN, z: Number.NaN })
 /** 相机 zoom（正交与透视均可设置；语义不同），默认 1。 */
 const cameraZoom = ref(1)
 
@@ -220,6 +224,47 @@ function applyCameraZoom(): void {
   if (!Number.isFinite(z) || z <= 0) return
   cam.zoom = z
   cam.updateProjectionMatrix?.()
+}
+
+function applyCameraPose(): void {
+  const sb = storyboardRef.value as BaseStoryBoard | null
+  if (!sb?.camera) return
+  const px = Number(cameraPosition.x)
+  const py = Number(cameraPosition.y)
+  const pz = Number(cameraPosition.z)
+  if (Number.isFinite(px) && Number.isFinite(py) && Number.isFinite(pz)) {
+    sb.camera.position.set(px, py, pz)
+  }
+  const controls = (sb as unknown as { controls?: { target: Vector3; update: () => void } }).controls
+  const lx = Number(cameraLookAt.x)
+  const ly = Number(cameraLookAt.y)
+  const lz = Number(cameraLookAt.z)
+  if (controls && Number.isFinite(lx) && Number.isFinite(ly) && Number.isFinite(lz)) {
+    controls.target.set(lx, ly, lz)
+    controls.update()
+  } else if (Number.isFinite(lx) && Number.isFinite(ly) && Number.isFinite(lz)) {
+    sb.camera.lookAt(lx, ly, lz)
+  }
+}
+
+function syncCameraPoseFromScene(): void {
+  const sb = storyboardRef.value as BaseStoryBoard | null
+  const cam = sb?.camera
+  if (!cam?.position) return
+  cameraPosition.x = cam.position.x
+  cameraPosition.y = cam.position.y
+  cameraPosition.z = cam.position.z
+  const controls = (sb as unknown as { controls?: { target: Vector3 } }).controls
+  const t = controls?.target
+  if (t) {
+    cameraLookAt.x = t.x
+    cameraLookAt.y = t.y
+    cameraLookAt.z = t.z
+    return
+  }
+  cameraLookAt.x = 0
+  cameraLookAt.y = 0
+  cameraLookAt.z = 0
 }
 
 /** 3D world（由 setup3D 初始化；这里用最小接口以避免与具体实现强耦合） */
@@ -313,6 +358,14 @@ watch(
 /** bloom 阈值：越高，参与泛光的像素越少（避免整模发白） */
 watch(cameraLayers, () => applyCameraLayers(), { deep: true })
 watch(cameraZoom, () => applyCameraZoom())
+watch(
+  () => ({ x: cameraPosition.x, y: cameraPosition.y, z: cameraPosition.z }),
+  () => applyCameraPose()
+)
+watch(
+  () => ({ x: cameraLookAt.x, y: cameraLookAt.y, z: cameraLookAt.z }),
+  () => applyCameraPose()
+)
 
 watch(
   () => ({ strength: bloomStrength.value, radius: bloomRadius.value, threshold: bloomThreshold.value }),
@@ -617,7 +670,11 @@ const loaderRef = ref<Loader | null>(null)
 const storyboardRef = ref<StoryBoard | null>(null)
 watch(
   () => storyboardRef.value,
-  () => applyEditorBackgroundColorToScene()
+  () => {
+    applyEditorBackgroundColorToScene()
+    syncCameraPoseFromScene()
+    applyCameraPose()
+  }
 )
 const addedModelNames = new Set<string>()
 const pendingTransforms = new Map<
@@ -1091,12 +1148,23 @@ async function onImportConfigFile(e: Event): Promise<void> {
       const z = Number(scene3D.camera.zoom)
       if (Number.isFinite(z) && z > 0) cameraZoom.value = z
     }
+    if (Array.isArray(scene3D?.camera?.position) && scene3D.camera.position.length >= 3) {
+      cameraPosition.x = Number(scene3D.camera.position[0]) || 0
+      cameraPosition.y = Number(scene3D.camera.position[1]) || 0
+      cameraPosition.z = Number(scene3D.camera.position[2]) || 0
+    }
+    if (Array.isArray(scene3D?.camera?.lookAt) && scene3D.camera.lookAt.length >= 3) {
+      cameraLookAt.x = Number(scene3D.camera.lookAt[0]) || 0
+      cameraLookAt.y = Number(scene3D.camera.lookAt[1]) || 0
+      cameraLookAt.z = Number(scene3D.camera.lookAt[2]) || 0
+    }
 
     // 5) 按配置重新加入场景
     await nextTick()
     applyOrthographicByWorldSize()
     applyCameraLayers()
     applyCameraZoom()
+    applyCameraPose()
     for (const w of config.widgets3D ?? []) {
       addWidgetModelToScene(w)
     }
@@ -1229,7 +1297,9 @@ const { addWidgetModelToScene, onFrameworkLoaded } = useEditor3DSceneBinding({
   applyLayersToObject,
   degToRad,
   applyCameraLayers,
-  cameraZoomRef: cameraZoom
+  cameraZoomRef: cameraZoom,
+  cameraPositionRef: ref(cameraPosition),
+  cameraLookAtRef: ref(cameraLookAt)
 })
 
 const { createRobotDemoScene, clearDemoInfoBoxes } = useEditor3DDemoScene({
@@ -1501,6 +1571,16 @@ function buildDashboardExportPayload(): DashboardConfig {
       threshold: bloomThreshold.value
     },
     camera: {
+      ...(Number.isFinite(Number(cameraPosition.x)) &&
+      Number.isFinite(Number(cameraPosition.y)) &&
+      Number.isFinite(Number(cameraPosition.z))
+        ? { position: [Number(cameraPosition.x), Number(cameraPosition.y), Number(cameraPosition.z)] as [number, number, number] }
+        : {}),
+      ...(Number.isFinite(Number(cameraLookAt.x)) &&
+      Number.isFinite(Number(cameraLookAt.y)) &&
+      Number.isFinite(Number(cameraLookAt.z))
+        ? { lookAt: [Number(cameraLookAt.x), Number(cameraLookAt.y), Number(cameraLookAt.z)] as [number, number, number] }
+        : {}),
       zoom: (() => {
         const cam = (storyboardRef.value as BaseStoryBoard | null)?.camera as OrthographicCamera | undefined
         const z = cam?.zoom

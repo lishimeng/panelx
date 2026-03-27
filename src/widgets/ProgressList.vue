@@ -2,6 +2,8 @@
   <GlassPanel
     :title="title"
     :sub-title="subTitle"
+    :title-font-size="titleFontSize"
+    :sub-title-font-size="subTitleFontSize"
     :tab-color="tabColor"
     :show-tab="showTab"
     :panel-opacity="panelOpacity"
@@ -34,6 +36,8 @@ import GlassPanel from './GlassPanel.vue'
 defineProps<{
   title?: string
   subTitle?: string
+  titleFontSize?: string
+  subTitleFontSize?: string
   tabColor?: 'blue' | 'cyan' | 'yellow' | 'green' | 'orange' | 'purple'
   showTab?: boolean
   /** 面板背景透明度（0~1） */
@@ -49,7 +53,7 @@ defineProps<{
 <style scoped>
 .panelx-progress-list-content {
   padding: 0 0.375rem;
-  overflow-y: auto;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   min-height: 0;

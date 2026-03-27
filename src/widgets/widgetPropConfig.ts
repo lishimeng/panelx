@@ -96,6 +96,8 @@ export const widgetTypeReg: Record<BuiltinWidgetType2D, WidgetTypeRegItem> = {
     defaultProps: {
       title: '图表',
       subTitle: 'CHART',
+      titleFontSize: '0.75rem',
+      subTitleFontSize: '0.5rem',
       tabColor: 'blue',
       showTab: true,
       panelOpacity: 0.75,
@@ -109,6 +111,8 @@ export const widgetTypeReg: Record<BuiltinWidgetType2D, WidgetTypeRegItem> = {
     propConfig: [
       { key: 'title', label: '标题', type: 'string', default: '图表' },
       { key: 'subTitle', label: '副标题', type: 'string', default: 'CHART' },
+      { key: 'titleFontSize', label: '标题字号', type: 'string', default: '0.75rem' },
+      { key: 'subTitleFontSize', label: '副标题字号', type: 'string', default: '0.5rem' },
       { key: 'tabColor', label: '顶部色带颜色', type: 'string', default: 'blue', enum: [...ENUM_TAB_COLOR] },
       { key: 'showTab', label: '显示顶部色带', type: 'boolean', default: true },
       { key: 'panelOpacity', label: '面板透明度(0-1)', type: 'number', default: 0.75 },
@@ -124,6 +128,9 @@ export const widgetTypeReg: Record<BuiltinWidgetType2D, WidgetTypeRegItem> = {
     defaultProps: {
       title: '关于',
       subTitle: 'INTRODUCTION',
+      titleFontSize: '0.75rem',
+      subTitleFontSize: '0.5rem',
+      bodyFontSize: '0.75rem',
       tabColor: 'cyan',
       showTab: true,
       panelOpacity: 0.75,
@@ -141,6 +148,9 @@ export const widgetTypeReg: Record<BuiltinWidgetType2D, WidgetTypeRegItem> = {
     propConfig: [
       { key: 'title', label: '标题', type: 'string', default: '关于' },
       { key: 'subTitle', label: '副标题', type: 'string', default: 'INTRODUCTION' },
+      { key: 'titleFontSize', label: '标题字号', type: 'string', default: '0.75rem' },
+      { key: 'subTitleFontSize', label: '副标题字号', type: 'string', default: '0.5rem' },
+      { key: 'bodyFontSize', label: '正文字号', type: 'string', default: '0.75rem' },
       { key: 'tabColor', label: '顶部色带颜色', type: 'string', default: 'cyan', enum: [...ENUM_TAB_COLOR] },
       { key: 'showTab', label: '显示顶部色带', type: 'boolean', default: true },
       { key: 'panelOpacity', label: '面板透明度(0-1)', type: 'number', default: 0.75 },
@@ -155,6 +165,8 @@ export const widgetTypeReg: Record<BuiltinWidgetType2D, WidgetTypeRegItem> = {
     defaultProps: {
       title: '近期检修记录',
       subTitle: 'RECENT MAINTENANCE',
+      titleFontSize: '0.75rem',
+      subTitleFontSize: '0.5rem',
       tabColor: 'cyan',
       showTab: true,
       panelOpacity: 0.75,
@@ -181,6 +193,8 @@ export const widgetTypeReg: Record<BuiltinWidgetType2D, WidgetTypeRegItem> = {
     propConfig: [
       { key: 'title', label: '标题', type: 'string', default: '近期检修记录' },
       { key: 'subTitle', label: '副标题', type: 'string', default: 'RECENT MAINTENANCE' },
+      { key: 'titleFontSize', label: '标题字号', type: 'string', default: '0.75rem' },
+      { key: 'subTitleFontSize', label: '副标题字号', type: 'string', default: '0.5rem' },
       { key: 'tabColor', label: '顶部色带颜色', type: 'string', default: 'cyan', enum: [...ENUM_TAB_COLOR] },
       { key: 'showTab', label: '显示顶部色带', type: 'boolean', default: true },
       { key: 'panelOpacity', label: '面板透明度(0-1)', type: 'number', default: 0.75 },
@@ -213,6 +227,8 @@ export const widgetTypeReg: Record<BuiltinWidgetType2D, WidgetTypeRegItem> = {
     defaultProps: {
       title: '进度',
       subTitle: 'PROGRESS',
+      titleFontSize: '0.75rem',
+      subTitleFontSize: '0.5rem',
       tabColor: 'cyan',
       showTab: true,
       panelOpacity: 0.75,
@@ -225,6 +241,8 @@ export const widgetTypeReg: Record<BuiltinWidgetType2D, WidgetTypeRegItem> = {
     propConfig: [
       { key: 'title', label: '标题', type: 'string', default: '进度' },
       { key: 'subTitle', label: '副标题', type: 'string', default: 'PROGRESS' },
+      { key: 'titleFontSize', label: '标题字号', type: 'string', default: '0.75rem' },
+      { key: 'subTitleFontSize', label: '副标题字号', type: 'string', default: '0.5rem' },
       { key: 'tabColor', label: '顶部色带颜色', type: 'string', default: 'cyan', enum: [...ENUM_TAB_COLOR] },
       { key: 'showTab', label: '显示顶部色带', type: 'boolean', default: true },
       { key: 'panelOpacity', label: '面板透明度(0-1)', type: 'number', default: 0.75 },

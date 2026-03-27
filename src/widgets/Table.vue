@@ -38,7 +38,7 @@ defineProps<TableProps>()
 .panelx-table {
   position: relative;
   width: 100%;
-  overflow: auto;
+  overflow: hidden;
 }
 .panelx-table table {
   width: 100%;

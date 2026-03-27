@@ -3,6 +3,8 @@
     <GlassPanel
       :title="title"
       :sub-title="subTitle"
+      :title-font-size="titleFontSize"
+      :sub-title-font-size="subTitleFontSize"
       :tab-color="tabColor"
       :show-tab="showTab"
       :panel-opacity="panelOpacity"
@@ -75,6 +77,8 @@ const props = withDefaults(
   defineProps<{
     title?: string
     subTitle?: string
+    titleFontSize?: string
+    subTitleFontSize?: string
     tabColor?: 'blue' | 'cyan' | 'yellow' | 'green' | 'orange' | 'purple'
     showTab?: boolean
     /** 面板背景透明度（0~1） */
@@ -157,47 +161,14 @@ watch(
   () => props.rows,
   (rows) => {
     const incoming = Array.isArray(rows) ? rows : []
-    const max = normalizeMaxRows(props.maxRows)
-    if (max <= 0) {
-      internalRows.value = []
-      return
-    }
-
-    if (props.updateMode === 'append') {
-      // 将 incoming 视为增量追加（支持一次推多条）
-      const next = internalRows.value.concat(incoming)
-      internalRows.value = next.slice(Math.max(0, next.length - max))
-      return
-    }
-
-    // replace：将 incoming 视为全量
-    internalRows.value = incoming.slice(0, max)
+    // 需求约束：每次 rows 都按“全量覆盖”解释
+    internalRows.value = incoming
   },
   { immediate: true }
 )
 
-// maxRows 变小后即时截断
-watch(
-  () => props.maxRows,
-  () => {
-    const max = normalizeMaxRows(props.maxRows)
-    if (max <= 0) internalRows.value = []
-    else if (internalRows.value.length > max) internalRows.value = internalRows.value.slice(0, max)
-  }
-)
-
-// 模式切换到 replace 时，立即用当前 props.rows 覆盖内部列表（避免残留 append 历史）
-watch(
-  () => props.updateMode,
-  (m) => {
-    if (m !== 'replace') return
-    const incoming = Array.isArray(props.rows) ? props.rows : []
-    const max = normalizeMaxRows(props.maxRows)
-    internalRows.value = max > 0 ? incoming.slice(0, max) : []
-  }
-)
-
-const filteredRows = computed(() => internalRows.value)
+const visibleCount = computed(() => normalizeMaxRows(props.maxRows))
+const filteredRows = computed(() => (visibleCount.value > 0 ? internalRows.value : []))
 </script>
 
 <style scoped>

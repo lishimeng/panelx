@@ -247,6 +247,10 @@ export interface Scene3DCameraConfig {
   type?: Scene3DCameraType
   /** 正交相机时可视半高（世界单位，对应 Three.js orthographic 的 top 值），默认 5；从 worldSize 推断时取 sqrt(x²+y²+z²)/2，便于轨道旋转时少裁切 */
   orthographicSize?: number
+  /** 相机初始位置 [x, y, z]。不填时使用各场景默认值。 */
+  position?: [number, number, number]
+  /** 相机初始观察点 [x, y, z]。不填时默认 [0, 0, 0]。 */
+  lookAt?: [number, number, number]
   /** 相机 zoom（Three.js camera.zoom），正交与透视均支持；默认 1。 */
   zoom?: number
   /** 相机各图层的显示配置，完全覆盖默认。不填时默认仅 layer=0 可显示 */

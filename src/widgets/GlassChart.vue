@@ -3,6 +3,8 @@
     <GlassPanel
       :title="title"
       :sub-title="subTitle"
+      :title-font-size="titleFontSize"
+      :sub-title-font-size="subTitleFontSize"
       :tab-color="tabColor"
       :show-tab="showTab"
       :panel-opacity="panelOpacity"
@@ -41,6 +43,8 @@ const props = withDefaults(
     chartHeight?: string
     /** 顶部色带颜色（blue/cyan/yellow/green/orange/purple） */
     tabColor?: 'blue' | 'cyan' | 'yellow' | 'green' | 'orange' | 'purple'
+    titleFontSize?: string
+    subTitleFontSize?: string
     /** 是否显示顶部色带 */
     showTab?: boolean
     /** 面板背景透明度（0~1） */

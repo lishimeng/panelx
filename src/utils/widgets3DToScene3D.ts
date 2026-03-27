@@ -138,6 +138,8 @@ export function widgets3DToScene3DConfig(
 
   const cameraType = scene?.camera?.type ?? (orthographicSize != null ? 'orthographic' : undefined)
   const cameraOrthographicSize = scene?.camera?.orthographicSize ?? orthographicSize
+  const cameraPosition = Array.isArray(scene?.camera?.position) ? scene?.camera?.position : undefined
+  const cameraLookAt = Array.isArray(scene?.camera?.lookAt) ? scene?.camera?.lookAt : undefined
   const cameraZoom = scene?.camera?.zoom
 
   const config: Scene3DConfig = {
@@ -155,6 +157,8 @@ export function widgets3DToScene3DConfig(
             ...(cameraType === 'orthographic' && cameraOrthographicSize != null
               ? { orthographicSize: cameraOrthographicSize }
               : {}),
+            ...(cameraPosition ? { position: [Number(cameraPosition[0]) || 0, Number(cameraPosition[1]) || 0, Number(cameraPosition[2]) || 0] } : {}),
+            ...(cameraLookAt ? { lookAt: [Number(cameraLookAt[0]) || 0, Number(cameraLookAt[1]) || 0, Number(cameraLookAt[2]) || 0] } : {}),
             ...(cameraZoom != null ? { zoom: cameraZoom } : {}),
             ...(cameraLayers ? { layers: cameraLayers } : {})
           }

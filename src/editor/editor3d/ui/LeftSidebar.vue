@@ -67,6 +67,30 @@
       <div class="panelx-editor3d-size-row panelx-editor3d-size-row-inputs">
         <span class="panelx-editor3d-size-label">相机</span>
         <div class="panelx-editor3d-size-inputs">
+          <label title="相机初始位置 X">
+            PosX
+            <input v-model.number="cameraPosition.x" type="number" step="any" />
+          </label>
+          <label title="相机初始位置 Y">
+            PosY
+            <input v-model.number="cameraPosition.y" type="number" step="any" />
+          </label>
+          <label title="相机初始位置 Z">
+            PosZ
+            <input v-model.number="cameraPosition.z" type="number" step="any" />
+          </label>
+          <label title="相机观察点 X">
+            LookX
+            <input v-model.number="cameraLookAt.x" type="number" step="any" />
+          </label>
+          <label title="相机观察点 Y">
+            LookY
+            <input v-model.number="cameraLookAt.y" type="number" step="any" />
+          </label>
+          <label title="相机观察点 Z">
+            LookZ
+            <input v-model.number="cameraLookAt.z" type="number" step="any" />
+          </label>
           <label title="Three.js camera.zoom，正交与透视均支持（语义不同）">
             Zoom
             <input v-model.number="cameraZoom" type="number" step="0.1" min="0.1" max="50" />
@@ -207,6 +231,8 @@ let sceneLights = defineModel<any>('sceneLights', { required: true })
 const bloomStrength = defineModel<any>('bloomStrength', { required: true })
 const bloomRadius = defineModel<any>('bloomRadius', { required: true })
 const bloomThreshold = defineModel<any>('bloomThreshold', { required: true })
+const cameraPosition = defineModel<any>('cameraPosition', { required: true })
+const cameraLookAt = defineModel<any>('cameraLookAt', { required: true })
 const cameraZoom = defineModel<any>('cameraZoom', { required: true })
 const editorBackgroundColor = defineModel<any>('editorBackgroundColor', { required: true })
 let cameraLayers = defineModel<Scene3DCameraLayerItem[]>('cameraLayers', { required: true })

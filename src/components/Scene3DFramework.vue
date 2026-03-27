@@ -260,6 +260,13 @@ onMounted(() => {
       } else {
         camera.position.set(2, 1.5, 2)
       }
+      if (Array.isArray(cameraConfig?.position) && cameraConfig.position.length >= 3) {
+        camera.position.set(
+          Number(cameraConfig.position[0]) || 0,
+          Number(cameraConfig.position[1]) || 0,
+          Number(cameraConfig.position[2]) || 0
+        )
+      }
       const cameraZoom = Number(cameraConfig?.zoom)
       if (Number.isFinite(cameraZoom) && cameraZoom > 0) {
         camera.zoom = cameraZoom
@@ -491,7 +498,16 @@ onMounted(() => {
         storyBoard.scene.add(obj)
       }
       storyBoard.enableControls(world.getRendererDom())
+      const cameraLookAt = Array.isArray(cameraConfig?.lookAt) && cameraConfig.lookAt.length >= 3
+        ? new Vector3(
+            Number(cameraConfig.lookAt[0]) || 0,
+            Number(cameraConfig.lookAt[1]) || 0,
+            Number(cameraConfig.lookAt[2]) || 0
+          )
+        : new Vector3(0, 0, 0)
       if (storyBoard.controls) {
+        storyBoard.controls.target.copy(cameraLookAt)
+        storyBoard.controls.update()
         if (isOrthographic) {
           const od = minOrthographicOrbitDistanceFromWorldSize(ws0 && worldSizeHasPositiveExtent(ws0) ? ws0 : undefined)
           storyBoard.controls.minDistance = Math.max(ORBIT_MIN_DISTANCE, od * 0.98)
@@ -500,6 +516,8 @@ onMounted(() => {
           storyBoard.controls.minDistance = ORBIT_MIN_DISTANCE
           storyBoard.controls.maxDistance = ORBIT_MAX_DISTANCE
         }
+      } else {
+        camera.lookAt(cameraLookAt)
       }
       world.sceneTo(storyBoard)
       nextTick(() => world.notifyResize())

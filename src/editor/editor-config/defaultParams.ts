@@ -11,6 +11,8 @@ export const editorBuiltinDefaultParams: NonNullable<EditorConfig['widgetPropDat
   glassChart: {
     title: '图表',
     subTitle: 'CHART',
+    titleFontSize: '0.75rem',
+    subTitleFontSize: '0.5rem',
     tabColor: 'blue',
     showTab: false,
     panelOpacity: 0.75,
@@ -24,6 +26,9 @@ export const editorBuiltinDefaultParams: NonNullable<EditorConfig['widgetPropDat
   textPanel2D: {
     title: '关于',
     subTitle: 'INTRODUCTION',
+    titleFontSize: '0.75rem',
+    subTitleFontSize: '0.5rem',
+    bodyFontSize: '0.75rem',
     tabColor: 'cyan',
     showTab: true,
     panelOpacity: 0.75,
@@ -36,6 +41,8 @@ export const editorBuiltinDefaultParams: NonNullable<EditorConfig['widgetPropDat
   tableChart: {
     title: '近期检修记录',
     subTitle: 'RECENT MAINTENANCE',
+    titleFontSize: '0.75rem',
+    subTitleFontSize: '0.5rem',
     tabColor: 'cyan',
     showTab: true,
     panelOpacity: 0.75,
@@ -70,6 +77,8 @@ export const editorBuiltinDefaultParams: NonNullable<EditorConfig['widgetPropDat
   progressList: {
     title: '进度',
     subTitle: 'PROGRESS',
+    titleFontSize: '0.75rem',
+    subTitleFontSize: '0.5rem',
     tabColor: 'cyan',
     showTab: true,
     panelOpacity: 0.75,

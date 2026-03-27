@@ -51,6 +51,8 @@ type UseEditor3DSceneBindingOptions = {
   applyCameraLayers: () => void
   /** 与正交相机实际 zoom 同步，避免导出 scene3D.camera.zoom 仍为默认 1 而运行时覆盖掉 initialOrthographicZoom */
   cameraZoomRef?: Ref<number>
+  cameraPositionRef?: Ref<{ x: number; y: number; z: number }>
+  cameraLookAtRef?: Ref<{ x: number; y: number; z: number }>
 }
 
 export function useEditor3DSceneBinding(options: UseEditor3DSceneBindingOptions) {
@@ -173,7 +175,14 @@ export function useEditor3DSceneBinding(options: UseEditor3DSceneBindingOptions)
       const cam = new OrthographicCamera(-halfH * aspect, halfH * aspect, halfH, -halfH, ORTHOGRAPHIC_N_CLIP, ORTHOGRAPHIC_F_CLIP)
       const orbitDist = minOrthographicOrbitDistanceFromWorldSize(options.sceneWorldSize.value)
       const ORBIT_MAX_DISTANCE = Math.max(orbitDist * 20, 50000)
-      cam.position.copy(new Vector3(1, 1, 1).normalize().multiplyScalar(orbitDist))
+      const pose = options.cameraPositionRef?.value
+      const hasPose =
+        pose &&
+        Number.isFinite(Number(pose.x)) &&
+        Number.isFinite(Number(pose.y)) &&
+        Number.isFinite(Number(pose.z))
+      if (hasPose) cam.position.set(Number(pose!.x), Number(pose!.y), Number(pose!.z))
+      else cam.position.copy(new Vector3(1, 1, 1).normalize().multiplyScalar(orbitDist))
       cam.zoom = initialOrthographicZoomFromWorldSize(options.sceneWorldSize.value)
       cam.updateProjectionMatrix()
       if (options.cameraZoomRef) {
@@ -186,11 +195,19 @@ export function useEditor3DSceneBinding(options: UseEditor3DSceneBindingOptions)
       })
       sb.enableControls(world.getRendererDom())
       if (sb.controls) {
-        sb.controls.target.set(0, 0, 0)
+        const lookAt = options.cameraLookAtRef?.value
+        const hasLookAt =
+          lookAt &&
+          Number.isFinite(Number(lookAt.x)) &&
+          Number.isFinite(Number(lookAt.y)) &&
+          Number.isFinite(Number(lookAt.z))
+        if (hasLookAt) sb.controls.target.set(Number(lookAt!.x), Number(lookAt!.y), Number(lookAt!.z))
+        else sb.controls.target.set(0, 0, 0)
         sb.controls.enableDamping = true
         sb.controls.dampingFactor = 0.05
         sb.controls.minDistance = Math.max(ORBIT_MIN_DISTANCE, orbitDist * 0.98)
         sb.controls.maxDistance = ORBIT_MAX_DISTANCE
+        sb.controls.update()
       }
       options.storyboardRef.value = sb
       options.applyCameraLayers()

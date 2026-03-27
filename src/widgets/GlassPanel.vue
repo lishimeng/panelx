@@ -41,6 +41,8 @@ import { computed } from 'vue'
 interface Props {
   title?: string
   subTitle?: string
+  titleFontSize?: string
+  subTitleFontSize?: string
   /** 统一壳主题：同主题下配色/线条一致 */
   theme?: 'hud'
   tabColor?: 'blue' | 'cyan' | 'yellow' | 'green' | 'orange' | 'purple'
@@ -102,6 +104,13 @@ const panelStyle = computed(() => {
   } else {
     style['--px-panel-title-cn'] = '#ffffff'
     style['--px-panel-title-en'] = '#6586b5'
+  }
+
+  if (typeof props.titleFontSize === 'string' && props.titleFontSize.trim() !== '') {
+    style['--px-font-size-md'] = props.titleFontSize.trim()
+  }
+  if (typeof props.subTitleFontSize === 'string' && props.subTitleFontSize.trim() !== '') {
+    style['--px-font-size-xs'] = props.subTitleFontSize.trim()
   }
 
   return Object.keys(style).length ? style : undefined
