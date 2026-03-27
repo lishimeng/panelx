@@ -112,6 +112,19 @@ function createModelByTypeId(typeId: string, name: string, source?: string): Mod
   return modelRegistry.createModel(typeId, { name, source })
 }
 
+const RESERVED_WIDGET_PROP_KEYS = new Set(['typeId', 'source', 'position', 'scale', 'rotation', CUSTOM_PROPS_KEY])
+
+function applyWidgetDirectProps(model: Model, props: Record<string, unknown>): void {
+  for (const [k, v] of Object.entries(props)) {
+    if (RESERVED_WIDGET_PROP_KEYS.has(k)) continue
+    try {
+      model.propUpdate(k, v)
+    } catch {
+      // ignore unsupported props
+    }
+  }
+}
+
 function applyCustomProps(model: Model, props: Record<string, unknown>): void {
   const custom = props[CUSTOM_PROPS_KEY]
   if (!custom || typeof custom !== 'object') return
@@ -562,6 +575,7 @@ onMounted(() => {
           model.layer = []
         }
         model.props = { ...p }
+        applyWidgetDirectProps(model, p)
         applyCustomProps(model, p)
         const pos = (p.position as [number, number, number] | undefined) ?? [0, 0, 0]
         const rawRotation = (p.rotation as [number, number, number] | undefined) ?? [0, 0, 0]

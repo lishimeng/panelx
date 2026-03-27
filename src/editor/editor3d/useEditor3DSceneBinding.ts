@@ -57,6 +57,7 @@ type UseEditor3DSceneBindingOptions = {
 
 export function useEditor3DSceneBinding(options: UseEditor3DSceneBindingOptions) {
   const ORBIT_MIN_DISTANCE = 0.1
+  const RESERVED_WIDGET_PROP_KEYS = new Set(['typeId', 'source', 'position', 'scale', 'rotation'])
 
   function resolveModelUrl(source: string | undefined): string | undefined {
     if (source == null || source === '') return undefined
@@ -94,6 +95,15 @@ export function useEditor3DSceneBinding(options: UseEditor3DSceneBindingOptions)
     const model = createModelByTypeId(typeId, modelName, source)
     if (!model) return
     model.layer = options.normalizeLayerValues(w.layer)
+    // Keep runtime/editor consistent: apply direct widget props as model props.
+    for (const [k, v] of Object.entries(props)) {
+      if (RESERVED_WIDGET_PROP_KEYS.has(k) || k === options.customPropsKey) continue
+      try {
+        model.propUpdate(k, v)
+      } catch {
+        // ignore unsupported props
+      }
+    }
 
     const custom = props[options.customPropsKey]
     if (custom && typeof custom === 'object') {

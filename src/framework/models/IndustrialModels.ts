@@ -810,7 +810,7 @@ export class AGV extends Model {
   ]
 
   private status: DeviceStatus = 'normal'
-  private readonly statusIndicatorMat: MeshBasicMaterial
+  private static readonly STATUS_INDICATOR_NAME = '__agv_status_indicator__'
   private blinkElapsed = 0
   private blinkOn = true
   private static readonly BLINK_INTERVAL_S = 0.2
@@ -830,8 +830,9 @@ export class AGV extends Model {
 
     const deckH = 0.06
     const deckGeom = new BoxGeometry(bodyL * 0.92, deckH, bodyW * 0.92)
-    this.statusIndicatorMat = new MeshBasicMaterial({ color: 0x475569 })
-    const deck = new Mesh(deckGeom, this.statusIndicatorMat)
+    const deckMat = new MeshBasicMaterial({ color: 0x475569 })
+    const deck = new Mesh(deckGeom, deckMat)
+    deck.name = AGV.STATUS_INDICATOR_NAME
     deck.position.set(0, bodyH + deckH / 2, 0)
     scene.add(deck)
 
@@ -893,11 +894,15 @@ export class AGV extends Model {
   }
 
   private applyStatusIndicator(): void {
+    const host = this.scene ?? this
+    const indicator = host.getObjectByName(AGV.STATUS_INDICATOR_NAME) as Mesh | undefined
+    const mat = indicator?.material
+    if (!(mat instanceof MeshBasicMaterial)) return
     if (this.status === 'fault') {
-      this.statusIndicatorMat.color.setHex(this.blinkOn ? 0xef4444 : 0x475569)
+      mat.color.setHex(this.blinkOn ? 0xef4444 : 0x475569)
       return
     }
-    this.statusIndicatorMat.color.setHex(0x475569)
+    mat.color.setHex(0x475569)
   }
 
   override update(delta: number) {
@@ -911,11 +916,12 @@ export class AGV extends Model {
       return
     }
     this.blinkElapsed += delta
-    while (this.blinkElapsed >= AGV.BLINK_INTERVAL_S) {
-      this.blinkElapsed -= AGV.BLINK_INTERVAL_S
-      this.blinkOn = !this.blinkOn
-      this.applyStatusIndicator()
-    }
+    const steps = Math.floor(this.blinkElapsed / AGV.BLINK_INTERVAL_S)
+    if (steps <= 0) return
+    this.blinkElapsed -= steps * AGV.BLINK_INTERVAL_S
+    // 跨多个周期时只按奇偶翻转一次，避免循环。
+    if ((steps & 1) === 1) this.blinkOn = !this.blinkOn
+    this.applyStatusIndicator()
   }
 
   override propUpdate(key: string, value: unknown): void {
@@ -941,7 +947,7 @@ export class Forklift extends Model {
   ]
 
   private status: DeviceStatus = 'normal'
-  private readonly statusIndicatorMat: MeshBasicMaterial
+  private static readonly STATUS_INDICATOR_NAME = '__forklift_status_indicator__'
   private blinkElapsed = 0
   private blinkOn = true
   private static readonly BLINK_INTERVAL_S = 0.2
@@ -963,8 +969,9 @@ export class Forklift extends Model {
     const cabD = 0.4
     const cabH = 0.45
     const cabGeom = new BoxGeometry(cabW, cabH, cabD)
-    this.statusIndicatorMat = new MeshBasicMaterial({ color: 0xd97706 })
-    const cab = new Mesh(cabGeom, this.statusIndicatorMat)
+    const cabMat = new MeshBasicMaterial({ color: 0xd97706 })
+    const cab = new Mesh(cabGeom, cabMat)
+    cab.name = Forklift.STATUS_INDICATOR_NAME
     cab.position.set(-bodyL / 2 + cabW / 2 + 0.08, bodyH + cabH / 2, 0)
     scene.add(cab)
 
@@ -1026,16 +1033,21 @@ export class Forklift extends Model {
   }
 
   private applyStatusIndicator(): void {
+    const host = this.scene ?? this
+    const indicator = host.getObjectByName(Forklift.STATUS_INDICATOR_NAME) as Mesh | undefined
+    const mat = indicator?.material
+    if (!(mat instanceof MeshBasicMaterial)) return
     if (this.status === 'fault') {
-      this.statusIndicatorMat.color.setHex(this.blinkOn ? 0xef4444 : 0xd97706)
+      mat.color.setHex(this.blinkOn ? 0xef4444 : 0xd97706)
       return
     }
-    this.statusIndicatorMat.color.setHex(0xd97706)
+    mat.color.setHex(0xd97706)
   }
 
   override update(delta: number) {
     super.update(delta)
     if (this.status !== 'fault') {
+      // 退出故障态后复位闪烁状态，避免再次进入时相位混乱
       if (this.blinkElapsed !== 0 || this.blinkOn !== true) {
         this.blinkElapsed = 0
         this.blinkOn = true
@@ -1043,11 +1055,12 @@ export class Forklift extends Model {
       return
     }
     this.blinkElapsed += delta
-    while (this.blinkElapsed >= Forklift.BLINK_INTERVAL_S) {
-      this.blinkElapsed -= Forklift.BLINK_INTERVAL_S
-      this.blinkOn = !this.blinkOn
-      this.applyStatusIndicator()
-    }
+    const steps = Math.floor(this.blinkElapsed / Forklift.BLINK_INTERVAL_S)
+    if (steps <= 0) return
+    this.blinkElapsed -= steps * Forklift.BLINK_INTERVAL_S
+    // 跨多个周期时只按奇偶翻转一次，避免循环。
+    if ((steps & 1) === 1) this.blinkOn = !this.blinkOn
+    this.applyStatusIndicator()
   }
 
   override propUpdate(key: string, value: unknown): void {

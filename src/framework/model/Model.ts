@@ -77,8 +77,10 @@ export class Model extends Object3D{
         for (let i = 0; i < this.animationsClips.length; i++) {
             const clip = this.animationsClips[i] as AnimationClip
             const action = this.actionMixer.clipAction(clip)
-            console.log('action', clip.name)
             this.actions.set(clip.name, action)
+            // Runtime default: play all embedded clips unless caller overrides action state later.
+            action.reset()
+            action.play()
         }
         this.scene.traverse((child) => {
             const skinned = child as { isSkinnedMesh?: boolean; bind?: (s: unknown, m: unknown) => void; skeleton?: { needsUpdate: boolean }; bindMatrix?: unknown }
