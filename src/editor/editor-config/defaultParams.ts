@@ -94,6 +94,21 @@ export const editorBuiltinDefaultParams: NonNullable<EditorConfig['widgetPropDat
     colorPreset: 'cyan',
     fx: 'scanlines'
   },
+  heatmap2d: {
+    title: '热力分布',
+    data: [
+      [0, 0.25, 0.5, 0.75, 1],
+      [0.2, 0.4, 0.6, 0.8, 1],
+      [0.1, 0.3, 0.5, 0.7, 0.9]
+    ],
+    colorLow: '#0c4a6e',
+    colorHigh: '#f97316',
+    showGrid: true,
+    cellGap: 1,
+    smoothIntensity: 2,
+    borderRadius: 6,
+    showValues: false
+  },
   marqueeText: {
     text: '生产公告：当前 2 号线维护中，预计 14:30 恢复，请注意调度安排。',
     highlightColor: '#ffffff',

@@ -297,6 +297,44 @@ export const widgetTypeReg: Record<BuiltinWidgetType2D, WidgetTypeRegItem> = {
       { key: 'gap', label: '文字间距', type: 'string', default: '3rem' },
       { key: 'background', label: '背景', type: 'color', default: 'transparent' }
     ]
+  },
+  heatmap2d: {
+    defaultProps: {
+      title: '热力分布',
+      data: [
+        [0, 0.25, 0.5, 0.75, 1],
+        [0.2, 0.4, 0.6, 0.8, 1],
+        [0.1, 0.3, 0.5, 0.7, 0.9]
+      ],
+      colorLow: '#0c4a6e',
+      colorHigh: '#f97316',
+      showGrid: true,
+      cellGap: 1,
+      smoothIntensity: 2,
+      borderRadius: 6,
+      showValues: false
+    },
+    propConfig: [
+      { key: 'title', label: '标题', type: 'string', default: '热力分布' },
+      {
+        key: 'data',
+        label: '热力数据(二维数组)',
+        type: 'array',
+        default: [
+          [0, 0.25, 0.5, 0.75, 1],
+          [0.2, 0.4, 0.6, 0.8, 1],
+          [0.1, 0.3, 0.5, 0.7, 0.9]
+        ]
+      },
+      { key: 'colorLow', label: '低值颜色', type: 'color', default: '#0c4a6e' },
+      { key: 'colorHigh', label: '高值颜色', type: 'color', default: '#f97316' },
+      { key: 'showGrid', label: '显示网格', type: 'boolean', default: true },
+      { key: 'cellGap', label: '格间距(px)', type: 'number', default: 1 },
+      { key: 'smoothIntensity', label: '平滑强度(1-4)', type: 'number', default: 2 },
+      { key: 'borderRadius', label: '圆角(px)', type: 'number', default: 6 },
+      { key: 'showValues', label: '显示数值', type: 'boolean', default: false },
+      { key: 'valueFontSize', label: '数值字号', type: 'number', default: 10 }
+    ]
   }
 }
 

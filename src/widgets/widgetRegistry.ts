@@ -23,6 +23,7 @@ import ProgressList from './ProgressList.vue'
 import ScaleRuler from './ScaleRuler.vue'
 import InfoBox2D from './InfoBox2D.vue'
 import MarqueeText from './MarqueeText.vue'
+import Heatmap2D from './Heatmap2D.vue'
 
 export const widgetComponentMap: Record<WidgetType2D, unknown> = {
   chart: Chart,
@@ -43,7 +44,8 @@ export const widgetComponentMap: Record<WidgetType2D, unknown> = {
   progressList: ProgressList,
   scaleRuler: ScaleRuler,
   infoBox2D: InfoBox2D,
-  marqueeText: MarqueeText
+  marqueeText: MarqueeText,
+  heatmap2d: Heatmap2D
 }
 
 /** 根据类型取组件，未注册时回退为 Panel */

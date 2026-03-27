@@ -86,3 +86,28 @@ export interface InfoBox2DProps {
   fx?: 'scanlines' | 'none' | string
   className?: string
 }
+
+/** 二维热力图：行×列数值矩阵，自动按 min~max 映射到双色渐变 */
+export interface Heatmap2DProps {
+  /** 热力数值二维数组（行优先） */
+  data: number[][]
+  /** 颜色映射下限（缺省为数据最小值） */
+  min?: number
+  /** 颜色映射上限（缺省为数据最大值） */
+  max?: number
+  colorLow?: string
+  colorHigh?: string
+  /** 是否显示网格线 */
+  showGrid?: boolean
+  /** 单元格间隙（像素） */
+  cellGap?: number
+  /** 平滑强度（1~4，越大越平滑） */
+  smoothIntensity?: number
+  /** 容器圆角（像素） */
+  borderRadius?: number
+  /** 是否在格内显示数值 */
+  showValues?: boolean
+  valueFontSize?: number
+  title?: string
+  className?: string
+}

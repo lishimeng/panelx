@@ -24,6 +24,7 @@ export type BuiltinWidgetType2D =
   | 'scaleRuler'
   | 'infoBox2D'
   | 'marqueeText'
+  | 'heatmap2d'
   ;
 /** 2D 组件类型标识：内置 + 外部扩展（字符串） */
 export type WidgetType2D = BuiltinWidgetType2D | (string & {})
