@@ -86,6 +86,9 @@ export const editorBuiltinDefaultParams: NonNullable<EditorConfig['widgetPropDat
     panelBorderOpacity: 0.6,
     panelShadowVisible: true,
     panelShadowOpacity: 1,
+    maxRows: 5,
+    scrollIntervalMs: 1600,
+    scrollDurationMs: 350,
     items: [{ label: '项1', value: '100', percent: 60 }, { label: '项2', value: '200', percent: 80 }]
   },
   screenTitle: { text: '大屏标题' },

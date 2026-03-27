@@ -10,30 +10,43 @@
     :panel-border-visible="panelBorderVisible"
     :panel-border-opacity="panelBorderOpacity"
   >
-    <div class="panelx-progress-list-content">
+    <div ref="viewportRef" class="panelx-progress-list-content" :style="viewportStyle">
       <div
-        v-for="(item, i) in items"
-        :key="i"
-        class="panelx-progress-list-row"
+        ref="trackRef"
+        class="panelx-progress-list-track"
+        :style="{
+          transform: `translateY(-${currentOffsetPx}px)`,
+          transition: transitionEnabled ? `transform ${transitionDurationMs}ms ease-in-out` : 'none'
+        }"
+        @transitionend="onTrackTransitionEnd"
       >
-        <span class="label">{{ item.label }}</span>
-        <div class="bar-wrap">
-          <div
-            class="bar-fill"
-            :style="{ width: `${Math.min(100, Math.max(0, item.percent))}%` }"
-          />
+        <div
+          v-for="(item, i) in renderedItems"
+          :key="`${item.label}-${item.value}-${item.percent}-${i}`"
+          class="panelx-progress-list-row"
+        >
+          <span class="label">{{ item.label }}</span>
+          <div class="bar-wrap">
+            <div
+              class="bar-fill"
+              :style="{ width: `${Math.min(100, Math.max(0, item.percent))}%` }"
+            />
+          </div>
+          <span class="value">{{ item.value }}</span>
+          <span class="percent">{{ item.percent }}%</span>
         </div>
-        <span class="value">{{ item.value }}</span>
-        <span class="percent">{{ item.percent }}%</span>
       </div>
     </div>
   </GlassPanel>
 </template>
 
 <script setup lang="ts">
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
 import GlassPanel from './GlassPanel.vue'
 
-defineProps<{
+type ProgressItem = { label: string; value: string | number; percent: number }
+
+const props = defineProps<{
   title?: string
   subTitle?: string
   titleFontSize?: string
@@ -46,8 +59,99 @@ defineProps<{
   panelBorderVisible?: boolean
   /** 面板边框透明度（0~1） */
   panelBorderOpacity?: number
-  items: Array<{ label: string; value: string | number; percent: number }>
+  /** 最大可见条数（超出后自动向上循环滚动） */
+  maxRows?: number
+  /** 自动滚动步进间隔（毫秒） */
+  scrollIntervalMs?: number
+  /** 每步滚动动画时长（毫秒） */
+  scrollDurationMs?: number
+  items: ProgressItem[]
 }>()
+
+const viewportRef = ref<HTMLElement | null>(null)
+const trackRef = ref<HTMLElement | null>(null)
+const rowHeightPx = ref(0)
+const currentIndex = ref(0)
+const transitionEnabled = ref(true)
+let scrollTimer: ReturnType<typeof setInterval> | null = null
+
+const normalizedItems = computed<ProgressItem[]>(() => (Array.isArray(props.items) ? props.items : []))
+const visibleCount = computed(() => {
+  const n = Math.floor(Number(props.maxRows))
+  if (!Number.isFinite(n)) return 5
+  return Math.max(1, n)
+})
+function clampInt(v: unknown, fallback: number, min: number, max: number): number {
+  const n = Math.floor(Number(v))
+  if (!Number.isFinite(n)) return fallback
+  return Math.min(max, Math.max(min, n))
+}
+const scrollIntervalMs = computed(() => {
+  return clampInt(props.scrollIntervalMs, 1600, 200, 60000)
+})
+const transitionDurationMs = computed(() => {
+  const upper = Math.max(80, scrollIntervalMs.value - 20)
+  return clampInt(props.scrollDurationMs, 350, 80, upper)
+})
+const shouldScroll = computed(() => normalizedItems.value.length > visibleCount.value)
+const renderedItems = computed<ProgressItem[]>(() => {
+  if (!shouldScroll.value) return normalizedItems.value
+  const first = normalizedItems.value[0]
+  return first ? [...normalizedItems.value, first] : normalizedItems.value
+})
+const currentOffsetPx = computed(() => currentIndex.value * rowHeightPx.value)
+const viewportStyle = computed(() => {
+  if (rowHeightPx.value <= 0) return {}
+  return { height: `${rowHeightPx.value * visibleCount.value}px` }
+})
+
+function stopAutoScroll(): void {
+  if (!scrollTimer) return
+  clearInterval(scrollTimer)
+  scrollTimer = null
+}
+
+async function measureRowHeight(): Promise<void> {
+  await nextTick()
+  const el = trackRef.value?.querySelector('.panelx-progress-list-row') as HTMLElement | null
+  rowHeightPx.value = el ? el.offsetHeight : 0
+}
+
+async function restartAutoScroll(): Promise<void> {
+  stopAutoScroll()
+  currentIndex.value = 0
+  transitionEnabled.value = false
+  await measureRowHeight()
+  if (!shouldScroll.value || rowHeightPx.value <= 0) return
+  transitionEnabled.value = true
+  scrollTimer = setInterval(() => {
+    if (!shouldScroll.value) return
+    currentIndex.value += 1
+  }, scrollIntervalMs.value)
+}
+
+function onTrackTransitionEnd(): void {
+  if (!shouldScroll.value) return
+  const total = normalizedItems.value.length
+  if (total <= 0) return
+  if (currentIndex.value < total) return
+  // 到达“克隆首行”后无缝跳回顶部
+  transitionEnabled.value = false
+  currentIndex.value = 0
+  requestAnimationFrame(() => {
+    transitionEnabled.value = true
+  })
+}
+
+watch(
+  () => [normalizedItems.value.length, visibleCount.value, scrollIntervalMs.value],
+  () => {
+    void restartAutoScroll()
+  },
+  { immediate: true }
+)
+
+onUnmounted(() => stopAutoScroll())
 </script>
 
 <style scoped>
@@ -57,6 +161,10 @@ defineProps<{
   display: flex;
   flex-direction: column;
   min-height: 0;
+}
+.panelx-progress-list-track {
+  display: flex;
+  flex-direction: column;
 }
 .panelx-progress-list-row {
   display: flex;

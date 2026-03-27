@@ -236,6 +236,9 @@ export const widgetTypeReg: Record<BuiltinWidgetType2D, WidgetTypeRegItem> = {
       panelBorderOpacity: 0.6,
       panelShadowVisible: true,
       panelShadowOpacity: 1,
+      maxRows: 5,
+      scrollIntervalMs: 1600,
+      scrollDurationMs: 350,
       items: [{ label: '项1', value: '100', percent: 60 }]
     },
     propConfig: [
@@ -250,6 +253,9 @@ export const widgetTypeReg: Record<BuiltinWidgetType2D, WidgetTypeRegItem> = {
       { key: 'panelBorderOpacity', label: '边框透明度(0-1)', type: 'number', default: 0.6 },
       { key: 'panelShadowVisible', label: '显示阴影', type: 'boolean', default: true },
       { key: 'panelShadowOpacity', label: '阴影强度(0-1)', type: 'number', default: 1 },
+      { key: 'maxRows', label: '最大展示条数', type: 'number', default: 5 },
+      { key: 'scrollIntervalMs', label: '滚动间隔(ms, 200-60000)', type: 'number', default: 1600 },
+      { key: 'scrollDurationMs', label: '滚动动画(ms, 80-间隔-20)', type: 'number', default: 350 },
       { key: 'items', label: '列表项', type: 'array', default: [] }
     ]
   },
