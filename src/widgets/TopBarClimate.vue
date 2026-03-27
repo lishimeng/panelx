@@ -19,16 +19,20 @@ const props = withDefaults(
     temperature?: string
     humidity?: string
     background?: string
+    /** 字号（CSS 值），如 1.25rem / 28px / clamp(...) */
+    fontSize?: string
   }>(),
   {
     temperature: '--℃',
     humidity: '--%rh',
-    background: 'transparent'
+    background: 'transparent',
+    fontSize: 'clamp(0.625rem, 58.33cqh, 1.75rem)'
   }
 )
 
 const rootStyle = computed(() => ({
-  background: props.background
+  background: props.background,
+  '--panelx-topbar-climate-font-size': String(props.fontSize || 'clamp(0.625rem, 58.33cqh, 1.75rem)')
 }))
 
 const temperature = computed(() => props.temperature ?? '--℃')
@@ -48,7 +52,7 @@ const humidity = computed(() => props.humidity ?? '--%rh')
   padding: 0.15cqh 0.8rem;
   box-sizing: border-box;
   color: rgba(255, 255, 255, 0.85);
-  font-size: clamp(0.625rem, 58.33cqh, 1.75rem);
+  font-size: var(--panelx-topbar-climate-font-size, clamp(0.625rem, 58.33cqh, 1.75rem));
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;

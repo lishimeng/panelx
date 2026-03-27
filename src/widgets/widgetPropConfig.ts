@@ -92,20 +92,26 @@ export const widgetTypeReg: Record<BuiltinWidgetType2D, WidgetTypeRegItem> = {
   },
   topBarTime: {
     defaultProps: {
-      background: 'transparent'
+      background: 'transparent',
+      fontSize: 'clamp(0.625rem, 58.33cqh, 1.75rem)'
     },
-    propConfig: [{ key: 'background', label: '背景', type: 'color', default: 'transparent' }]
+    propConfig: [
+      { key: 'background', label: '背景', type: 'color', default: 'transparent' },
+      { key: 'fontSize', label: '字号(CSS)', type: 'string', default: 'clamp(0.625rem, 58.33cqh, 1.75rem)' }
+    ]
   },
   topBarClimate: {
     defaultProps: {
       temperature: '25℃',
       humidity: '50%rh',
-      background: 'transparent'
+      background: 'transparent',
+      fontSize: 'clamp(0.625rem, 58.33cqh, 1.75rem)'
     },
     propConfig: [
       { key: 'temperature', label: '温度', type: 'string', default: '25℃' },
       { key: 'humidity', label: '湿度', type: 'string', default: '50%rh' },
-      { key: 'background', label: '背景', type: 'color', default: 'transparent' }
+      { key: 'background', label: '背景', type: 'color', default: 'transparent' },
+      { key: 'fontSize', label: '字号(CSS)', type: 'string', default: 'clamp(0.625rem, 58.33cqh, 1.75rem)' }
     ]
   },
   glassChart: {

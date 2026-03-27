@@ -100,8 +100,13 @@ export const editorBuiltinDefaultParams: NonNullable<EditorConfig['widgetPropDat
     borderRadius: 4,
     titleFontSize: '3rem'
   },
-  topBarTime: { background: 'transparent' },
-  topBarClimate: { temperature: '25℃', humidity: '50%rh', background: 'transparent' },
+  topBarTime: { background: 'transparent', fontSize: 'clamp(0.625rem, 58.33cqh, 1.75rem)' },
+  topBarClimate: {
+    temperature: '25℃',
+    humidity: '50%rh',
+    background: 'transparent',
+    fontSize: 'clamp(0.625rem, 58.33cqh, 1.75rem)'
+  },
   topBar: { datetime: '', temperature: '25℃', humidity: '50%rh', background: 'transparent' },
   bottomNav: { items: [{ label: '首页', icon: '▸', active: true }, { label: '数据', icon: '' }] },
   infoBox2D: {

@@ -11,14 +11,18 @@ const props = withDefaults(
   defineProps<{
     /** 背景，支持 CSS 颜色或渐变，默认透明 */
     background?: string
+    /** 字号（CSS 值），如 1.25rem / 28px / clamp(...) */
+    fontSize?: string
   }>(),
   {
-    background: 'transparent'
+    background: 'transparent',
+    fontSize: 'clamp(0.625rem, 58.33cqh, 1.75rem)'
   }
 )
 
 const rootStyle = computed(() => ({
-  background: props.background
+  background: props.background,
+  '--panelx-topbar-time-font-size': String(props.fontSize || 'clamp(0.625rem, 58.33cqh, 1.75rem)')
 }))
 
 const currentTime = ref('')
@@ -61,7 +65,7 @@ onUnmounted(() => {
   padding: 0.15cqh 0.8rem;
   box-sizing: border-box;
   color: rgba(0, 212, 255, 0.92);
-  font-size: clamp(0.625rem, 58.33cqh, 1.75rem);
+  font-size: var(--panelx-topbar-time-font-size, clamp(0.625rem, 58.33cqh, 1.75rem));
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
