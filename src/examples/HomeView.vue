@@ -20,7 +20,7 @@
 <script setup lang="ts">
 /**
  * 模块列表：每个链接用 target="_blank" 新标签打开。
- * 新增模块：在此 modules 追加一项，并在 src/router/index.ts 添加对应 route。
+ * 新增模块：在此 modules 追加一项，并在 examples/router.ts 添加对应 route。
  */
 const modules = [
   { path: '/editor', label: '编辑器' },

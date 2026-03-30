@@ -11,7 +11,7 @@ export interface RegisteredWidgetDef {
   group?: string
   /** 拖入画布时的默认尺寸（设计稿像素） */
   defaultSize: { width: number; height: number }
-  /** 可选：在编辑器组件列表中展示的示例图 URL，如 /editor-samples/stat.png */
+  /** 可选：在编辑器组件列表中展示的示例图文件名，如 "widget_title.png"（由 editor 子入口提供预览图 data URL 映射） */
   sampleImage?: string
   /** 可选：该 widget 的默认 props，拖入时使用（优先级低于 widgetPropData.defaultParams） */
   defaultProps?: Record<string, unknown>

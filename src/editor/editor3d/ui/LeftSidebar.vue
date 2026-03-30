@@ -219,6 +219,7 @@ import type { ModelTypeDefinition } from '../../../framework'
 import type { StyleValue } from 'vue'
 import { LayerDef } from '../../../framework'
 import type { Scene3DCameraLayerItem } from '../../../types/dashboard'
+import type { ModelPresetItem } from '../../../types'
 import InlineNotice from '../../components/InlineNotice.vue'
 
 // 双向绑定：保留原 Editor3D 的 v-model 行为（避免 prop 只读问题）
@@ -256,10 +257,10 @@ defineProps({
     type: Array as PropType<Array<{ groupKey: string; groupLabel: string; items: ModelTypeDefinition[] }>>,
     required: true
   },
-  presetModels: { type: Array as PropType<Array<{ id: string; label: string; typeId: string; source?: string; name?: string }>>, required: false },
+  presetModels: { type: Array as PropType<ModelPresetItem[]>, required: false },
   onDragStartType: { type: Function as PropType<(ev: DragEvent, item: ModelTypeDefinition) => void>, required: true },
   onDragStartPreset: {
-    type: Function as PropType<(ev: DragEvent, p: { id: string; label: string; typeId: string; source?: string; name?: string }) => void>,
+    type: Function as PropType<(ev: DragEvent, p: ModelPresetItem) => void>,
     required: true
   },
   exportConfig: { type: Function as PropType<() => void>, required: true },

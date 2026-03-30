@@ -330,7 +330,7 @@ async function ensureGlobalDatasource(dsConfig: BackendDataSourceConfig): Promis
                 if (!parsed || typeof parsed !== 'object') return []
 
                 const rec = parsed as Record<string, unknown>
-                /** ??server/data/*_enable.json ???{ header: { route: { domain, action } }, payload: [{ widgetId, payload }] } */
+                /** 控制面信封：{ header: { route: { domain, action } }, payload: [{ widgetId, payload }] } */
                 const header = rec.header as Record<string, unknown> | undefined
                 const routeBlock = header?.route as { domain?: string; action?: string } | undefined
                 const payloadArr = rec.payload

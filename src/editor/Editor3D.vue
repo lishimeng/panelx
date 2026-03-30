@@ -166,10 +166,11 @@ import { useEditor3DCustomProps } from './editor3d/useEditor3DCustomProps'
 import { degToRad } from '../utils/angle'
 import { normalizeHexColor } from '../utils/color'
 import { clamp01, percentToOpacityUnit, toFiniteNumber, toPositiveNumber } from '../utils/number'
+import type { ModelPresetItem } from '../types'
 
 /** 预设模型列表（由 examples 等注入），在侧栏「可用模型」中展示 */
 defineProps<{
-  presetModels?: Array<{ id: string; label: string; typeId: string; source?: string; name?: string }>
+  presetModels?: ModelPresetItem[]
 }>()
 
 /** 3D 设计稿尺寸（与 Dashboard `config.design` 无关；用于 worldScale / 定位换算） */

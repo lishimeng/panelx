@@ -1,6 +1,13 @@
 import axios, { type AxiosInstance, type AxiosResponse } from 'axios'
 import type { PanelXRequestConfig, PanelXResponse, PanelXError } from '../types/api'
 
+export interface PanelXRequestApi {
+  get<T = any>(url: string, config?: PanelXRequestConfig): Promise<PanelXResponse<T>>
+  post<T = any>(url: string, data?: any, config?: PanelXRequestConfig): Promise<PanelXResponse<T>>
+  put<T = any>(url: string, data?: any, config?: PanelXRequestConfig): Promise<PanelXResponse<T>>
+  delete<T = any>(url: string, config?: PanelXRequestConfig): Promise<PanelXResponse<T>>
+}
+
 class PanelXRequest {
   private instance: AxiosInstance
 
@@ -48,5 +55,5 @@ class PanelXRequest {
   }
 }
 
-export const request = new PanelXRequest()
+export const request: PanelXRequestApi = new PanelXRequest()
 export default request

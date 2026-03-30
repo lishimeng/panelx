@@ -2,7 +2,7 @@ import type { ControlPush, ControlSource, ControlSourceStatus } from '../../type
 import { formatDataChainDetail } from '../../core/comm/dataChainLog'
 import { normalizeControlEnvelope } from './normalizers'
 
-/** 与 server/sse-server.mjs 的 `event: domain_action` 及 `open` 等命名事件对齐；否则仅 `onmessage` 收不到命名事件 */
+/** 与常见 SSE 服务端 `event:` 命名约定对齐；仅 `onmessage` 时需自行解析或改用 `namedEvents` */
 export const DEFAULT_SSE_NAMED_EVENTS = [
   'open',
   '2d_chart',

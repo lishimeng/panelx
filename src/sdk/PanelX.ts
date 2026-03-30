@@ -1,12 +1,13 @@
 import type { ThemeConfig } from '../types/theme'
 import { request } from '../api/request'
 
-class PanelX {
-  private static instance: PanelX
-  private theme: ThemeConfig
-  private baseURL: string
+let _panelxInstance: PanelX | undefined
 
-  private constructor() {
+export class PanelX {
+  theme: ThemeConfig
+  baseURL: string
+
+  constructor() {
     this.theme = {
       colors: {
         primary: '#1890ff',
@@ -39,10 +40,10 @@ class PanelX {
   }
 
   public static getInstance(): PanelX {
-    if (!PanelX.instance) {
-      PanelX.instance = new PanelX()
+    if (!_panelxInstance) {
+      _panelxInstance = new PanelX()
     }
-    return PanelX.instance
+    return _panelxInstance
   }
 
   public init(options: {
@@ -119,5 +120,5 @@ class PanelX {
   }
 }
 
-export const panelx = PanelX.getInstance()
+export const panelx: PanelX = PanelX.getInstance()
 export default panelx
