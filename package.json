@@ -4,21 +4,22 @@
   "description": "Panel X SDK - 3D Visualization Dashboard Components",
   "packageManager": "pnpm@9.15.0",
   "type": "module",
-  "main": "./dist/panelx.umd.js",
+  "main": "./dist/panelx.cjs.js",
   "module": "./dist/panelx.es.js",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/panelx.es.js",
-      "require": "./dist/panelx.umd.js"
+      "require": "./dist/panelx.cjs.js"
     },
     "./editor": {
       "types": "./dist/editor.d.ts",
       "import": "./dist/panelx-editor.es.js",
-      "require": "./dist/panelx-editor.umd.js"
+      "require": "./dist/panelx-editor.cjs.js"
     },
     "./style.css": "./dist/panelx.css",
+    "./panelx.css": "./dist/panelx.css",
     "./dist/panelx.css": "./dist/panelx.css",
     "./dist/style.css": "./dist/panelx.css"
   },
