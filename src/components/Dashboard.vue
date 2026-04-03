@@ -404,6 +404,7 @@ async function ensureGlobalDatasource(dsConfig: BackendDataSourceConfig): Promis
                 const list = Array.isArray(parsed) ? parsed : [parsed]
                 const out: RoutedSourceData[] = []
                 for (const item of list) {
+                  if (!item || typeof item !== 'object' || Array.isArray(item)) continue
                   const row = item as Record<string, unknown>
                   const route =
                     routeFromEvent ??
@@ -467,7 +468,7 @@ async function ensureGlobalDatasource(dsConfig: BackendDataSourceConfig): Promis
                     ? [body]
                     : []
                 for (const raw of list) {
-                  if (!raw || typeof raw !== 'object') continue
+                  if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) continue
                   const obj = raw as Record<string, unknown>
                   let route = parseRouteToken(String(obj.event ?? '').trim())
                   if (!route) {

@@ -108,7 +108,11 @@ export class SSESource implements ControlSource {
       if (!this.push) return
       const sseEventType = ((event as MessageEvent).type || this.eventName || 'message').trim()
       const mapped = this.parseMessage(event, sseEventType)
-      const list = Array.isArray(mapped) ? mapped : [mapped]
+      const rawList = Array.isArray(mapped) ? mapped : [mapped]
+      const list = rawList.filter(
+        (item): item is Record<string, unknown> =>
+          item != null && typeof item === 'object' && !Array.isArray(item)
+      )
       let receivedCount = 0
       for (const item of list) {
         const p = this.push

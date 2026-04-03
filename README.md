@@ -620,24 +620,108 @@ dashboardRef.registerControlSource(
 
 #### 标准：`event:` + `ControlRequest`
 
-`event:` 为 **`{domain}_{action}`**，`data` 为 **`ControlRequest`**：`{ "key", "id", "params" }`。目标实例 **仅使用字段 `id`**（与 `server/data` 测试文件里 `payload[]` 行上的实例标识一致）。
+`event:` 为 **`{domain}_{action}`**，`data` 为一段 JSON（单对象或对象数组），语义上对应 **`ControlRequest`** 的 **`key` / `id` / `params`**。目标实例 **仅使用字段 `id`**（与 `server/data` 测试文件里 `payload[]` 行上的实例标识一致）。
 
-**最小载荷（建议）**：路由已在 **`event:`** 上时，`data` 内**不要**再带 `event` / `domain` / `action`（客户端解析后会丢弃）。**`key`、`id` 若为空可省略整键**以缩短 JSON；`pnpm run sse` 写出时会做同样压缩。运行时与探针侧最终只依赖 **`key` / `id` / `params`** 三字段（见 `pickControlRequestFields`）。
+**最小载荷（建议）**：路由已在 **`event:`** 上时，`data` 内**不要**再带 `event` / `domain` / `action`（`Dashboard` 解析里经 **`pickControlRequestFields`** 只保留三字段，其余丢弃）。**`key`、`id` 若为空可省略整键**以缩短 JSON；`pnpm run sse` 写出时会做同样压缩。
 
-示例（与 `event:` 同行展示，实际传输为两行）：
+#### 类型（TypeScript）
+
+以下为 **`src/types/manager.ts`** 中与 SSE / 全局 datasource 相关的类型（`ControlRequest` 在类型上 `key` 为必填，**线上 JSON 允许省略空 `key`**，与测试服务压缩行为一致）：
+
+```ts
+/** 业务体：命令 / 属性 / 相机 / 2D 推数据（线上 JSON 可省略空 key，与类型字面量略有宽松） */
+export type ControlRequest = {
+  key: string
+  id?: string
+  params?: unknown
+}
+
+export type ControlDomain = '2d' | '3d'
+export type ControlAction = 'command' | 'property' | 'camera' | 'chart' | 'other'
+
+export type ControlHeader = {
+  domain: ControlDomain
+  action: ControlAction
+}
+
+/** StreamEngine 队列入队用 */
+export type ControlPayload =
+  | { kind: 'command'; request: ControlRequest }
+  | { kind: 'property'; request: ControlRequest }
+  | { kind: 'camera'; request: ControlRequest }
+  | { kind: 'widget'; request: ControlRequest }
+
+export type ControlEnvelope = {
+  sourceId: string
+  timestamp: number
+  traceId?: string
+  priority?: number
+  header: ControlHeader
+  payload: ControlPayload
+}
+
+/** `parseMessage` 返回、经 SSESource `push`（`sourceId` 可由 SSESource 补全） */
+export type DatasourceRoutedEvent = {
+  kind: 'datasource_routed'
+  sourceId: string
+  targetId?: string
+  route: ControlHeader
+  data: unknown
+}
+
+export type ControlSourceEvent = ControlEnvelope | DatasourceRoutedEvent
+```
+
+进入 **`globalDatasourceRegistry`** 订阅回调时，Dashboard 会剥掉 `kind` / `sourceId`，等价于下面**内联形状**（与 `Dashboard.vue` 中 `RoutedSourceData` 一致）：
+
+```ts
+type RoutedSourceData = {
+  targetId?: string
+  route: ControlHeader
+  data: unknown // 实际为仅含 key / id / params 中「出现过的键」的 JSON 对象
+}
+```
+
+**健壮性**：`SSESource` / `PollingSource` 会忽略 `parseMessage` / `parseResponse` 中的 **`null`、`undefined`、非对象、顶层数组元素**；`Dashboard` 的 SSE 解析循环对数组元素同样跳过非法项。
+
+#### 数据示例（线上 SSE）
+
+与 `event:` 分行传输；`data` 为单行 JSON。
+
+**2D 图表（`event: 2d_chart`）**
 
 ```text
 event: 2d_chart
-data: {"id":"chart-1","params":{"series":[1,2,3]}}
+data: {"id":"chart_1","params":{"xAxis":{"type":"category","data":["A","B"]},"series":[{"data":[1,2,3]}]}}
 ```
+
+**`pickControlRequestFields` 之后**（进入 `RoutedSourceData.data` 的概念形态，与线上等价，已无二义路由字段）：
+
+```json
+{
+  "id": "chart_1",
+  "params": {
+    "xAxis": { "type": "category", "data": ["A", "B"] },
+    "series": [{ "data": [1, 2, 3] }]
+  }
+}
+```
+
+**3D 命令**
 
 ```text
 event: 3d_command
 data: {"key":"editor3d.moveTo","id":"robot-1","params":{"x":1,"y":0,"z":2}}
 ```
 
-- **`3d_camera`**：`id` 可省略或为空（全局相机）。
-- **`data` 为 JSON 数组**时，按多条 `ControlRequest` 依次路由；若某条未写 `event` 字段，则继承本帧 SSE 的 `event:` 解析出的路由。
+**3D 相机（可无 `id`）**
+
+```text
+event: 3d_camera
+data: {"key":"camera.zoomTo","params":{"zoom":1.5}}
+```
+
+- **`data` 为 JSON 数组**时，按多条依次路由；元素须为**对象**（非对象项会被跳过）；若某条未写 `event`，继承本帧 SSE 的 `event:` 解析出的路由。
 
 #### 兼容：`data` 内带 `event` 或 `domain`/`action`
 

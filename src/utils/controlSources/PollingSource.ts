@@ -60,7 +60,11 @@ export class PollingSource implements ControlSource {
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const body = (await res.json()) as unknown
       const mapped = this.parseResponse(body)
-      const list = Array.isArray(mapped) ? mapped : [mapped]
+      const rawList = Array.isArray(mapped) ? mapped : [mapped]
+      const list = rawList.filter(
+        (item): item is Record<string, unknown> =>
+          item != null && typeof item === 'object' && !Array.isArray(item)
+      )
       for (const item of list) {
         const p = this.push
         if (!p) break
