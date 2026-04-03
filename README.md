@@ -602,6 +602,57 @@ dashboardRef.registerControlSource(
 { "kind": "property", "request": { "key": "model.visible", "id": "robot-1", "params": { "visible": true } } }
 ```
 
+### SSE 数据结构（Dashboard 全局数据源）
+
+大屏通过 `Dashboard` 内配置的 **`type: 'sse'`** 数据源连接后端。每条 SSE 消息的 **`data:`** 行（可多行 `data:` 拼成一段）应为 **JSON 字符串**。解析逻辑见 `src/components/Dashboard.vue` 中 `parseMessage`。
+
+#### 路由约定
+
+- **域（domain）**：`2d` | `3d`
+- **动作（action）**：`command` | `property` | `camera` | `chart` | `other`
+- 路由由 **`domain` + `_` + `action`** 组成（不区分大小写，内部会转小写），例如：`2d_chart`、`3d_command`、`3d_camera`。
+
+#### 形式一：控制面信封（推荐，与仓库 `server/sse-server.mjs` 推送格式一致）
+
+`data` 解析为单个对象，且同时包含 **`header.route`** 与 **数组 `payload`**：
+
+```json
+{
+  "header": {
+    "route": { "domain": "3d", "action": "command" }
+  },
+  "payload": [
+    {
+      "widgetId": "robot-1",
+      "payload": { "key": "editor3d.moveTo", "id": "robot-1", "params": { "x": 1, "y": 0, "z": 2 } }
+    }
+  ]
+}
+```
+
+- **`payload`** 中每一项为对象；目标实例 id 取 **`widgetId`**，若无则取 **`id`**。
+- 每一项的业务体放在 **`payload`** 字段（内层 `payload`）中，由路由的 `domain/action` 决定如何消费（与下节「后端事件字段规范」一致）。
+- **特例**：`domain === '3d'` 且 **`action === 'camera'`** 时，允许 **`widgetId` / `id` 为空**（相机指令可不绑定具体模型 id）。
+
+测试服务里还可以在 `header` 中带 **`strategy`**（如 `intervalMs`、`emitMode`），仅影响 **`pnpm run sse`** 演示服务的推送节奏；**Dashboard 运行时解析路由不依赖 `strategy`**。
+
+#### 形式二：扁平事件（兼容）
+
+`data` 为 **单个对象** 或 **对象数组**。每一项通过 **`event`** 字段携带路由，格式为 **`{domain}_{action}`**（如 `2d_property`、`3d_camera`），并包含目标 id 与内层数据：
+
+```json
+{
+  "event": "3d_property",
+  "widgetId": "robot-1",
+  "payload": { "key": "model.visible", "id": "robot-1", "params": { "visible": true } }
+}
+```
+
+#### SSE 传输层说明
+
+- **`SSESource`**（`src/utils/controlSources/SSESource.ts`）：使用浏览器 `EventSource`。除默认 `message` 外，还会监听一组命名事件，以便与服务端 `event: xxx` 对齐。
+- **编辑器数据源探针**（`src/utils/sseDatasourceProbe.ts`）：用 **`fetch` + `ReadableStream`** 解析原始 SSE 帧，可收到**任意** `event:` 名称；`Editor2D` / `Editor3D` 里「探针」走这条路径，与运行时 `EventSource` 行为略有差异，但 **`data` 内 JSON 结构约定相同**。
+
 ### SSE 接入示例
 
 ```ts
