@@ -1,58 +1,69 @@
-import type { CameraRequest, CommandRequest, ControlAction, ControlDomain, ControlEnvelope, ControlPayload, PropertyRequest } from '../../types'
+import type { ControlAction, ControlDomain, ControlEnvelope, ControlPayload, ControlRequest } from '../../types'
+import { WIDGET_PATCH_REQUEST_KEY } from '../../types'
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null
 }
 
-function toCommandRequest(v: unknown): CommandRequest | null {
-  if (!isRecord(v)) return null
-  const key = String(v.key ?? '').trim()
-  const id = String(v.id ?? '').trim()
-  if (!key || !id) return null
-  return { key, id, params: v.params }
-}
-
-function toPropertyRequest(v: unknown): PropertyRequest | null {
-  if (!isRecord(v)) return null
-  const key = String(v.key ?? '').trim()
-  const id = String(v.id ?? '').trim()
-  if (!key || !id) return null
-  return { key, id, params: v.params }
-}
-
-function toCameraRequest(v: unknown): CameraRequest | null {
+function toControlRequest(v: unknown, opts: { requireId: boolean }): ControlRequest | null {
   if (!isRecord(v)) return null
   const key = String(v.key ?? '').trim()
   if (!key) return null
-  const id = String(v.id ?? '').trim()
-  return { key, id: id || undefined, params: v.params }
+  const idRaw = String(v.id ?? '').trim()
+  if (opts.requireId && !idRaw) return null
+  return { key, id: idRaw || undefined, params: v.params }
 }
 
 function toPayload(v: unknown): ControlPayload | null {
   if (!isRecord(v)) return null
   const kind = v.kind
   if (kind === 'command') {
-    const req = toCommandRequest(v.request)
+    const req = toControlRequest(v.request, { requireId: true })
     if (!req) return null
     return { kind: 'command', request: req }
   }
   if (kind === 'property') {
-    const req = toPropertyRequest(v.request)
+    const req = toControlRequest(v.request, { requireId: true })
     if (!req) return null
     return { kind: 'property', request: req }
   }
   if (kind === 'camera') {
-    const req = toCameraRequest(v.request)
+    const req = toControlRequest(v.request, { requireId: false })
     if (!req) return null
     return { kind: 'camera', request: req }
   }
   if (kind === 'widget') {
-    const widgetId = String(v.widgetId ?? '').trim()
+    if (isRecord(v.request)) {
+      const r = v.request
+      const key = String(r.key ?? '').trim()
+      const id = String(r.id ?? '').trim()
+      if (!key || !id) return null
+      const par = r.params
+      if (!isRecord(par)) return null
+      const patch = par.patch
+      if (!isRecord(patch)) return null
+      return {
+        kind: 'widget',
+        request: {
+          key,
+          id,
+          params: { patch, refresh: par.refresh !== false }
+        }
+      }
+    }
+    const targetId = String(v.id ?? '').trim()
     const patch = isRecord(v.patch) ? v.patch : null
-    if (!widgetId || !patch) return null
-    return { kind: 'widget', widgetId, patch, refresh: v.refresh !== false }
+    if (!targetId || !patch) return null
+    return {
+      kind: 'widget',
+      request: {
+        key: WIDGET_PATCH_REQUEST_KEY,
+        id: targetId,
+        params: { patch, refresh: v.refresh !== false }
+      }
+    }
   }
-  const command = toCommandRequest(v)
+  const command = toControlRequest(v, { requireId: true })
   if (command) return { kind: 'command', request: command }
   return null
 }

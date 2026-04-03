@@ -1,4 +1,5 @@
-import type { ControlPush, ControlSource, ControlSourceStatus } from '../../types'
+import type { ControlPush, ControlSource, ControlSourceStatus, DatasourceRoutedEvent } from '../../types'
+import { isDatasourceRoutedParseItem } from '../../types'
 import { formatDataChainDetail } from '../../core/comm/dataChainLog'
 import { normalizeControlEnvelope } from './normalizers'
 
@@ -105,14 +106,28 @@ export class SSESource implements ControlSource {
 
     const handler = (event: MessageEvent<string>): void => {
       if (!this.push) return
-      const mapped = this.parseMessage(event, this.eventName)
+      const sseEventType = ((event as MessageEvent).type || this.eventName || 'message').trim()
+      const mapped = this.parseMessage(event, sseEventType)
       const list = Array.isArray(mapped) ? mapped : [mapped]
       let receivedCount = 0
       for (const item of list) {
-        const env = normalizeControlEnvelope(this.id, item)
-        if (!env) continue
         const p = this.push
         if (!p) break
+        if (isDatasourceRoutedParseItem(item)) {
+          const sid = String(item.sourceId ?? this.id).trim() || this.id
+          const routed: DatasourceRoutedEvent = {
+            kind: 'datasource_routed',
+            sourceId: sid,
+            targetId: item.targetId,
+            route: item.route,
+            data: item.data
+          }
+          p(routed)
+          receivedCount += 1
+          continue
+        }
+        const env = normalizeControlEnvelope(this.id, item)
+        if (!env) continue
         p(env)
         receivedCount += 1
       }

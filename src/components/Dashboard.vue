@@ -52,8 +52,22 @@ import type {
   BackgroundLayerImage
 } from '../types/dashboard'
 import type { DesignRect } from '../types/size'
-import type { BackendDataSourceConfig, CommandRequest, ControlAction, ControlDomain, ControlPayload, PropertyRequest } from '../types'
-import { PollingSource, SSESource, globalDatasourceRegistry, toControlEnvelope } from '../utils/controlSources'
+import type {
+  BackendDataSourceConfig,
+  CommandRequest,
+  ControlAction,
+  ControlDomain,
+  ControlPayload,
+  PropertyRequest
+} from '../types'
+import { WIDGET_PATCH_REQUEST_KEY, isDatasourceRoutedEvent, widgetPayloadPatch } from '../types'
+import {
+  PollingSource,
+  SSESource,
+  globalDatasourceRegistry,
+  pickControlRequestFields,
+  toControlEnvelope
+} from '../utils/controlSources'
 import { StreamEngine } from '../utils/StreamEngine'
 import {
   WidgetDataKey,
@@ -72,7 +86,7 @@ const scene3dBgRef = ref<any>(null)
 
 const props = defineProps<{
   config: DashboardConfig
-  /** ????????editor_config.datasources ????????enable=true ?????? payload.widgetId/id ?? */
+  /** 与 editor 配置 datasources 对齐；enable=true 的项参与推流。路由目标为 payload.id。 */
   datasources?: BackendDataSourceConfig[]
 }>()
 
@@ -184,8 +198,10 @@ provide(WidgetRefreshVersionKey, widgetRefreshVersion)
 /** Dashboard ?????????????????? dataEngine??*/
 const dataEngine = new StreamEngine(undefined, undefined, undefined, {
   widgetSink: (payload) => {
-    updateWidgetData(payload.widgetId, payload.patch)
-    if (payload.refresh !== false) updateWidget(payload.widgetId)
+    const w = widgetPayloadPatch(payload)
+    if (!w) return
+    updateWidgetData(w.id, w.patch)
+    if (w.refresh) updateWidget(w.id)
   },
   commandSink: (request: CommandRequest) => {
     const scene = scene3dBgRef.value as { executeCommand?: (r: CommandRequest) => void } | null
@@ -263,15 +279,67 @@ function toPayloadByRoute(
     if (route.action === 'property') {
       const propertyUpdate = to2DPropertyPatch(widget, data)
       if (!propertyUpdate) return null
-      return { kind: 'widget', widgetId: widget.id, patch: propertyUpdate.patch, refresh: propertyUpdate.refresh }
+      return {
+        kind: 'widget',
+        request: {
+          key: WIDGET_PATCH_REQUEST_KEY,
+          id: widget.id,
+          params: { patch: propertyUpdate.patch, refresh: propertyUpdate.refresh }
+        }
+      }
     }
-    const patch =
-      route.action === 'chart' ||
-      widget.type === 'chart' ||
-      widget.type === 'glassChart'
-        ? ({ options: data } as Record<string, unknown>)
-        : ((data as Record<string, unknown>) ?? {})
-    return { kind: 'widget', widgetId: widget.id, patch, refresh: true }
+    const req = (data ?? {}) as Record<string, unknown>
+    const hasParamsField = 'params' in req && req.params !== null && typeof req.params === 'object'
+    if (hasParamsField) {
+      const params = req.params as Record<string, unknown>
+      if (params.patch != null && typeof params.patch === 'object' && !Array.isArray(params.patch)) {
+        return {
+          kind: 'widget',
+          request: {
+            key: WIDGET_PATCH_REQUEST_KEY,
+            id: widget.id,
+            params: {
+              patch: params.patch as Record<string, unknown>,
+              refresh: params.refresh !== false
+            }
+          }
+        }
+      }
+      const isChart =
+        route.action === 'chart' || widget.type === 'chart' || widget.type === 'glassChart'
+      if (isChart) {
+        const inner =
+          'options' in params && params.options !== undefined ? params.options : params
+        return {
+          kind: 'widget',
+          request: {
+            key: WIDGET_PATCH_REQUEST_KEY,
+            id: widget.id,
+            params: { patch: { options: inner } as Record<string, unknown>, refresh: true }
+          }
+        }
+      }
+      return {
+        kind: 'widget',
+        request: {
+          key: WIDGET_PATCH_REQUEST_KEY,
+          id: widget.id,
+          params: { patch: params as Record<string, unknown>, refresh: true }
+        }
+      }
+    }
+    const legacy = req
+    const isChart =
+      route.action === 'chart' || widget.type === 'chart' || widget.type === 'glassChart'
+    const patch = isChart
+      ? ({
+          options: 'options' in legacy && legacy.options !== undefined ? legacy.options : legacy
+        } as Record<string, unknown>)
+      : legacy
+    return {
+      kind: 'widget',
+      request: { key: WIDGET_PATCH_REQUEST_KEY, id: widget.id, params: { patch, refresh: true } }
+    }
   }
   if (route.action === 'command') {
     const req = data as { key?: unknown; id?: unknown; params?: unknown }
@@ -320,7 +388,7 @@ async function ensureGlobalDatasource(dsConfig: BackendDataSourceConfig): Promis
               sourceId: dsConfig.key,
               url: resolveDatasourceUrl(dsConfig),
               logger: (entry) => dataChainLog('Dashboard.sseClient', entry),
-              parseMessage: (message) => {
+              parseMessage: (message, sseEventType) => {
                 let parsed: unknown
                 try {
                   parsed = JSON.parse(message.data)
@@ -330,47 +398,42 @@ async function ensureGlobalDatasource(dsConfig: BackendDataSourceConfig): Promis
                 if (!parsed || typeof parsed !== 'object') return []
 
                 const rec = parsed as Record<string, unknown>
-                /** 控制面信封：{ header: { route: { domain, action } }, payload: [{ widgetId, payload }] } */
-                const header = rec.header as Record<string, unknown> | undefined
-                const routeBlock = header?.route as { domain?: string; action?: string } | undefined
-                const payloadArr = rec.payload
-
-                if (routeBlock && Array.isArray(payloadArr)) {
-                  const domain = String(routeBlock.domain ?? '2d').toLowerCase()
-                  const action = String(routeBlock.action ?? 'other').toLowerCase()
-                  const route = parseRouteToken(`${domain}_${action}`)
-                  if (!route) return []
-                  const out: RoutedSourceData[] = []
-                  for (const row of payloadArr) {
-                    if (!row || typeof row !== 'object') continue
-                    const r = row as Record<string, unknown>
-                    const targetId = String(r.widgetId ?? r.id ?? '').trim()
-                    if (!targetId && !(route.domain === '3d' && route.action === 'camera')) continue
-                    out.push({ targetId, route, data: r.payload })
-                  }
-                  return out.map((it) => ({
-                    header: { domain: it.route.domain, action: it.route.action },
-                    payload: { kind: 'widget', widgetId: '__route_only__', patch: { __routed: it } }
-                  }))
-                }
-
+                const routeFromEvent =
+                  parseRouteToken(String(sseEventType ?? '').trim()) ??
+                  parseRouteToken(String(rec.event ?? '').trim())
                 const list = Array.isArray(parsed) ? parsed : [parsed]
                 const out: RoutedSourceData[] = []
                 for (const item of list) {
                   const row = item as Record<string, unknown>
-                  const targetId = String(row.widgetId ?? row.id ?? '').trim()
-                  const route = parseRouteToken(String(row.event ?? ''))
+                  const route =
+                    routeFromEvent ??
+                    parseRouteToken(String(row.event ?? '').trim()) ??
+                    parseRouteToken(
+                      `${String(row.domain ?? '2d').toLowerCase()}_${String(row.action ?? 'other').toLowerCase()}`
+                    )
                   if (!route) continue
+                  const targetId = String(row.id ?? '').trim()
                   if (!targetId && !(route.domain === '3d' && route.action === 'camera')) continue
-                  out.push({ targetId, route, data: row.payload })
+                  out.push({ targetId: targetId || undefined, route, data: pickControlRequestFields(row) })
                 }
                 return out.map((it) => ({
-                  header: { domain: it.route.domain, action: it.route.action },
-                  payload: { kind: 'widget', widgetId: '__route_only__', patch: { __routed: it } }
+                  kind: 'datasource_routed' as const,
+                  sourceId: dsConfig.key,
+                  targetId: it.targetId,
+                  route: { domain: it.route.domain, action: it.route.action },
+                  data: it.data
                 }))
               }
             })
-            await source.start((env) => emit((env as any).payload.patch.__routed as RoutedSourceData))
+            await source.start((ev) => {
+              if (isDatasourceRoutedEvent(ev)) {
+                emit({
+                  targetId: ev.targetId,
+                  route: ev.route,
+                  data: ev.data
+                })
+              }
+            })
           },
           stop: async () => {
             await source?.stop()
@@ -397,24 +460,44 @@ async function ensureGlobalDatasource(dsConfig: BackendDataSourceConfig): Promis
                 headers: dsConfig.body ? { 'Content-Type': 'application/json' } : undefined
               },
               parseResponse: (body) => {
-                const rec = (body ?? {}) as Record<string, unknown>
                 const out: RoutedSourceData[] = []
-                const list = Array.isArray(body) ? body : Object.values(rec)
+                const list: unknown[] = Array.isArray(body)
+                  ? body
+                  : body && typeof body === 'object'
+                    ? [body]
+                    : []
                 for (const raw of list) {
                   if (!raw || typeof raw !== 'object') continue
                   const obj = raw as Record<string, unknown>
-                  const route = parseRouteToken(`${obj.domain ?? '2d'}_${obj.action ?? 'other'}`)
-                  const targetId = String(obj.widgetId ?? obj.id ?? '').trim()
-                  if (!route || !targetId) continue
-                  out.push({ targetId, route, data: obj.payload })
+                  let route = parseRouteToken(String(obj.event ?? '').trim())
+                  if (!route) {
+                    route = parseRouteToken(
+                      `${String(obj.domain ?? '2d').toLowerCase()}_${String(obj.action ?? 'other').toLowerCase()}`
+                    )
+                  }
+                  if (!route) continue
+                  const targetId = String(obj.id ?? '').trim()
+                  if (!targetId && !(route.domain === '3d' && route.action === 'camera')) continue
+                  out.push({ targetId: targetId || undefined, route, data: pickControlRequestFields(obj) })
                 }
                 return out.map((it) => ({
-                  header: { domain: it.route.domain, action: it.route.action },
-                  payload: { kind: 'widget', widgetId: '__route_only__', patch: { __routed: it } }
+                  kind: 'datasource_routed' as const,
+                  sourceId: dsConfig.key,
+                  targetId: it.targetId,
+                  route: { domain: it.route.domain, action: it.route.action },
+                  data: it.data
                 }))
               }
             })
-            await source.start((env) => emit((env as any).payload.patch.__routed as RoutedSourceData))
+            await source.start((ev) => {
+              if (isDatasourceRoutedEvent(ev)) {
+                emit({
+                  targetId: ev.targetId,
+                  route: ev.route,
+                  data: ev.data
+                })
+              }
+            })
           },
           stop: async () => {
             await source?.stop()
@@ -458,7 +541,7 @@ function pickActiveDatasource(list: BackendDataSourceConfig[]): BackendDataSourc
   return list[0] ?? null
 }
 
-/** ????datasource ????dataEngine?? targetId ????2D ????3D ???widgetId / id??*/
+/** 将全局 datasource 接入 dataEngine；targetId 与 2D/3D 组件 id 匹配。 */
 async function setupDataSourceConnector() {
   await cleanupConnectorState()
 
@@ -487,6 +570,20 @@ async function setupDataSourceConnector() {
       const unsub = await globalDatasourceRegistry.subscribe(dsConfig.key, (data) => {
         const routed = data as RoutedSourceData
         const tid = routed.targetId ? String(routed.targetId).trim() : ''
+        if (routed.route.domain === '3d' && routed.route.action === 'camera') {
+          const payload = toPayloadByRoute(null, routed.route, routed.data)
+          if (!payload) return
+          dataChainLog('Dashboard.connector.routed', {
+            datasourceKey: dsConfig.key,
+            domain: routed.route.domain,
+            action: routed.route.action,
+            targetId: '(camera)',
+            data: formatDataChainDetail(routed.data, 16000),
+            payloadKind: payload.kind
+          })
+          push(toControlEnvelope(sourceId, routed.route, payload))
+          return
+        }
         if (!tid) return
         if (routed.route.domain === '2d') {
           const w2 = widget2DById.get(tid)
@@ -522,20 +619,6 @@ async function setupDataSourceConnector() {
           return
         }
         if (routed.route.domain === '3d') {
-          if (routed.route.action === 'camera') {
-            const payload = toPayloadByRoute(null, routed.route, routed.data)
-            if (!payload) return
-            dataChainLog('Dashboard.connector.routed', {
-              datasourceKey: dsConfig.key,
-              domain: routed.route.domain,
-              action: routed.route.action,
-              targetId: '(camera)',
-              data: formatDataChainDetail(routed.data, 16000),
-              payloadKind: payload.kind
-            })
-            push(toControlEnvelope(sourceId, routed.route, payload))
-            return
-          }
           if (!widget3DById.has(tid)) {
             dataChainLog('Dashboard.connector.skip', {
               reason: 'widget_3d_not_found',

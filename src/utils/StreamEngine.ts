@@ -1,4 +1,14 @@
-import type { CameraRequest, CommandRequest, ControlEnvelope, ControlPayload, ControlSource, ControlSourceStatus, PropertyRequest } from '../types'
+import type {
+  CameraRequest,
+  CommandRequest,
+  ControlEnvelope,
+  ControlPayload,
+  ControlSource,
+  ControlSourceEvent,
+  ControlSourceStatus,
+  PropertyRequest
+} from '../types'
+import { isDatasourceRoutedEvent } from '../types'
 import type { CommandManager } from './CommandManager'
 import type { CameraManager } from './CameraManager'
 import type { PropertyManager } from './PropertyManager'
@@ -38,7 +48,7 @@ export class StreamEngine {
   private readonly dropPolicy: QueueDropPolicy
   private readonly logger: (entry: Record<string, unknown>) => void
 
-  private readonly queue: ControlEnvelope[] = []
+  private readonly queue: ControlSourceEvent[] = []
   private readonly sourceMap = new Map<string, SourceRuntime>()
   private status: EngineStatus = 'idle'
   private droppedCount = 0
@@ -140,7 +150,7 @@ export class StreamEngine {
     if (!rt) return
     try {
       rt.status = 'running'
-      await rt.source.start((event) => this.push(event))
+      await rt.source.start((event: ControlSourceEvent) => this.push(event))
     } catch (err) {
       rt.status = 'error'
       rt.lastError = err
@@ -159,8 +169,13 @@ export class StreamEngine {
     }
   }
 
-  private push(event: ControlEnvelope): void {
-    if (!event || !event.payload) return
+  private push(event: ControlSourceEvent): void {
+    if (!event) return
+    if (isDatasourceRoutedEvent(event)) {
+      this.logger({ type: 'datasource_routed_ignored', sourceId: event.sourceId, reason: 'not_queued_in_stream_engine' })
+      return
+    }
+    if (!event.payload) return
     if (this.queue.length >= this.maxQueueSize) {
       this.droppedCount++
       if (this.dropPolicy === 'drop_oldest') this.queue.shift()
@@ -179,7 +194,7 @@ export class StreamEngine {
       while (this.status === 'running' && this.queue.length > 0) {
         const event = this.queue.shift()
         if (!event) continue
-        this.dispatch(event)
+        this.dispatch(event as ControlEnvelope)
         this.consumedCount++
       }
     } finally {

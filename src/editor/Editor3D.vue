@@ -143,6 +143,7 @@ import {
 import type { DashboardConfig, WidgetConfig3D, Scene3DCameraLayerItem } from '../types/dashboard'
 import type { BackendDataSourceConfig } from '../types'
 import { loadDatasourceConfigFromStorage } from '../utils/datasourceConfigStorage'
+import { pickControlRequestFields } from '../utils/controlSources'
 import { resolveDatasourceUrl } from '../utils/resolveDatasourceUrl'
 import { startSseDatasourceProbe } from '../utils/sseDatasourceProbe'
 import { isDebugEnabled } from '../utils/logManager'
@@ -549,8 +550,7 @@ function dispatchProbeRoute(route: ProbeRoute, payload: unknown): void {
 }
 
 function extractProbePayloads(eventName: string, rawData: string): Array<{ route: ProbeRoute; payload: unknown }> {
-  const directRoute = parseProbeRoute(eventName)
-  if (!directRoute) return []
+  const routeFromEvent = parseProbeRoute(eventName)
   let parsed: unknown
   try {
     parsed = JSON.parse(rawData)
@@ -560,25 +560,16 @@ function extractProbePayloads(eventName: string, rawData: string): Array<{ route
   const list = Array.isArray(parsed) ? parsed : [parsed]
   const out: Array<{ route: ProbeRoute; payload: unknown }> = []
   for (const item of list) {
-    const rec = (item ?? {}) as Record<string, unknown>
-    const header = rec.header as Record<string, unknown> | undefined
-    const routeHeader = (header?.route ?? null) as Record<string, unknown> | null
-    const routeFromHeader =
-      routeHeader && typeof routeHeader === 'object'
-        ? parseProbeRoute(`${String(routeHeader.domain ?? '')}_${String(routeHeader.action ?? '')}`)
-        : header && typeof header === 'object'
-          ? parseProbeRoute(`${String((header as any).domain ?? '')}_${String((header as any).action ?? '')}`)
-          : null
-    const route = routeFromHeader ?? directRoute
-    const arrPayload = rec.payload
-    if (Array.isArray(arrPayload)) {
-      for (const row of arrPayload) {
-        const r = (row ?? {}) as Record<string, unknown>
-        out.push({ route, payload: r.payload ?? r })
-      }
-      continue
-    }
-    out.push({ route, payload: rec.payload ?? rec })
+    if (!item || typeof item !== 'object') continue
+    const rec = item as Record<string, unknown>
+    const route =
+      routeFromEvent ??
+      parseProbeRoute(String(rec.event ?? '').trim()) ??
+      parseProbeRoute(
+        `${String(rec.domain ?? '2d').toLowerCase()}_${String(rec.action ?? 'other').toLowerCase()}`
+      )
+    if (!route) continue
+    out.push({ route, payload: pickControlRequestFields(rec) })
   }
   return out
 }

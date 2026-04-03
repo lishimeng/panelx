@@ -252,7 +252,7 @@
           <div class="panelx-editor-field">
             <label>实例ID</label>
             <div class="panelx-editor-props-empty">
-              使用组件 `id` 作为数据路由标识（后端 payload.widgetId / payload.id）。
+              使用组件 `id` 作为数据路由标识（与后端 `ControlRequest.id` 一致）。
             </div>
           </div>
           <div class="panelx-editor-field">

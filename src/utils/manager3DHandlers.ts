@@ -5,6 +5,11 @@ import { toFiniteNumber, toPositiveNumber } from './number'
 
 type ModelGetter = (id: string) => Model | null | undefined
 
+function targetIdFromPropertyReq(req: PropertyRequest): string | null {
+  const id = String(req.id ?? '').trim()
+  return id || null
+}
+
 export function create3DPropertyHandlers(getModelById: ModelGetter): {
   propUpdate: (req: PropertyRequest) => void
   position: (req: PropertyRequest) => void
@@ -13,16 +18,20 @@ export function create3DPropertyHandlers(getModelById: ModelGetter): {
   visible: (req: PropertyRequest) => void
 } {
   const propUpdate = (req: PropertyRequest): void => {
+    const id = targetIdFromPropertyReq(req)
+    if (!id) return
     const p = (req.params ?? {}) as Record<string, unknown>
-    const model = getModelById(req.id)
+    const model = getModelById(id)
     const propKey = typeof p.propKey === 'string' ? p.propKey : ''
     if (!model || !propKey) return
     model.propUpdate(propKey, p.value)
   }
 
   const position = (req: PropertyRequest): void => {
+    const id = targetIdFromPropertyReq(req)
+    if (!id) return
     const p = (req.params ?? {}) as Record<string, unknown>
-    const model = getModelById(req.id)
+    const model = getModelById(id)
     if (!model?.scene) return
     model.scene.position.set(
       toFiniteNumber(p.x, model.scene.position.x),
@@ -32,8 +41,10 @@ export function create3DPropertyHandlers(getModelById: ModelGetter): {
   }
 
   const rotationDeg = (req: PropertyRequest): void => {
+    const id = targetIdFromPropertyReq(req)
+    if (!id) return
     const p = (req.params ?? {}) as Record<string, unknown>
-    const model = getModelById(req.id)
+    const model = getModelById(id)
     if (!model?.scene) return
     model.scene.rotation.set(
       degToRad(toFiniteNumber(p.x, 0)),
@@ -43,8 +54,10 @@ export function create3DPropertyHandlers(getModelById: ModelGetter): {
   }
 
   const scale = (req: PropertyRequest): void => {
+    const id = targetIdFromPropertyReq(req)
+    if (!id) return
     const p = (req.params ?? {}) as Record<string, unknown>
-    const model = getModelById(req.id)
+    const model = getModelById(id)
     if (!model?.scene) return
 
     const scalar = toPositiveNumber(p.scale, -1)
@@ -60,8 +73,10 @@ export function create3DPropertyHandlers(getModelById: ModelGetter): {
   }
 
   const visible = (req: PropertyRequest): void => {
+    const id = targetIdFromPropertyReq(req)
+    if (!id) return
     const p = (req.params ?? {}) as Record<string, unknown>
-    const model = getModelById(req.id)
+    const model = getModelById(id)
     if (!model?.scene) return
     model.scene.visible = Boolean(p.visible)
   }

@@ -39,7 +39,7 @@
       </div>
       <template v-if="formType === 'sse'">
         <div class="config-row">
-          <span class="mapping-count">SSE 路由由后端事件携带，实例定位使用 payload.widgetId / payload.id。</span>
+          <span class="mapping-count">SSE 路由由事件名携带；实例定位使用 payload.id。</span>
         </div>
       </template>
       <template v-else>

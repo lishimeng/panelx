@@ -1,12 +1,13 @@
 /**
- * 测试用 SSE 服务：读取 server/data/*_enable.json 后按策略推送。
+ * 测试用 SSE 服务：读取 server/data/*_enable.json（磁盘格式可为 header+payload 批量）后按策略推送。
+ * 推送到客户端时仅标准 SSE：每条消息 event:{domain}_{action}，data 为 { key, id, params }，不批量原样转发信封。
  * 启动：pnpm run sse
  * 前端 /api/sse 通过 Vite proxy 转发到本服务
  */
 
 import { createServer } from 'http'
 import { readdirSync, readFileSync, existsSync, watch } from 'fs'
-import { join, basename } from 'path'
+import { join } from 'path'
 import { fileURLToPath } from 'url'
 
 const PORT = Number(process.env.SSE_PORT) || 3001
@@ -33,6 +34,50 @@ function normalizePayloadItem(item) {
     ...rec,
     noWait: rec.noWait === true
   }
+}
+
+/**
+ * 数据文件里一行（可含 id + 内层 payload，或已是 ControlRequest）→ 线上标准体 { key, id, params }。
+ * 仅服务端在写 SSE 帧时使用；客户端只应收到本结构。
+ */
+function rowToControlRequest(row) {
+  if (!row || typeof row !== 'object') return { key: '', id: '', params: {} }
+  const outerId = String(row.id ?? '').trim()
+  const inner = row.payload
+  if (inner && typeof inner === 'object' && !Array.isArray(inner)) {
+    const ik = inner.key
+    const ip = inner.params
+    if (ik !== undefined || ip !== undefined) {
+      return {
+        key: String(inner.key ?? ''),
+        id: String(inner.id ?? outerId).trim(),
+        params: ip !== undefined && typeof ip === 'object' && ip !== null ? ip : {}
+      }
+    }
+    return {
+      key: String(row.key ?? ''),
+      id: outerId,
+      params: inner
+    }
+  }
+  const p = row.params
+  return {
+    key: String(row.key ?? ''),
+    id: String(row.id ?? '').trim(),
+    params: p !== undefined && typeof p === 'object' && p !== null ? p : {}
+  }
+}
+
+/** 线上 data：省略空字符串的 key/id，缩短 JSON（与 Dashboard / pickControlRequestFields 语义一致）。 */
+function compactWireControlRequest(cr) {
+  const o = {}
+  const key = String(cr.key ?? '').trim()
+  const id = String(cr.id ?? '').trim()
+  if (key) o.key = key
+  if (id) o.id = id
+  const par = cr.params
+  if (par != null && typeof par === 'object') o.params = par
+  return o
 }
 
 function normalizeDataset(fileName, raw) {
@@ -112,13 +157,15 @@ function reloadDatasetsAndRestartStreams() {
     }
     conn.stoppers = []
     try {
-      sendSSE(conn.res, 'open', {
-        header: {
-          route: { domain: 'meta', action: 'connected' },
-          strategy: { datasetCount: datasets.length, reloaded: true }
-        },
-        payload: [{ message: 'SSE datasets reloaded', ts: Date.now() }]
-      })
+      sendSSE(
+        conn.res,
+        'open',
+        compactWireControlRequest({
+          key: '',
+          id: '',
+          params: { message: 'SSE datasets reloaded', datasetCount: datasets.length, reloaded: true, ts: Date.now() }
+        })
+      )
     } catch (err) {
       console.warn(`[SSE] Reload notify failed, dropping connection: ${String(err)}`)
       try {
@@ -169,25 +216,6 @@ function sendSSE(res, event, data) {
   res.write(`data: ${encoded}\n\n`)
 }
 
-/**
- * 下发给客户端的 header：3d/command 不附带 strategy（仅服务端调度用）；2d 等仍附带便于联调观察。
- */
-function buildClientHeader(dataset, strategy, cursor, totalLen) {
-  const route = dataset.header.route
-  if (dataset.event === '3d_command') {
-    return { route: { ...route } }
-  }
-  return {
-    route: { ...route },
-    strategy: {
-      ...strategy,
-      source: basename(dataset.fileName),
-      cursor,
-      total: totalLen
-    }
-  }
-}
-
 function startDatasetStream(res, dataset) {
   const { strategy } = dataset.header
   let cursor = 0
@@ -218,10 +246,10 @@ function startDatasetStream(res, dataset) {
           : []
 
     try {
-      sendSSE(res, dataset.event, {
-        header: buildClientHeader(dataset, strategy, cursor, sourcePayload.length),
-        payload: nextPayload
-      })
+      for (const row of nextPayload) {
+        const body = compactWireControlRequest(rowToControlRequest(row))
+        sendSSE(res, dataset.event, body)
+      }
     } catch (err) {
       stopped = true
       if (process.env.DATA_CHAIN_LOG !== '0') {
@@ -252,13 +280,15 @@ const server = createServer((req, res) => {
       console.log(`${LOG_PREFIX} SSE.client connected`)
     }
 
-    sendSSE(res, 'open', {
-      header: {
-        route: { domain: 'meta', action: 'connected' },
-        strategy: { datasetCount: datasets.length }
-      },
-      payload: [{ message: 'SSE connected', ts: Date.now() }]
-    })
+    sendSSE(
+      res,
+      'open',
+      compactWireControlRequest({
+        key: '',
+        id: '',
+        params: { message: 'SSE connected', datasetCount: datasets.length, ts: Date.now() }
+      })
+    )
 
     const conn = { res, stoppers: datasets.map((dataset) => startDatasetStream(res, dataset)) }
     activeSseConnections.add(conn)

@@ -24,6 +24,11 @@ function defaultMapMoveParamsToWorld(params: Record<string, unknown>): Vector3 {
   return new Vector3(toFiniteNumber(params.x, 0), toFiniteNumber(params.y, 0), toFiniteNumber(params.z, 0))
 }
 
+function targetIdFromRequest(req: CommandRequest): string | null {
+  const id = String(req.id ?? '').trim()
+  return id || null
+}
+
 function tryApplyForwardConfig(model: Model, params: Record<string, unknown>): void {
   const enable = params.forwardEnable
   if (typeof enable === 'boolean') model.setForwardEnabled(enable)
@@ -51,8 +56,10 @@ export function create3DCommandHandlers(options: Create3DCommandHandlersOptions)
   const resolveAnchorId = options.resolveAnchorId ?? defaultResolveAnchorId
 
   const rotateTo = (req: CommandRequest): void => {
+    const id = targetIdFromRequest(req)
+    if (!id) return
     const params = (req.params ?? {}) as Record<string, unknown>
-    const model = options.getModelById(req.id)
+    const model = options.getModelById(id)
     if (!model?.scene) return
 
     const xDeg = toFiniteNumber(params.x, 0)
@@ -64,8 +71,10 @@ export function create3DCommandHandlers(options: Create3DCommandHandlersOptions)
   }
 
   const moveTo = (req: CommandRequest): void => {
+    const id = targetIdFromRequest(req)
+    if (!id) return
     const params = (req.params ?? {}) as Record<string, unknown>
-    const model = options.getModelById(req.id)
+    const model = options.getModelById(id)
     if (!model?.scene) return
     tryApplyForwardConfig(model, params)
     const target = mapMoveParamsToWorld(params)
@@ -75,8 +84,10 @@ export function create3DCommandHandlers(options: Create3DCommandHandlersOptions)
   }
 
   const moveToAnchor = (req: CommandRequest): void => {
+    const id = targetIdFromRequest(req)
+    if (!id) return
     const params = (req.params ?? {}) as Record<string, unknown>
-    const src = options.getModelById(req.id)
+    const src = options.getModelById(id)
     const anchorId = resolveAnchorId(params)
     const anchor = anchorId ? options.getModelById(anchorId) : null
     if (!src?.scene || !anchor?.scene) return
@@ -84,7 +95,7 @@ export function create3DCommandHandlers(options: Create3DCommandHandlersOptions)
     const srcObj = src.scene
     const target = anchor.scene.position
     console.log('[Editor3D.moveToAnchor.before]', {
-      id: req.id,
+      id,
       anchorId,
       current: { x: srcObj.position.x, y: srcObj.position.y, z: srcObj.position.z },
       target: { x: target.x, y: target.y, z: target.z },
@@ -104,7 +115,7 @@ export function create3DCommandHandlers(options: Create3DCommandHandlersOptions)
     tryApplyForwardConfig(src, params)
     src.orientToTarget(target)
     console.log('[Editor3D.moveToAnchor.afterOrient]', {
-      id: req.id,
+      id,
       rotationRad: { x: srcObj.rotation.x, y: srcObj.rotation.y, z: srcObj.rotation.z },
       quaternion: { x: srcObj.quaternion.x, y: srcObj.quaternion.y, z: srcObj.quaternion.z, w: srcObj.quaternion.w }
     })
@@ -114,8 +125,10 @@ export function create3DCommandHandlers(options: Create3DCommandHandlersOptions)
   }
 
   const applyAutoRotate = (req: CommandRequest): void => {
+    const id = targetIdFromRequest(req)
+    if (!id) return
     const params = (req.params ?? {}) as Record<string, unknown>
-    const model = options.getModelById(req.id)
+    const model = options.getModelById(id)
     if (!model?.scene) return
 
     const enabled = Boolean(params.enabled)
@@ -126,7 +139,7 @@ export function create3DCommandHandlers(options: Create3DCommandHandlersOptions)
     model.setAutoRotateEnabled(enabled)
     model.setAutoRotateAxis(axisVec)
     model.setAutoRotateSpeed(degToRad(speedDeg))
-    options.onApplyAutoRotate?.(req.id, { enabled, axis, speedDeg })
+    options.onApplyAutoRotate?.(id, { enabled, axis, speedDeg })
   }
 
   return { rotateTo, moveTo, moveToAnchor, applyAutoRotate }
