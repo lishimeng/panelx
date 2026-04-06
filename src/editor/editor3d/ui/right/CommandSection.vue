@@ -186,13 +186,13 @@ type AutoRotateCmd = { enabled: boolean; axis: 'x' | 'y' | 'z'; speedDeg: number
 type WidgetLike = { id: string; props?: Record<string, unknown> }
 
 let rightGroups = defineModel<RightGroups>('rightGroups', { required: true })
-const selectedWidgetId = defineModel<string | null>('selectedWidgetId', { required: true })
+let selectedWidgetId = defineModel<string | null>('selectedWidgetId', { required: true })
 let rotateCmd = defineModel<RotateCmd>('rotateCmd', { required: true })
 let moveCmd = defineModel<MoveCmd>('moveCmd', { required: true })
-const anchorWidgetId = defineModel<string | null>('anchorWidgetId', { required: true })
+let anchorWidgetId = defineModel<string | null>('anchorWidgetId', { required: true })
 let autoRotateCmd = defineModel<AutoRotateCmd>('autoRotateCmd', { required: true })
-const propertyRequestJson = defineModel<string>('propertyRequestJson', { required: true })
-const propertyRequestError = defineModel<string>('propertyRequestError', { required: true })
+let propertyRequestJson = defineModel<string>('propertyRequestJson', { required: true })
+let propertyRequestError = defineModel<string>('propertyRequestError', { required: true })
 
 function persistForwardSettings(): void {
   const id = selectedWidgetId.value

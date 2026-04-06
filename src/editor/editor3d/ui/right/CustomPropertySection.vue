@@ -76,9 +76,9 @@ import { normalizeHexColor } from '../../../../utils/color'
 
 type RightGroups = { propsOpen: boolean }
 
-const rightGroups = defineModel<RightGroups>('rightGroups', { required: true })
-const newPropKey = defineModel<string>('newPropKey', { required: true })
-const newPropValue = defineModel<string>('newPropValue', { required: true })
+let rightGroups = defineModel<RightGroups>('rightGroups', { required: true })
+let newPropKey = defineModel<string>('newPropKey', { required: true })
+let newPropValue = defineModel<string>('newPropValue', { required: true })
 
 defineProps({
   selectedWidgetSupportedProps: { type: Array as PropType<PropDefinition[]>, required: true },

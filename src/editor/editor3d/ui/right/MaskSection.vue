@@ -60,8 +60,8 @@ import type { PropType } from 'vue'
 
 type RightGroups = { maskOpen: boolean }
 
-const rightGroups = defineModel<RightGroups>('rightGroups', { required: true })
-const selectedWidgetId = defineModel<string | null>('selectedWidgetId', { required: true })
+let rightGroups = defineModel<RightGroups>('rightGroups', { required: true })
+let selectedWidgetId = defineModel<string | null>('selectedWidgetId', { required: true })
 
 defineProps({
   getMaskSettings: { type: Function as PropType<(id: string) => { color: string; opacity: number; radiusWorld: number }>, required: true },

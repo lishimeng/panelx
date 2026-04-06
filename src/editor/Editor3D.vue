@@ -175,7 +175,7 @@ defineProps<{
 }>()
 
 /** 3D 设计稿尺寸（与 Dashboard `config.design` 无关；用于 worldScale / 定位换算） */
-const designSize3D = reactive({ width: 1920, height: 1080 })
+let designSize3D = reactive({ width: 1920, height: 1080 })
 /** 比例尺：world = design3D * scale。默认 0.01（将 1920 缩到 19.2，适配模型单位） */
 const worldScale = ref(0.01)
 /** world Z 尺寸：当前仅用于配置导出/展示（x/y 由设计尺寸与比例尺换算） */
@@ -185,7 +185,7 @@ const sceneWorldSize = computed<{ x: number; y: number; z: number }>(() => ({
   y: (Number(designSize3D.height) || 0) * (Number(worldScale.value) || 0),
   z: Number(worldSizeZ.value) || 0
 }))
-const sceneLights = reactive<{ ambient: number; hemisphere: number; point: number }>({
+let sceneLights = reactive<{ ambient: number; hemisphere: number; point: number }>({
   ambient: 1.8,
   hemisphere: 2.0,
   point: 8.0
@@ -195,8 +195,8 @@ const bloomStrength = ref(0.55)
 const bloomRadius = ref(0.22)
 /** 默认 0.35：在关闭 tone mapping 后，emissive 区域能稳定超过阈值并泛光 */
 const bloomThreshold = ref(0.35)
-const cameraPosition = reactive({ x: Number.NaN, y: Number.NaN, z: Number.NaN })
-const cameraLookAt = reactive({ x: Number.NaN, y: Number.NaN, z: Number.NaN })
+let cameraPosition = reactive({ x: Number.NaN, y: Number.NaN, z: Number.NaN })
+let cameraLookAt = reactive({ x: Number.NaN, y: Number.NaN, z: Number.NaN })
 /** 相机 zoom（正交与透视均可设置；语义不同），默认 1。 */
 const cameraZoom = ref(1)
 
@@ -204,7 +204,7 @@ const cameraZoom = ref(1)
 const editorBackgroundColor = ref('#0f172a')
 
 /** 相机图层开关：控制相机渲染哪些层。编辑器中默认全部开启便于预览 */
-const cameraLayers = reactive<Scene3DCameraLayerItem[]>(
+let cameraLayers = reactive<Scene3DCameraLayerItem[]>(
   LayerDef.getAllLayers().map((layer) => ({ layer, enable: true }))
 )
 
@@ -294,7 +294,7 @@ const { viewportSize, worldOuterStyle } = useViewportLayout(worldRef)
  * - origin 表示左上角在「3D 设计坐标」中的基准点
  * - 例：origin=(-10,-10)，输入(1,1) => 设计坐标(-9,-9) => 乘比例尺得到 world (x,z)
  */
-const designCoord = reactive({
+let designCoord = reactive({
   enabled: true,
   originX: 0,
   originY: 0
@@ -835,7 +835,7 @@ function createGroup(name: string): void {
   dataChainLog('Editor3D.group.create', { groupId: gid, total: groupOptions.value.length })
 }
 
-const leftGroups = reactive({
+let leftGroups = reactive({
   sceneOpen: true,
   typeOpen: true,
   presetOpen: true,
@@ -845,7 +845,7 @@ const leftGroups = reactive({
 /** 主区域左上角「已添加」实例列表是否展开（可收缩） */
 const floatingInstanceListOpen = ref(true)
 
-const rightGroups = reactive({
+let rightGroups = reactive({
   transformOpen: true,
   propsOpen: true,
   commandsOpen: true,
@@ -1184,20 +1184,20 @@ async function onImportConfigFile(e: Event): Promise<void> {
 }
 
 /** 右侧命令框：旋转到（弧度）+ 速度（弧度/秒） */
-const rotateCmd = reactive({
+let rotateCmd = reactive({
   x: 0,
   y: 0,
   z: 0,
   speed: Math.PI
 })
 
-const autoRotateCmd = reactive({
+let autoRotateCmd = reactive({
   enabled: false,
   axis: 'y' as 'x' | 'y' | 'z',
   speedDeg: 30
 })
 
-const moveCmd = reactive({
+let moveCmd = reactive({
   x: 0,
   y: 0,
   z: 0,

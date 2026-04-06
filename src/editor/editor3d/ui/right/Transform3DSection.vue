@@ -90,15 +90,15 @@ import type { PropType } from 'vue'
 type Vec3 = { x: number; y: number; z: number }
 type AxisLock = { x: boolean; y: boolean; z: boolean }
 
-const selectedWidgetName = defineModel<string>('selectedWidgetName', { required: true })
-const selectedWidgetId = defineModel<string>('selectedWidgetId', { required: true })
-const selectedWidgetIdError = defineModel<string>('selectedWidgetIdError', { required: true })
-const selectedWidgetGroupId = defineModel<string>('selectedWidgetGroupId', { required: true })
-const selectedPosition = defineModel<Vec3>('selectedPosition', { required: true })
-const axisLock = defineModel<AxisLock>('axisLock', { required: true })
-const selectedScaleUniform = defineModel<number>('selectedScaleUniform', { required: true })
-const selectedScale = defineModel<Vec3>('selectedScale', { required: true })
-const selectedRotation = defineModel<Vec3>('selectedRotation', { required: true })
+let selectedWidgetName = defineModel<string>('selectedWidgetName', { required: true })
+let selectedWidgetId = defineModel<string>('selectedWidgetId', { required: true })
+let selectedWidgetIdError = defineModel<string>('selectedWidgetIdError', { required: true })
+let selectedWidgetGroupId = defineModel<string>('selectedWidgetGroupId', { required: true })
+let selectedPosition = defineModel<Vec3>('selectedPosition', { required: true })
+let axisLock = defineModel<AxisLock>('axisLock', { required: true })
+let selectedScaleUniform = defineModel<number>('selectedScaleUniform', { required: true })
+let selectedScale = defineModel<Vec3>('selectedScale', { required: true })
+let selectedRotation = defineModel<Vec3>('selectedRotation', { required: true })
 
 defineProps({
   groupOptions: { type: Array as PropType<string[]>, required: true },
