@@ -2,7 +2,7 @@
  * 测试用 SSE 服务：读取 server/data/*_enable.json（磁盘格式可为 header+payload 批量）后按策略推送。
  * 推送到客户端时仅标准 SSE：每条消息 event:{domain}_{action}，data 为 { key, id, params }，不批量原样转发信封。
  * 启动：pnpm run sse
- * 前端 /api/sse 通过 Vite proxy 转发到本服务
+ * 前端 /api/sse（或 /api/v1/sse）通过 Vite proxy 转发到本服务
  */
 
 import { createServer } from 'http'
@@ -11,6 +11,14 @@ import { join } from 'path'
 import { fileURLToPath } from 'url'
 
 const PORT = Number(process.env.SSE_PORT) || 3001
+/** 与 `resolveDatasourceUrl` 默认 /api/sse 及常见版本化路径对齐 */
+const SSE_HTTP_PATHS = new Set(['/api/sse', '/api/v1/sse'])
+
+function requestPathname(url) {
+  if (!url) return ''
+  const q = url.indexOf('?')
+  return q === -1 ? url : url.slice(0, q)
+}
 const LOG_PREFIX = '[DataChain]'
 const __dirname = fileURLToPath(new URL('.', import.meta.url))
 const DATA_DIR = join(__dirname, 'data')
@@ -269,7 +277,8 @@ function startDatasetStream(res, dataset) {
 }
 
 const server = createServer((req, res) => {
-  if (req.url === '/api/sse' && req.method === 'GET') {
+  const pathname = requestPathname(req.url)
+  if (req.method === 'GET' && SSE_HTTP_PATHS.has(pathname)) {
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
@@ -302,12 +311,12 @@ const server = createServer((req, res) => {
     return
   }
 
-  if (req.url === '/api/sse' || req.url === '/') {
+  if (SSE_HTTP_PATHS.has(pathname) || pathname === '/') {
     res.writeHead(200, { 'Content-Type': 'application/json' })
     res.end(
       JSON.stringify({
         ok: true,
-        sse: 'GET /api/sse for SSE stream',
+        sse: 'GET /api/sse or /api/v1/sse for SSE stream',
         dataDir: DATA_DIR,
         datasetCount: datasets.length,
         datasets: datasets.map((d) => ({
@@ -328,7 +337,7 @@ const server = createServer((req, res) => {
 
 server.listen(PORT, () => {
   console.log(`[SSE] Test server: http://localhost:${PORT}`)
-  console.log(`[SSE] Stream: GET http://localhost:${PORT}/api/sse`)
+  console.log(`[SSE] Stream: GET http://localhost:${PORT}/api/sse (alias /api/v1/sse)`)
   console.log(`[SSE] Data directory: ${DATA_DIR}`)
   console.log(`[SSE] Loaded datasets: ${datasets.length}`)
 })

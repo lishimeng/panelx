@@ -3,7 +3,7 @@
 与 `src/editor/editor_config.json` 中 `datasources[].key === "sse_realtime"` 对应。
 
 - **启动**：`pnpm run sse`（默认端口 3001，可通过环境变量 `SSE_PORT` 修改）
-- **前端**：先启动本服务，再 `pnpm dev`；Vite 会将 `/api` 代理到本服务，前端连接 `url: '/api/sse'` 即可收到事件
+- **前端**：先启动本服务，再 `pnpm dev`；Vite 会将 `/api` 代理到本服务，前端连接 **`/api/sse`** 或 **`/api/v1/sse`**（二者等价）即可收到事件
 - **数据目录**：`server/data`，服务启动时仅加载文件名以 **`_enable.json`** 结尾的数据文件（如 `2d-chart_enable.json`）；进程内对 `data` 目录 **`fs.watch`**，文件变更后 **重载 JSON 并对已连接的 SSE 客户端重启推送定时器**（并再发一条 `event: open` 含 `reloaded: true` 提示）
 - **数据文件结构**：`header.route` + `header.strategy` + `payload`（数组）；**推送到浏览器**时每帧为 `event: domain_action` + `data: { key, id, params }`（见仓库根目录 README「SSE」）
 - **数据链日志**：服务端默认输出 `[DataChain] SSE.send`；关闭可设环境变量 `DATA_CHAIN_LOG=0`
