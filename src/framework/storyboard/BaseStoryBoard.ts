@@ -232,7 +232,7 @@ export abstract class BaseStoryBoard implements StoryBoard {
        this.models = this.models.filter((x) => x !== m)
     }
 
-    /** 按 modelName 获取已加入场景的模型实例（用于 prop 更新等，不要用 store.getModel 的 clone） */
+    /** 按 modelName 获取已加入场景的模型实例（用于 prop 更新等，不要用 ModelTemplateStore.createModelInstance 的克隆） */
     getModelByName(name: string): Model | undefined {
        return this.models.find((m) => m.modelName === name)
     }

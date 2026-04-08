@@ -1,5 +1,5 @@
 import {AnimationAction, AnimationClip, AnimationMixer, Box3, Mesh, MeshBasicMaterial, Object3D, Quaternion, Scene, SphereGeometry, Vector3} from "three";
-import {ModelInstanceStore} from "../ModelInstanceStore.ts";
+import { ModelTemplateStore } from '../ModelTemplateStore.ts'
 import type { PropDefinition } from "./ModelRegistry";
 
 export class Model extends Object3D{
@@ -8,7 +8,8 @@ export class Model extends Object3D{
     animationsClips?: AnimationClip[]
     updateEnable: boolean = false
     isCss3d: boolean = false
-    modelStore?: ModelInstanceStore
+    /** 克隆实例所源自的模板库（用于后续再克隆等） */
+    modelTemplateStore?: ModelTemplateStore
     actions!: Map<string, AnimationAction>
     actionMixer!: AnimationMixer
     layer: number[] = []

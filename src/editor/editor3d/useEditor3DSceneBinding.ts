@@ -148,7 +148,7 @@ export function useEditor3DSceneBinding(options: UseEditor3DSceneBindingOptions)
       rotation: [Number(rawRotation[0]) || 0, Number(rawRotation[1]) || 0, Number(rawRotation[2]) || 0]
     })
 
-    loader.getStore().addModel(modelName, model as unknown as Model)
+    loader.getTemplateStore().addModel(modelName, model as unknown as Model)
     if (model instanceof ModelLoadable) {
       loader.load(model as unknown as Model)
       return
@@ -227,9 +227,9 @@ export function useEditor3DSceneBinding(options: UseEditor3DSceneBindingOptions)
 
     const sb = options.storyboardRef.value
     if (!sb) return
-    for (const [name] of loader.getStore().getModels().entries()) {
+    for (const [name] of loader.getTemplateStore().getTemplateMap().entries()) {
       if (options.addedModelNames.has(name)) continue
-      const inst = loader.getStore().getModel(name)
+      const inst = loader.getTemplateStore().createModelInstance(name)
       if (!inst || !inst.scene) continue
       const tf = options.pendingTransforms.get(name)
       if (tf) {

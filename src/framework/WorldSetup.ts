@@ -15,7 +15,7 @@ const onLoadModels = () => {
 }
 
 const registerModel = (loader: Loader, m: Model) => {
-    loader.getStore().addModel(m.modelName, m)
+    loader.getTemplateStore().addModel(m.modelName, m)
 }
 
 const initResources = () => {

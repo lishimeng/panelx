@@ -53,7 +53,7 @@ const containerRef = ref<HTMLElement | null>(null)
 const containerId = computed(() => `panelx-3d-framework-${Math.random().toString(36).slice(2, 10)}`)
 let worldInstance: World | null = null
 let resizeObserver: ResizeObserver | null = null
-/** ??????storyboard ???????????????store.getModel ?? clone ??????????????????????????????????*/
+/** 运行时 id → 已入场景的 Model；由 Loader 登记库经 createModelInstance 克隆后加入 storyboard */
 let runtimeSceneModelsById: Map<string, Model> | null = null
 let runtimeStoryBoard: ControlsStoryBoard | null = null
 /** starField ??? rAF ????????????? cancel */
@@ -420,7 +420,7 @@ onMounted(() => {
         camera.layers.enable(LayerDef.default)
       }
 
-      const store = loader.getStore()
+      const store = loader.getTemplateStore()
       const sceneModelsById = new Map<string, Model>()
       runtimeSceneModelsById = sceneModelsById
       const runtimeModels = useWidgets3DRuntime
@@ -439,7 +439,7 @@ onMounted(() => {
       }
       for (const item of runtimeModels) {
         if (item.visible === false) continue
-        const model = store.getModel(item.id)
+        const model = store.createModelInstance(item.id)
         if (model?.scene) {
           if (useWidgets3DRuntime) {
             const tf = widgetTransformMap.get(item.id)

@@ -1,7 +1,7 @@
 import { type GLTF, GLTFLoader } from 'three/examples/jsm/Addons.js'
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js'
 import { LoadingManager, Mesh, Object3D, Scene, Texture, TextureLoader } from 'three'
-import { ModelInstanceStore } from './ModelInstanceStore.ts'
+import { ModelTemplateStore } from './ModelTemplateStore.ts'
 import { ModelLoadable } from './model/ModelLoadable.ts'
 import type { Model } from './model/Model.ts'
 
@@ -60,11 +60,11 @@ export class Loader {
 
     afterLoadComplete: () => void
 
-    private readonly modelStore: ModelInstanceStore
+    private readonly modelTemplateStore: ModelTemplateStore
 
     constructor(onCompleted: () => void) {
         this.afterLoadComplete = onCompleted
-        this.modelStore = new ModelInstanceStore()
+        this.modelTemplateStore = new ModelTemplateStore()
         this.manager = new LoadingManager()
 
         this.manager.onStart = (source: string, loaded: number, total: number) => {
@@ -88,8 +88,8 @@ export class Loader {
         this.textureLoader = new TextureLoader(this.manager)
     }
 
-    getStore(): ModelInstanceStore {
-        return this.modelStore
+    getTemplateStore(): ModelTemplateStore {
+        return this.modelTemplateStore
     }
 
     load(m: Model):boolean {
@@ -118,7 +118,7 @@ export class Loader {
                 case 'texture':
                 console.log('load texture', model.source)
                 this.loadTexture(model.source, (obj: Texture) => {
-                    this.getStore().addTexture(model.modelName, obj)
+                    this.getTemplateStore().addTexture(model.modelName, obj)
                 })
                 break
             }
@@ -127,7 +127,7 @@ export class Loader {
     }
 
     loadModels() {
-        let res = this.modelStore.getModels()
+        let res = this.modelTemplateStore.getTemplateMap()
         let hasLoadable = false
 
         for (const [name, model] of res.entries()) {

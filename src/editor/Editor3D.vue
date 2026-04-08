@@ -801,7 +801,7 @@ function renameSelectedWidgetId(nextIdRaw: string): void {
   const model = sb?.getModelByName(currentId)
   if (model) model.modelName = nextId
 
-  const storeMap = loaderRef.value?.getStore?.().getModels?.() as Map<string, Model> | undefined
+  const storeMap = loaderRef.value?.getTemplateStore?.().getTemplateMap?.() as Map<string, Model> | undefined
   if (storeMap && storeMap.has(currentId)) {
     const m = storeMap.get(currentId)!
     storeMap.delete(currentId)
@@ -1530,7 +1530,7 @@ function buildDashboardExportPayload(): DashboardConfig {
       keys: datasourceCatalog.value.map((d) => d.key)
     })
   }
-  const store = loaderRef.value?.getStore()
+  const store = loaderRef.value?.getTemplateStore()
   const payload: DashboardConfig = {
     design: { ...config.design },
     widgets2D: [],
@@ -1538,7 +1538,7 @@ function buildDashboardExportPayload(): DashboardConfig {
     widgets3D: config.widgets3D?.length
       ? (config.widgets3D as WidgetConfig3D[]).map((w) => {
           const props = { ...(w.props ? { ...w.props } : {}) } as Record<string, unknown>
-          const model = store?.getModel(w.id) as { source?: string } | undefined
+          const model = store?.createModelInstance(w.id) as { source?: string } | undefined
           if (model?.source) props.source = model.source
 
           // 将每个模型实例的“遮罩/自旋转”状态落到 props.custom，保证导入后可重现

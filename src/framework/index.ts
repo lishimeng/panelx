@@ -14,7 +14,9 @@ export { SpriteStoryBoard } from './storyboard/SpriteStoryBoard'
 export { Model } from './model/Model'
 export { ModelLoadable } from './model/ModelLoadable'
 export { SimpleModel } from './model/SimpleModel'
-export { ModelInstanceStore } from './ModelInstanceStore'
+export { ModelTemplateStore } from './ModelTemplateStore'
+/** @deprecated 使用 {@link ModelTemplateStore} */
+export { ModelTemplateStore as ModelInstanceStore } from './ModelTemplateStore'
 export { ModelRegistry, modelRegistry } from './model/ModelRegistry'
 export type { ModelTypeDefinition, ModelRegistryCreateConfig, PropDefinition } from './model/ModelRegistry'
 export {

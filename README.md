@@ -323,7 +323,7 @@ export class SomeModel extends Model {
 
 ### 5. Builtin 模型克隆一致性（Editor 与 configurable）
 
-本项目的 configurable 路径会通过 `ModelInstanceStore.getModel()` 克隆模型实例。  
+本项目的 configurable 路径会通过 `ModelTemplateStore.createModelInstance()` 从登记库母版克隆模型实例。  
 对于像 `ExpandingRingModel` 这类“内部持有 mesh/material/uniform 引用”的模型，必须保证克隆后内部引用与新 `scene` 一致，否则会出现：
 
 - Editor 中可见，但 configurable 中“实例存在却不显示/不更新”
@@ -331,10 +331,12 @@ export class SomeModel extends Model {
 
 约定如下：
 
-1. `ModelInstanceStore` 在替换克隆场景时，统一调用 `model.setScene(clonedScene)`，不要直接赋值 `model.scene = ...`。
+1. `ModelTemplateStore` 在替换克隆场景时，统一调用 `model.setScene(clonedScene)`，不要直接赋值 `model.scene = ...`。
 2. 有内部对象引用的模型需重写 `setScene(scene)`，在新场景中重新绑定关键对象（如 mesh、material、uniforms）。
 3. 避免在 `Scene3DFramework` 用 runtime 兜底“偷偷改模型参数”来掩盖此类问题；优先修复模型生命周期与克隆绑定逻辑。
-4. 排查这类问题优先检查：`store.getModel()` 克隆路径、`setScene` 是否触发、模型内部引用是否重绑。
+4. 排查这类问题优先检查：`store.createModelInstance()` 克隆路径、`setScene` 是否触发、模型内部引用是否重绑。
+
+**框架 API 重命名（模板库）**：`ModelInstanceStore` 已更名为 `ModelTemplateStore`；`Loader.getStore()` → `getTemplateStore()`；登记 Map：`getModels()` → `getTemplateMap()`。`Model.modelStore` → `model.modelTemplateStore`。从 `@lishimeng/panelx` 仍导出 `ModelInstanceStore` 作为 `ModelTemplateStore` 的类型别名（deprecated），便于外部代码渐进迁移。
 
 ## 3D 控制入口总览
 

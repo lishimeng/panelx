@@ -343,7 +343,6 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, watch, onMounted, onUnmounted } from 'vue'
-import { useRouter } from 'vue-router'
 import type { DashboardConfig, WidgetConfig2D } from '../types/dashboard'
 import type { EditorConfig, RegisteredWidgetDef } from '../types/editor'
 import { isDebugEnabled, setDebugFromConfig } from '../utils/logManager'
@@ -367,9 +366,15 @@ import { dataChainLog } from '../core/comm/dataChainLog'
 import { getEditor2DConfigExtension, mergeEditor2DConfig } from './editor2dConfigRegistration'
 import { editorBuiltinConfig } from './editor-config'
 
-const router = useRouter()
-
 const PREVIEW_STORAGE_KEY = 'PanelX_EDITOR_PREVIEW_CONFIG'
+
+/** 与 examples 路由 `/configurable` 对齐；不依赖 vue-router，便于类库嵌入其它宿主 */
+function configurablePreviewUrl(): string {
+  if (typeof window === 'undefined') return '/configurable?source=local'
+  const base = typeof import.meta !== 'undefined' && import.meta.env?.BASE_URL != null ? String(import.meta.env.BASE_URL) : '/'
+  const root = `${window.location.origin}${base.endsWith('/') ? base : `${base}/`}`
+  return new URL('configurable?source=local', root).href
+}
 
 const DESIGN = { width: 1920, height: 1080 }
 
@@ -1273,8 +1278,7 @@ function previewDashboard() {
     // ignore
   }
   showMergeToastFromStats()
-  const href = router.resolve({ name: 'configurable', query: { source: 'local' } }).href
-  window.open(href, '_blank', 'noopener')
+  window.open(configurablePreviewUrl(), '_blank', 'noopener')
 }
 
 function cloneDashboardDeep<T>(v: T): T {
