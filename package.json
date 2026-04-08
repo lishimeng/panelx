@@ -1,6 +1,6 @@
 {
   "name": "@lishimeng/panelx",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Panel X SDK - 3D Visualization Dashboard Components",
   "packageManager": "pnpm@9.15.0",
   "type": "module",

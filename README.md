@@ -13,6 +13,29 @@ pnpm dev
 pnpm build
 ```
 
+## 发布到 npm
+
+日常依赖与脚本仍使用 **pnpm**；发版前请先完成 **`pnpm run build:lib`**，再执行发布。
+
+若本机或项目 **`.npmrc`** 里把 `registry` 配成了**镜像**（例如 npmmirror / 企业内网源，仅用于加速 `install`），则 **`publish` 不应走该镜像**：镜像往往不支持写操作，或不应把公共包推到镜像。发布时请在命令上**显式指定目标 registry**：
+
+```bash
+pnpm run build:lib
+pnpm publish --access public --registry https://registry.npmjs.org/
+```
+
+使用 npm 客户端时同理：
+
+```bash
+npm publish --registry=https://registry.npmjs.org/
+```
+
+说明：
+
+- 发布到 **npm 官方**时，registry 固定为 **`https://registry.npmjs.org/`**（注意末尾无多余路径）。
+- 若目标是**私有 registry**，将上述 URL 换成贵司地址即可。
+- 首次发布或换源后需先登录对应源，例如：`npm login --registry=https://registry.npmjs.org/`
+
 ## 前置规则（后续所有代码编写须遵守）
 
 - **设计稿尺寸（px）**：凡用于「设计坐标 ↔ 屏幕/容器实际像素」换算的基准尺寸，在配置里**使用 px**（见下节 **Dashboard 尺寸与坐标系**）。不要把业务样式里的随意数值写成 px（见下一条）。
