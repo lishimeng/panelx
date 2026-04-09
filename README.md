@@ -21,6 +21,13 @@ pnpm build
 
 ```bash
 pnpm run build:lib
+# 测试打包正常?
+pnpm pack
+# 登录(必须先登录)
+pnpm login --registry https://registry.npmjs.org/
+# 检测登录成功(可选,尽量做一次)
+pnpm whoami --registry https://registry.npmjs.org/
+# 发布(尽量不要有git未提交,已用新的version打包)
 pnpm publish --access public --registry https://registry.npmjs.org/
 ```
 
